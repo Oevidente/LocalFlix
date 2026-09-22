@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-22T17:57:46.951Z",
+  "updatedAt": "2026-09-22T19:31:04.648Z",
   "settings": {
     "preferredAudioLanguage": "por",
     "preferredSubtitleLanguage": "por",
@@ -660,10 +660,10 @@
                 }
               ],
               "watched": false,
-              "progressSeconds": 10,
-              "lastWatchedAt": "2026-09-22T17:56:23.466Z",
-              "selectedAudioIndex": 1,
-              "selectedSubtitleIndex": 0
+              "progressSeconds": 501,
+              "lastWatchedAt": "2026-09-22T19:27:11.701Z",
+              "selectedAudioIndex": 0,
+              "selectedSubtitleIndex": -1
             },
             {
               "id": "ep_s2e2_f6bfa907a3a6",
@@ -2620,9 +2620,9 @@
         }
       ],
       "createdAt": "2026-09-22T16:05:31.195Z",
-      "updatedAt": "2026-09-22T17:56:23.466Z",
+      "updatedAt": "2026-09-22T19:27:11.701Z",
       "lastWatchedEpisodeId": "ep_s2e1_cafe97ea8e64",
-      "lastWatchedAt": "2026-09-22T17:56:23.466Z"
+      "lastWatchedAt": "2026-09-22T19:27:11.701Z"
     },
     {
       "id": "media_983358608e93d241",
@@ -2646,7 +2646,7 @@
               "filePath": "J:\\Batman Knightfall Part 1 Knightfall\\Batman Knightfall Part 1 Knightfall 2026 1080p MA WEB-DL DDP5 1 H 264-BYNDR.mkv",
               "extension": ".mkv",
               "sizeBytes": 5059293514,
-              "durationSeconds": 4716.998999999917,
+              "durationSeconds": 4717.084333333255,
               "videoCodec": "h264",
               "pixFmt": "yuv420p",
               "resolution": "1920x1080",
@@ -2759,8 +2759,8 @@
                 }
               ],
               "watched": false,
-              "progressSeconds": 92,
-              "lastWatchedAt": "2026-09-22T17:23:23.684Z",
+              "progressSeconds": 2143,
+              "lastWatchedAt": "2026-09-22T19:31:04.648Z",
               "selectedAudioIndex": 0,
               "selectedSubtitleIndex": 10
             }
@@ -2768,9 +2768,9 @@
         }
       ],
       "createdAt": "2026-09-22T16:05:13.423Z",
-      "updatedAt": "2026-09-22T17:23:23.684Z",
+      "updatedAt": "2026-09-22T19:31:04.648Z",
       "lastWatchedEpisodeId": "ep_s1e1_15d5b7587483",
-      "lastWatchedAt": "2026-09-22T17:23:23.684Z"
+      "lastWatchedAt": "2026-09-22T19:31:04.648Z"
     },
     {
       "id": "media_91b5572d75c30790",
@@ -2881,404 +2881,18 @@
                 }
               ],
               "watched": false,
-              "progressSeconds": 1,
+              "progressSeconds": 0,
               "selectedAudioIndex": 0,
               "selectedSubtitleIndex": -1,
-              "lastWatchedAt": "2026-09-22T17:34:41.625Z"
+              "lastWatchedAt": "2026-09-22T19:29:32.904Z"
             }
           ]
         }
       ],
       "createdAt": "2026-09-22T16:05:21.314Z",
-      "updatedAt": "2026-09-22T17:34:41.625Z",
+      "updatedAt": "2026-09-22T19:29:32.904Z",
       "lastWatchedEpisodeId": "ep_s1e1_fe1399a13c29",
-      "lastWatchedAt": "2026-09-22T17:34:41.625Z"
-    },
-    {
-      "id": "media_a07fa4cff10186af",
-      "title": "Pluribus",
-      "kind": "series",
-      "folderPath": "E:\\Pluribus",
-      "totalEpisodes": 6,
-      "totalSeasons": 1,
-      "seasons": [
-        {
-          "seasonNumber": 1,
-          "title": "Temporada 1",
-          "episodes": [
-            {
-              "id": "ep_s1e4_23cb21fc3ffb",
-              "seasonNumber": 1,
-              "episodeNumber": 4,
-              "title": "DUAL 5 1-SF",
-              "fileName": "Pluribus.S01E04.WEB-DL.1080p.x264.DUAL.5.1-SF.mkv",
-              "filePath": "E:\\Pluribus\\Pluribus.S01E04.WEB-DL.1080p.x264.DUAL.5.1-SF.mkv",
-              "extension": ".mkv",
-              "sizeBytes": 1842646078,
-              "durationSeconds": 2804.2409999999995,
-              "videoCodec": "h264",
-              "pixFmt": "yuv420p",
-              "resolution": "1920x800",
-              "audioTracks": [
-                {
-                  "index": 0,
-                  "streamIndex": 1,
-                  "codec": "eac3",
-                  "language": "por",
-                  "title": "PT-BR 5.1 (POR)",
-                  "channels": 6
-                },
-                {
-                  "index": 1,
-                  "streamIndex": 2,
-                  "codec": "eac3",
-                  "language": "eng",
-                  "title": "INGLÊS 5.1 (ENG)",
-                  "channels": 6
-                }
-              ],
-              "subtitleTracks": [
-                {
-                  "index": 0,
-                  "streamIndex": 3,
-                  "codec": "subrip",
-                  "language": "por",
-                  "title": "PT-BR FULL (POR)",
-                  "isExternal": false
-                },
-                {
-                  "index": 1,
-                  "streamIndex": 4,
-                  "codec": "subrip",
-                  "language": "por",
-                  "title": "PT-BR FORCED (POR)",
-                  "isExternal": false
-                },
-                {
-                  "index": 2,
-                  "streamIndex": 5,
-                  "codec": "subrip",
-                  "language": "eng",
-                  "title": "Inglês (ENG)",
-                  "isExternal": false
-                }
-              ],
-              "watched": false,
-              "progressSeconds": 4,
-              "selectedAudioIndex": 1,
-              "selectedSubtitleIndex": 0,
-              "lastWatchedAt": "2026-09-22T17:57:46.951Z"
-            },
-            {
-              "id": "ep_s1e5_6bd0a33ac733",
-              "seasonNumber": 1,
-              "episodeNumber": 5,
-              "title": "DUAL 5 1-SF",
-              "fileName": "Pluribus.S01E05.WEB-DL.1080p.x264.DUAL.5.1-SF.mkv",
-              "filePath": "E:\\Pluribus\\Pluribus.S01E05.WEB-DL.1080p.x264.DUAL.5.1-SF.mkv",
-              "extension": ".mkv",
-              "sizeBytes": 1037417108,
-              "durationSeconds": 2843,
-              "videoCodec": "h264",
-              "pixFmt": "yuv420p",
-              "resolution": "1920x800",
-              "audioTracks": [
-                {
-                  "index": 0,
-                  "streamIndex": 1,
-                  "codec": "eac3",
-                  "language": "por",
-                  "title": "PT-BR 5.1 (POR)",
-                  "channels": 6
-                },
-                {
-                  "index": 1,
-                  "streamIndex": 2,
-                  "codec": "eac3",
-                  "language": "eng",
-                  "title": "INGLÊS 5.1 (ENG)",
-                  "channels": 6
-                }
-              ],
-              "subtitleTracks": [
-                {
-                  "index": 0,
-                  "streamIndex": 3,
-                  "codec": "subrip",
-                  "language": "por",
-                  "title": "PT-BR FULL (POR)",
-                  "isExternal": false
-                },
-                {
-                  "index": 1,
-                  "streamIndex": 4,
-                  "codec": "subrip",
-                  "language": "por",
-                  "title": "PT-BR FORCED (POR)",
-                  "isExternal": false
-                },
-                {
-                  "index": 2,
-                  "streamIndex": 5,
-                  "codec": "subrip",
-                  "language": "eng",
-                  "title": "Inglês (ENG)",
-                  "isExternal": false
-                }
-              ],
-              "watched": true,
-              "progressSeconds": 2843
-            },
-            {
-              "id": "ep_s1e6_febbc9777156",
-              "seasonNumber": 1,
-              "episodeNumber": 6,
-              "title": "DUAL 5 1-SF",
-              "fileName": "Pluribus.S01E06.WEB-DL.1080p.x264.DUAL.5.1-SF.mkv",
-              "filePath": "E:\\Pluribus\\Pluribus.S01E06.WEB-DL.1080p.x264.DUAL.5.1-SF.mkv",
-              "extension": ".mkv",
-              "sizeBytes": 2160505657,
-              "durationSeconds": 3042,
-              "videoCodec": "h264",
-              "pixFmt": "yuv420p",
-              "resolution": "1920x800",
-              "audioTracks": [
-                {
-                  "index": 0,
-                  "streamIndex": 1,
-                  "codec": "eac3",
-                  "language": "por",
-                  "title": "PT-BR 5.1 (POR)",
-                  "channels": 6
-                },
-                {
-                  "index": 1,
-                  "streamIndex": 2,
-                  "codec": "eac3",
-                  "language": "eng",
-                  "title": "INGLÊS 5.1 (ENG)",
-                  "channels": 6
-                }
-              ],
-              "subtitleTracks": [
-                {
-                  "index": 0,
-                  "streamIndex": 3,
-                  "codec": "subrip",
-                  "language": "por",
-                  "title": "PT-BR FULL (POR)",
-                  "isExternal": false
-                },
-                {
-                  "index": 1,
-                  "streamIndex": 4,
-                  "codec": "subrip",
-                  "language": "por",
-                  "title": "PT-BR FORCED (POR)",
-                  "isExternal": false
-                },
-                {
-                  "index": 2,
-                  "streamIndex": 5,
-                  "codec": "subrip",
-                  "language": "eng",
-                  "title": "English [CC] (ENG)",
-                  "isExternal": false
-                }
-              ],
-              "watched": true,
-              "progressSeconds": 3042
-            },
-            {
-              "id": "ep_s1e7_c0a878e4f1ec",
-              "seasonNumber": 1,
-              "episodeNumber": 7,
-              "title": "DUAL 5 1-SF",
-              "fileName": "Pluribus.S01E07.WEB-DL.1080p.x264.DUAL.5.1-SF.mkv",
-              "filePath": "E:\\Pluribus\\Pluribus.S01E07.WEB-DL.1080p.x264.DUAL.5.1-SF.mkv",
-              "extension": ".mkv",
-              "sizeBytes": 410845184,
-              "durationSeconds": 2823,
-              "videoCodec": "h264",
-              "pixFmt": "yuv420p",
-              "resolution": "1920x800",
-              "audioTracks": [
-                {
-                  "index": 0,
-                  "streamIndex": 1,
-                  "codec": "eac3",
-                  "language": "por",
-                  "title": "PT-BR 5.1 (POR)",
-                  "channels": 6
-                },
-                {
-                  "index": 1,
-                  "streamIndex": 2,
-                  "codec": "eac3",
-                  "language": "eng",
-                  "title": "INGLÊS 5.1 (ENG)",
-                  "channels": 6
-                }
-              ],
-              "subtitleTracks": [
-                {
-                  "index": 0,
-                  "streamIndex": 3,
-                  "codec": "subrip",
-                  "language": "por",
-                  "title": "PT-BR FULL (POR)",
-                  "isExternal": false
-                },
-                {
-                  "index": 1,
-                  "streamIndex": 4,
-                  "codec": "subrip",
-                  "language": "por",
-                  "title": "PT-BR FORCED (POR)",
-                  "isExternal": false
-                },
-                {
-                  "index": 2,
-                  "streamIndex": 5,
-                  "codec": "subrip",
-                  "language": "eng",
-                  "title": "Inglês (ENG)",
-                  "isExternal": false
-                }
-              ],
-              "watched": true,
-              "progressSeconds": 2823
-            },
-            {
-              "id": "ep_s1e8_be092ce86839",
-              "seasonNumber": 1,
-              "episodeNumber": 8,
-              "title": "DUAL 5 1-SF",
-              "fileName": "Pluribus.S01E08.WEB-DL.1080p.x264.DUAL.5.1-SF.mkv",
-              "filePath": "E:\\Pluribus\\Pluribus.S01E08.WEB-DL.1080p.x264.DUAL.5.1-SF.mkv",
-              "extension": ".mkv",
-              "sizeBytes": 886926562,
-              "durationSeconds": 2659.014333333335,
-              "videoCodec": "h264",
-              "pixFmt": "yuv420p",
-              "resolution": "1920x800",
-              "audioTracks": [
-                {
-                  "index": 0,
-                  "streamIndex": 1,
-                  "codec": "eac3",
-                  "language": "por",
-                  "title": "PT-BR 5.1 (POR)",
-                  "channels": 6
-                },
-                {
-                  "index": 1,
-                  "streamIndex": 2,
-                  "codec": "eac3",
-                  "language": "eng",
-                  "title": "INGLÊS 5.1 (ENG)",
-                  "channels": 6
-                }
-              ],
-              "subtitleTracks": [
-                {
-                  "index": 0,
-                  "streamIndex": 3,
-                  "codec": "subrip",
-                  "language": "por",
-                  "title": "PT-BR FULL (POR)",
-                  "isExternal": false
-                },
-                {
-                  "index": 1,
-                  "streamIndex": 4,
-                  "codec": "subrip",
-                  "language": "por",
-                  "title": "PT-BR FORCED (POR)",
-                  "isExternal": false
-                },
-                {
-                  "index": 2,
-                  "streamIndex": 5,
-                  "codec": "subrip",
-                  "language": "eng",
-                  "title": "Inglês (ENG)",
-                  "isExternal": false
-                }
-              ],
-              "watched": false,
-              "progressSeconds": 18,
-              "selectedAudioIndex": 0,
-              "selectedSubtitleIndex": -1,
-              "lastWatchedAt": "2026-09-22T17:28:53.678Z"
-            },
-            {
-              "id": "ep_s1e9_26e9a79d4f77",
-              "seasonNumber": 1,
-              "episodeNumber": 9,
-              "title": "DUAL 5 1-SF",
-              "fileName": "Pluribus.S01E09.WEB-DL.1080p.x264.DUAL.5.1-SF.mkv",
-              "filePath": "E:\\Pluribus\\Pluribus.S01E09.WEB-DL.1080p.x264.DUAL.5.1-SF.mkv",
-              "extension": ".mkv",
-              "sizeBytes": 1297764168,
-              "durationSeconds": 3516,
-              "videoCodec": "h264",
-              "pixFmt": "yuv420p",
-              "resolution": "1920x800",
-              "audioTracks": [
-                {
-                  "index": 0,
-                  "streamIndex": 1,
-                  "codec": "eac3",
-                  "language": "por",
-                  "title": "PT-BR 5.1 (POR)",
-                  "channels": 6
-                },
-                {
-                  "index": 1,
-                  "streamIndex": 2,
-                  "codec": "eac3",
-                  "language": "eng",
-                  "title": "INGLÊS 5.1 (ENG)",
-                  "channels": 6
-                }
-              ],
-              "subtitleTracks": [
-                {
-                  "index": 0,
-                  "streamIndex": 3,
-                  "codec": "subrip",
-                  "language": "por",
-                  "title": "PT-BR FULL (POR)",
-                  "isExternal": false
-                },
-                {
-                  "index": 1,
-                  "streamIndex": 4,
-                  "codec": "subrip",
-                  "language": "por",
-                  "title": "PT-BR FORCED (POR)",
-                  "isExternal": false
-                },
-                {
-                  "index": 2,
-                  "streamIndex": 5,
-                  "codec": "subrip",
-                  "language": "eng",
-                  "title": "Inglês (ENG)",
-                  "isExternal": false
-                }
-              ],
-              "watched": false,
-              "progressSeconds": 0
-            }
-          ]
-        }
-      ],
-      "createdAt": "2026-09-22T16:39:24.131Z",
-      "updatedAt": "2026-09-22T17:57:46.951Z",
-      "lastWatchedEpisodeId": "ep_s1e4_23cb21fc3ffb",
-      "lastWatchedAt": "2026-09-22T17:57:46.951Z"
+      "lastWatchedAt": "2026-09-22T19:29:32.904Z"
     }
   ]
 }

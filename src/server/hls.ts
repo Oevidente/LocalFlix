@@ -9,6 +9,7 @@ interface HlsSession {
   mediaId: string;
   episodeId: string;
   audioIndex: number;
+  startSeconds: number;
   transcoded: boolean;
   sessionDir: string;
   manifestPath: string;
@@ -65,10 +66,11 @@ export function findActiveSession(
   mediaId: string,
   episodeId: string,
   audioTrackIndex?: number,
-  transcoded = false
+  transcoded = false,
+  startSeconds = 0
 ): HlsSession | undefined {
   if (audioTrackIndex !== undefined) {
-    const key = `${mediaId}_${episodeId}_a${audioTrackIndex}${transcoded ? '_t' : ''}`;
+    const key = `${mediaId}_${episodeId}_a${audioTrackIndex}_s${Math.floor(startSeconds)}${transcoded ? '_t' : ''}`;
     const s = activeSessions.get(key);
     if (s) {
       s.lastAccess = Date.now();
@@ -86,7 +88,8 @@ export function findActiveSession(
     if (
       session.mediaId === mediaId &&
       session.episodeId === episodeId &&
-      session.transcoded === transcoded
+      session.transcoded === transcoded &&
+      Math.floor(session.startSeconds) === Math.floor(startSeconds)
     ) {
       session.lastAccess = Date.now();
       return session;
@@ -101,7 +104,8 @@ function spawnFfmpegHls(
   manifestPath: string,
   sessionDir: string,
   audioStreamIndex: number | undefined,
-  canCopy: boolean
+  canCopy: boolean,
+  startSeconds = 0
 ): ChildProcess {
   const args: string[] = [
     // This is a local file, not a live input. `nobuffer` disables the demuxer
@@ -110,9 +114,14 @@ function spawnFfmpegHls(
     '-err_detect', 'ignore_err',
     '-analyzeduration', '20M',
     '-probesize', '20M',
-    '-i', filePath,
-    '-map', '0:V:0?',
   ];
+
+  if (startSeconds > 0) {
+    // Seek at the input before FFmpeg starts producing HLS segments.
+    args.push('-ss', startSeconds.toString());
+  }
+
+  args.push('-i', filePath, '-map', '0:V:0?');
 
   if (audioStreamIndex !== undefined) {
     args.push('-map', `0:${audioStreamIndex}?`);
@@ -174,10 +183,11 @@ export async function getOrCreateHlsSession(
   audioStreamIndex: number | undefined,
   audioTrackIndex: number = 0,
   canDirectCopyVideo: boolean = false,
-  forceTranscode = false
+  forceTranscode = false,
+  startSeconds = 0
 ): Promise<{ sessionId: string; manifestPath: string; sessionDir: string }> {
   const transcoded = forceTranscode || !canDirectCopyVideo;
-  const sessionId = `${mediaId}_${episodeId}_a${audioTrackIndex}${transcoded ? '_t' : ''}`;
+  const sessionId = `${mediaId}_${episodeId}_a${audioTrackIndex}_s${Math.floor(startSeconds)}${transcoded ? '_t' : ''}`;
   const existing = activeSessions.get(sessionId);
 
   if (existing && fs.existsSync(existing.manifestPath)) {
@@ -225,7 +235,7 @@ export async function getOrCreateHlsSession(
 
     // Try direct copy first if eligible, otherwise transcode
     try {
-      proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, copyVideo);
+      proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, copyVideo, startSeconds);
     } catch (err: any) {
       throw new Error(`Erro ao iniciar processo FFmpeg: ${err.message}`);
     }
@@ -284,7 +294,7 @@ export async function getOrCreateHlsSession(
       exitCode = null;
 
       try {
-        proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, false);
+        proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, false, startSeconds);
         proc.on('error', (err) => {
           spawnError = err;
           console.error(`[HLS Fallback] Process error for session ${sessionId}:`, err);
@@ -329,6 +339,7 @@ export async function getOrCreateHlsSession(
       mediaId,
       episodeId,
       audioIndex: audioTrackIndex,
+      startSeconds,
       transcoded,
       sessionDir,
       manifestPath,

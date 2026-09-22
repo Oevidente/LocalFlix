@@ -387,6 +387,9 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
   const audioTrackParam = req.query.audio as string | undefined;
   const parsedAudioTrack = audioTrackParam !== undefined ? parseInt(audioTrackParam, 10) : 0;
   const audioTrackIndex = Number.isInteger(parsedAudioTrack) && parsedAudioTrack >= 0 ? parsedAudioTrack : 0;
+  const seekParam = req.query.seek as string | undefined;
+  const parsedSeek = seekParam !== undefined ? parseFloat(seekParam) : 0;
+  const seekSeconds = Number.isFinite(parsedSeek) && parsedSeek > 0 ? parsedSeek : 0;
   const castMode = req.query.cast === 'true' || req.query.cast === '1';
   const forceTranscode = castMode || req.query.transcode === 'true' || req.query.transcode === '1';
 
@@ -423,7 +426,8 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
       mediaId,
       episodeId,
       audioTrackIndex,
-      isTranscodedSession
+      isTranscodedSession,
+      seekSeconds
     );
 
     if (existingSession && fs.existsSync(existingSession.manifestPath)) {
@@ -438,7 +442,8 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
         audioStreamIndex,
         audioTrackIndex,
         canDirectCopyVideo,
-        forceTranscode
+        forceTranscode,
+        seekSeconds
       );
       sessionDir = created.sessionDir;
       manifestPath = created.manifestPath;
@@ -476,6 +481,7 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
       // HLS segment URLs. Add the audio/session selector to every segment so
       // each request resolves to the same FFmpeg session as the playlist.
       const segmentQuery = new URLSearchParams({ audio: String(audioTrackIndex) });
+      if (seekSeconds > 0) segmentQuery.set('seek', String(seekSeconds));
       if (castMode) segmentQuery.set('cast', '1');
       if (forceTranscode) segmentQuery.set('transcode', '1');
       const manifest = fs.readFileSync(targetFile, 'utf8').replace(

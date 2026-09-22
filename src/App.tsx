@@ -474,7 +474,6 @@ export default function App() {
       {/* Video Player Modal */}
       {playingState && (
         <VideoPlayer
-          key={`${playingState.media.id}-${playingState.episode.id}`}
           media={playingState.media}
           episode={playingState.episode}
           onClose={() => {
