@@ -33,7 +33,7 @@ async function startServer() {
       server: {
         middlewareMode: true,
         watch: {
-          ignored: ['**/data/**', '**/data/library.json', '**/.git/**'],
+          ignored: ['**/data/**', '**/data/library.json', '**/.git/**', '**/cinelocal_hls/**', '**/tmp/**', '**/*.ts', '**/*.m3u8'],
         },
       },
       appType: 'spa',

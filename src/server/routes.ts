@@ -458,18 +458,19 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
       return;
     }
 
-    const stat = fs.statSync(targetFile);
-
     if (file.endsWith('.m3u8')) {
       res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     } else if (file.endsWith('.ts')) {
-      res.setHeader('Content-Type', 'video/MP2T');
+      res.setHeader('Content-Type', 'video/mp2t');
       res.setHeader('Cache-Control', 'public, max-age=3600');
     }
 
-    res.setHeader('Content-Length', stat.size);
-    fs.createReadStream(targetFile).pipe(res);
+    res.sendFile(path.resolve(targetFile), { dotfiles: 'allow' }, (err) => {
+      if (err && !res.headersSent) {
+        console.warn(`[HLS Route] Failed to send ${file}:`, err.message);
+      }
+    });
   } catch (err: any) {
     console.error('[HLS Route Exception]:', err);
     if (!res.headersSent) {

@@ -18,11 +18,14 @@ interface HlsSession {
 }
 
 const activeSessions = new Map<string, HlsSession>();
+const inFlightSessions = new Map<string, Promise<{ sessionId: string; manifestPath: string; sessionDir: string }>>();
 
 // Root directory for HLS temporary streams
 const HLS_BASE_DIR = path.join(os.tmpdir(), 'cinelocal_hls');
 if (!fs.existsSync(HLS_BASE_DIR)) {
-  fs.mkdirSync(HLS_BASE_DIR, { recursive: true });
+  try {
+    fs.mkdirSync(HLS_BASE_DIR, { recursive: true });
+  } catch {}
 }
 
 // Cleanup inactive sessions every 5 minutes
@@ -131,7 +134,7 @@ function spawnFfmpegHls(
     '-hls_time', '4',
     '-hls_list_size', '0',
     '-hls_playlist_type', 'event',
-    '-hls_flags', 'independent_segments+temp_file',
+    '-hls_flags', 'independent_segments',
     '-hls_segment_type', 'mpegts',
     '-hls_segment_filename', path.join(sessionDir, 'segment_%04d.ts'),
     manifestPath
@@ -167,160 +170,177 @@ export async function getOrCreateHlsSession(
     };
   }
 
-  // Clean up any stale directory for this session
-  const sessionDir = path.join(HLS_BASE_DIR, sessionId);
-  if (fs.existsSync(sessionDir)) {
-    try {
-      fs.rmSync(sessionDir, { recursive: true, force: true });
-    } catch {}
-  }
-  fs.mkdirSync(sessionDir, { recursive: true });
-
-  const manifestPath = path.join(sessionDir, 'master.m3u8');
-  const { ffmpeg } = getBinaries();
-  if (!ffmpeg) {
-    throw new Error(
-      'FFmpeg não encontrado no computador. Para reproduzir arquivos MKV ou transcodificar áudio, instale o FFmpeg ou coloque o executável ffmpeg.exe na pasta "bin" do CineLocal.'
-    );
+  if (inFlightSessions.has(sessionId)) {
+    return inFlightSessions.get(sessionId)!;
   }
 
-  let proc: ChildProcess;
-  let stderrTail = '';
-  let hasExited = false;
-  let exitCode: number | null = null;
-  let spawnError: Error | null = null;
-
-  // Try direct copy first if eligible, otherwise transcode
-  try {
-    proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, canDirectCopyVideo);
-  } catch (err: any) {
-    throw new Error(`Erro ao iniciar processo FFmpeg: ${err.message}`);
-  }
-
-  proc.on('error', (err) => {
-    spawnError = err;
-    console.error(`[HLS] Process error for session ${sessionId}:`, err);
-  });
-
-  proc.stderr?.on('data', (chunk) => {
-    const text = chunk.toString();
-    stderrTail = (stderrTail + text).slice(-2000);
-    // Log relevant FFmpeg progress and warnings to console
-    const lastLine = text.trim().split('\n').pop() || '';
-    if (lastLine.includes('Opening') || lastLine.includes('Error') || lastLine.includes('corrupt') || lastLine.includes('fps=')) {
-      console.log(`[FFmpeg-HLS ${sessionId}] ${lastLine}`);
-    }
-  });
-
-  proc.on('close', (code) => {
-    hasExited = true;
-    exitCode = code;
-    console.log(`[HLS Server] FFmpeg process for ${sessionId} closed with exitCode=${code}`);
-    if (code !== 0 && code !== null && !proc.killed) {
-      console.warn(`[HLS Server Warning] FFmpeg exited with non-zero code ${code}. Stderr:\n${stderrTail.trim()}`);
-    }
-  });
-
-  // Wait for the initial manifest file to be generated
-  const startTime = Date.now();
-  let manifestReady = false;
-
-  while (Date.now() - startTime < 8000) {
-    if (spawnError) break;
-
-    if (fs.existsSync(manifestPath)) {
+  const sessionPromise = (async () => {
+    // Clean up any stale directory for this session
+    const sessionDir = path.join(HLS_BASE_DIR, sessionId);
+    if (fs.existsSync(sessionDir)) {
       try {
-        const content = fs.readFileSync(manifestPath, 'utf8');
-        if (content.includes('#EXTM3U')) {
-          manifestReady = true;
-          break;
-        }
+        fs.rmSync(sessionDir, { recursive: true, force: true });
       } catch {}
     }
-
-    if (hasExited && exitCode !== 0) {
-      break;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 150));
-  }
-
-  // If copy failed or crashed immediately, attempt fallback to ultrafast transcode
-  if ((!manifestReady || (hasExited && exitCode !== 0)) && canDirectCopyVideo && !spawnError) {
-    console.warn(`[HLS] Remux copy failed, attempting transcode fallback...`);
     try {
-      proc.kill('SIGKILL');
+      fs.mkdirSync(sessionDir, { recursive: true });
     } catch {}
 
-    stderrTail = '';
-    hasExited = false;
-    exitCode = null;
+    const manifestPath = path.join(sessionDir, 'master.m3u8');
+    const { ffmpeg } = getBinaries();
+    if (!ffmpeg) {
+      throw new Error(
+        'FFmpeg não encontrado no computador. Para reproduzir arquivos MKV ou transcodificar áudio, instale o FFmpeg ou coloque o executável ffmpeg.exe na pasta "bin" do CineLocal.'
+      );
+    }
 
+    let proc: ChildProcess;
+    let stderrTail = '';
+    let hasExited = false;
+    let exitCode: number | null = null;
+    let spawnError: Error | null = null;
+
+    // Try direct copy first if eligible, otherwise transcode
     try {
-      proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, false);
-      proc.on('error', (err) => {
-        spawnError = err;
-        console.error(`[HLS Fallback] Process error for session ${sessionId}:`, err);
-      });
-      proc.stderr?.on('data', (chunk) => {
-        stderrTail = (stderrTail + chunk.toString()).slice(-1500);
-      });
-      proc.on('close', (code) => {
-        hasExited = true;
-        exitCode = code;
-      });
+      proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, canDirectCopyVideo);
+    } catch (err: any) {
+      throw new Error(`Erro ao iniciar processo FFmpeg: ${err.message}`);
+    }
 
-      const fallbackStart = Date.now();
-      while (Date.now() - fallbackStart < 8000) {
-        if (spawnError) break;
-        if (fs.existsSync(manifestPath)) {
-          try {
-            const content = fs.readFileSync(manifestPath, 'utf8');
-            if (content.includes('#EXTM3U')) {
-              manifestReady = true;
-              break;
-            }
-          } catch {}
-        }
-        if (hasExited && exitCode !== 0) break;
-        await new Promise((resolve) => setTimeout(resolve, 150));
+    proc.on('error', (err) => {
+      spawnError = err;
+      console.error(`[HLS] Process error for session ${sessionId}:`, err);
+    });
+
+    proc.stderr?.on('data', (chunk) => {
+      const text = chunk.toString();
+      stderrTail = (stderrTail + text).slice(-2000);
+      // Log relevant FFmpeg progress and warnings to console
+      const lastLine = text.trim().split('\n').pop() || '';
+      if (lastLine.includes('Opening') || lastLine.includes('Error') || lastLine.includes('corrupt') || lastLine.includes('fps=')) {
+        console.log(`[FFmpeg-HLS ${sessionId}] ${lastLine}`);
       }
-    } catch (fallbackErr) {
-      console.error('[HLS Fallback] Failed to spawn fallback transcode:', fallbackErr);
+    });
+
+    proc.on('close', (code) => {
+      hasExited = true;
+      exitCode = code;
+      console.log(`[HLS Server] FFmpeg process for ${sessionId} closed with exitCode=${code}`);
+      if (code !== 0 && code !== null && !proc.killed) {
+        console.warn(`[HLS Server Warning] FFmpeg exited with non-zero code ${code}. Stderr:\n${stderrTail.trim()}`);
+      }
+    });
+
+    // Wait for the initial manifest file to be generated
+    const startTime = Date.now();
+    let manifestReady = false;
+
+    while (Date.now() - startTime < 8000) {
+      if (spawnError) break;
+
+      if (fs.existsSync(manifestPath)) {
+        try {
+          const content = fs.readFileSync(manifestPath, 'utf8');
+          if (content.includes('#EXTM3U')) {
+            manifestReady = true;
+            break;
+          }
+        } catch {}
+      }
+
+      if (hasExited && exitCode !== 0) {
+        break;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 150));
     }
+
+    // If copy failed or crashed immediately, attempt fallback to ultrafast transcode
+    if ((!manifestReady || (hasExited && exitCode !== 0)) && canDirectCopyVideo && !spawnError) {
+      console.warn(`[HLS] Remux copy failed, attempting transcode fallback...`);
+      try {
+        proc.kill('SIGKILL');
+      } catch {}
+
+      stderrTail = '';
+      hasExited = false;
+      exitCode = null;
+
+      try {
+        proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, false);
+        proc.on('error', (err) => {
+          spawnError = err;
+          console.error(`[HLS Fallback] Process error for session ${sessionId}:`, err);
+        });
+        proc.stderr?.on('data', (chunk) => {
+          stderrTail = (stderrTail + chunk.toString()).slice(-1500);
+        });
+        proc.on('close', (code) => {
+          hasExited = true;
+          exitCode = code;
+        });
+
+        const fallbackStart = Date.now();
+        while (Date.now() - fallbackStart < 8000) {
+          if (spawnError) break;
+          if (fs.existsSync(manifestPath)) {
+            try {
+              const content = fs.readFileSync(manifestPath, 'utf8');
+              if (content.includes('#EXTM3U')) {
+                manifestReady = true;
+                break;
+              }
+            } catch {}
+          }
+          if (hasExited && exitCode !== 0) break;
+          await new Promise((resolve) => setTimeout(resolve, 150));
+        }
+      } catch (fallbackErr) {
+        console.error('[HLS Fallback] Failed to spawn fallback transcode:', fallbackErr);
+      }
+    }
+
+    if (!fs.existsSync(manifestPath)) {
+      if (spawnError) {
+        throw new Error(`Erro ao executar o FFmpeg (${(spawnError as any).message || 'ENOENT'}). Verifique o executável do FFmpeg.`);
+      }
+      throw new Error(`Falha ao gerar o fluxo HLS: ${stderrTail.slice(-400) || 'FFmpeg encerrou sem gerar arquivo de streaming.'}`);
+    }
+
+    const session: HlsSession = {
+      sessionId,
+      mediaId,
+      episodeId,
+      audioIndex: audioTrackIndex,
+      sessionDir,
+      manifestPath,
+      process: proc,
+      createdAt: Date.now(),
+      lastAccess: Date.now(),
+      isComplete: hasExited && exitCode === 0,
+    };
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        session.isComplete = true;
+      }
+    });
+
+    activeSessions.set(sessionId, session);
+
+    return {
+      sessionId,
+      manifestPath,
+      sessionDir,
+    };
+  })();
+
+  inFlightSessions.set(sessionId, sessionPromise);
+
+  try {
+    const res = await sessionPromise;
+    return res;
+  } finally {
+    inFlightSessions.delete(sessionId);
   }
-
-  if (!fs.existsSync(manifestPath)) {
-    if (spawnError) {
-      throw new Error(`Erro ao executar o FFmpeg (${(spawnError as any).message || 'ENOENT'}). Verifique o executável do FFmpeg.`);
-    }
-    throw new Error(`Falha ao gerar o fluxo HLS: ${stderrTail.slice(-400) || 'FFmpeg encerrou sem gerar arquivo de streaming.'}`);
-  }
-
-  const session: HlsSession = {
-    sessionId,
-    mediaId,
-    episodeId,
-    audioIndex: audioTrackIndex,
-    sessionDir,
-    manifestPath,
-    process: proc,
-    createdAt: Date.now(),
-    lastAccess: Date.now(),
-    isComplete: hasExited && exitCode === 0,
-  };
-
-  proc.on('close', (code) => {
-    if (code === 0) {
-      session.isComplete = true;
-    }
-  });
-
-  activeSessions.set(sessionId, session);
-
-  return {
-    sessionId,
-    manifestPath,
-    sessionDir,
-  };
 }
