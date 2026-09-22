@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-22T16:08:17.199Z",
+  "updatedAt": "2026-09-22T16:27:59.439Z",
   "settings": {
     "preferredAudioLanguage": "por",
     "preferredSubtitleLanguage": "por",
@@ -243,7 +243,7 @@
               "filePath": "J:\\Ruptura\\Ruptura S02E01 WEB-DL 1080p x264 DUAL 5.1.mkv",
               "extension": ".mkv",
               "sizeBytes": 1409717595,
-              "durationSeconds": 2933,
+              "durationSeconds": 2933.7173333333344,
               "videoCodec": "h264",
               "pixFmt": "yuv420p",
               "resolution": "1918x802",
@@ -660,8 +660,8 @@
                 }
               ],
               "watched": false,
-              "progressSeconds": 3,
-              "lastWatchedAt": "2026-09-22T16:08:17.199Z",
+              "progressSeconds": 23,
+              "lastWatchedAt": "2026-09-22T16:27:59.439Z",
               "selectedAudioIndex": 0,
               "selectedSubtitleIndex": -1
             },
@@ -1051,8 +1051,10 @@
                 }
               ],
               "watched": false,
-              "progressSeconds": 0,
-              "lastWatchedAt": "2026-09-22T15:56:35.566Z"
+              "progressSeconds": 13,
+              "lastWatchedAt": "2026-09-22T16:27:45.878Z",
+              "selectedAudioIndex": 0,
+              "selectedSubtitleIndex": -1
             },
             {
               "id": "ep_s2e3_f225c7ce02a8",
@@ -2618,9 +2620,9 @@
         }
       ],
       "createdAt": "2026-09-22T16:05:31.195Z",
-      "updatedAt": "2026-09-22T16:08:17.199Z",
+      "updatedAt": "2026-09-22T16:27:59.439Z",
       "lastWatchedEpisodeId": "ep_s2e1_cafe97ea8e64",
-      "lastWatchedAt": "2026-09-22T16:08:17.199Z"
+      "lastWatchedAt": "2026-09-22T16:27:59.439Z"
     },
     {
       "id": "media_983358608e93d241",

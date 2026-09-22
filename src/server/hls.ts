@@ -9,6 +9,7 @@ interface HlsSession {
   mediaId: string;
   episodeId: string;
   audioIndex: number;
+  transcoded: boolean;
   sessionDir: string;
   manifestPath: string;
   process?: ChildProcess;
@@ -60,9 +61,14 @@ export function cleanupSession(sessionId: string) {
   }
 }
 
-export function findActiveSession(mediaId: string, episodeId: string, audioTrackIndex?: number): HlsSession | undefined {
+export function findActiveSession(
+  mediaId: string,
+  episodeId: string,
+  audioTrackIndex?: number,
+  transcoded = false
+): HlsSession | undefined {
   if (audioTrackIndex !== undefined) {
-    const key = `${mediaId}_${episodeId}_a${audioTrackIndex}`;
+    const key = `${mediaId}_${episodeId}_a${audioTrackIndex}${transcoded ? '_t' : ''}`;
     const s = activeSessions.get(key);
     if (s) {
       s.lastAccess = Date.now();
@@ -72,7 +78,11 @@ export function findActiveSession(mediaId: string, episodeId: string, audioTrack
 
   // Fallback to any active session for this media/episode
   for (const session of activeSessions.values()) {
-    if (session.mediaId === mediaId && session.episodeId === episodeId) {
+    if (
+      session.mediaId === mediaId &&
+      session.episodeId === episodeId &&
+      session.transcoded === transcoded
+    ) {
       session.lastAccess = Date.now();
       return session;
     }
@@ -89,7 +99,9 @@ function spawnFfmpegHls(
   canCopy: boolean
 ): ChildProcess {
   const args: string[] = [
-    '-fflags', '+genpts+discardcorrupt+igndts+nobuffer',
+    // This is a local file, not a live input. `nobuffer` disables the demuxer
+    // reordering/buffering that MKV/H.264 needs and can produce uneven PTS.
+    '-fflags', '+genpts+discardcorrupt+igndts',
     '-err_detect', 'ignore_err',
     '-analyzeduration', '20M',
     '-probesize', '20M',
@@ -134,7 +146,8 @@ function spawnFfmpegHls(
     '-hls_time', '4',
     '-hls_list_size', '0',
     '-hls_playlist_type', 'event',
-    '-hls_flags', 'independent_segments',
+    // Never expose a playlist/segment while FFmpeg is still writing it.
+    '-hls_flags', 'independent_segments+temp_file',
     '-hls_segment_type', 'mpegts',
     '-hls_segment_filename', path.join(sessionDir, 'segment_%04d.ts'),
     manifestPath
@@ -155,9 +168,11 @@ export async function getOrCreateHlsSession(
   filePath: string,
   audioStreamIndex: number | undefined,
   audioTrackIndex: number = 0,
-  canDirectCopyVideo: boolean = false
+  canDirectCopyVideo: boolean = false,
+  forceTranscode = false
 ): Promise<{ sessionId: string; manifestPath: string; sessionDir: string }> {
-  const sessionId = `${mediaId}_${episodeId}_a${audioTrackIndex}`;
+  const transcoded = forceTranscode || !canDirectCopyVideo;
+  const sessionId = `${mediaId}_${episodeId}_a${audioTrackIndex}${transcoded ? '_t' : ''}`;
   const existing = activeSessions.get(sessionId);
 
   if (existing && fs.existsSync(existing.manifestPath)) {
@@ -305,6 +320,7 @@ export async function getOrCreateHlsSession(
       mediaId,
       episodeId,
       audioIndex: audioTrackIndex,
+      transcoded,
       sessionDir,
       manifestPath,
       process: proc,

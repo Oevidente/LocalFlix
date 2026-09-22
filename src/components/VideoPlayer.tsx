@@ -159,9 +159,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: false,
-          maxBufferLength: 30,
-          maxMaxBufferLength: 60,
-          backBufferLength: 30,
+          // MKV sources commonly have 8–12 second GOPs. Keep more media
+          // queued so a slow disk/FFmpeg segment does not reach the playhead.
+          maxBufferLength: 60,
+          maxMaxBufferLength: 120,
+          backBufferLength: 60,
           nudgeOffset: 0.1,
           nudgeMaxRetry: 5,
           manifestLoadingTimeOut: 25000,
@@ -200,7 +202,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         });
 
         let networkErrorCount = 0;
+        let lastStallRecovery = 0;
         hls.on(Hls.Events.ERROR, async (_event, data) => {
+          if (!data.fatal && data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+            // A segment can still be completing on disk when Hls.js reaches
+            // the current buffer edge. Ask the loader to continue from the
+            // current position without seeking the video or changing speed.
+            const now = Date.now();
+            if (now - lastStallRecovery > 1500) {
+              lastStallRecovery = now;
+              hls.startLoad(video.currentTime);
+            }
+            return;
+          }
+
           if (data.fatal) {
             console.error('[CineLocal HLS Erro Fatal]', data.type, data.details, data);
             switch (data.type) {

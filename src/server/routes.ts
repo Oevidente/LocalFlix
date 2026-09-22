@@ -408,12 +408,20 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
   const isH264 = !!(episode.videoCodec?.toLowerCase().includes('264') || episode.videoCodec?.toLowerCase().includes('avc'));
   const is10BitOrHighColor = !!(episode.pixFmt && (episode.pixFmt.includes('10') || episode.pixFmt.includes('444') || episode.pixFmt.includes('422')));
   const canDirectCopyVideo = Boolean(!forceTranscode && isH264 && !is10BitOrHighColor);
+  // Keep direct-copy and transcode sessions separate. Otherwise a recovery
+  // request with `transcode=1` can accidentally reuse the broken copy session.
+  const isTranscodedSession = forceTranscode || !canDirectCopyVideo;
 
   try {
     let sessionDir: string;
     let manifestPath: string;
 
-    const existingSession = findActiveSession(mediaId, episodeId, audioTrackParam !== undefined ? audioTrackIndex : undefined);
+    const existingSession = findActiveSession(
+      mediaId,
+      episodeId,
+      audioTrackParam !== undefined ? audioTrackIndex : undefined,
+      isTranscodedSession
+    );
 
     if (existingSession && fs.existsSync(existingSession.manifestPath)) {
       existingSession.lastAccess = Date.now();
@@ -426,7 +434,8 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
         filePath,
         audioStreamIndex,
         audioTrackIndex,
-        canDirectCopyVideo
+        canDirectCopyVideo,
+        forceTranscode
       );
       sessionDir = created.sessionDir;
       manifestPath = created.manifestPath;
@@ -459,8 +468,17 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
       res.setHeader('Cache-Control', 'public, max-age=3600');
     }
 
-    res.sendFile(path.resolve(targetFile), { dotfiles: 'allow' }, (err) => {
-      if (err && !res.headersSent) {
+    res.sendFile(path.resolve(targetFile), { dotfiles: 'allow' }, (err: any) => {
+      // Hls.js routinely cancels an old manifest request while switching to
+      // the refreshed playlist. That is a normal client-side abort, not a
+      // server/FFmpeg failure, so do not flood the console with false errors.
+      const clientAborted =
+        req.destroyed ||
+        res.destroyed ||
+        ['ECONNABORTED', 'ECONNRESET', 'EPIPE'].includes(err?.code) ||
+        /request aborted|connection reset/i.test(err?.message || '');
+
+      if (err && !clientAborted && !res.headersSent) {
         console.warn(`[HLS Route] Failed to send ${file}:`, err.message);
       }
     });
