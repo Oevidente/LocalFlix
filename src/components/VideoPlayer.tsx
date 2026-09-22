@@ -524,7 +524,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       const wasPlaying = !!video && !video.paused;
       const shouldUseHls = !isDirectMP4 || isForceTranscode || selectedAudioIndex > 0;
       const streamPath = shouldUseHls
-        ? `/api/media/${media.id}/episode/${episode.id}/hls/master.m3u8?audio=${selectedAudioIndex}${
+        ? `/api/media/${media.id}/episode/${episode.id}/hls/master.m3u8?audio=${selectedAudioIndex}&cast=1${
             isForceTranscode ? '&transcode=1' : ''
           }`
         : `/api/media/${media.id}/episode/${episode.id}/stream`;

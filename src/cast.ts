@@ -68,39 +68,33 @@ export function subscribeToCastAvailability(onChange: (context: any | null) => v
   };
 }
 
-function isLocalBrowserHost(hostname: string): boolean {
-  const normalized = hostname.toLowerCase();
-  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1' || normalized === '[::1]';
-}
-
 /**
- * Chromecast cannot resolve the sender's localhost. When CineLocal is opened
- * locally, ask the server for LAN addresses that the receiver can reach.
+ * Chromecast cannot resolve the sender's localhost. Ask the server for LAN
+ * addresses and, when HTTPS is enabled, use its HTTP media port so the
+ * receiver does not have to validate the local self-signed certificate.
  */
 export async function resolveCastBaseUrls(): Promise<string[]> {
-  if (!isLocalBrowserHost(window.location.hostname)) {
-    return [window.location.origin];
+  const fallback = [window.location.origin];
+
+  try {
+    const response = await fetch('/api/system/cast-info');
+    if (!response.ok) return fallback;
+
+    const data = await response.json();
+    const protocol = typeof data.protocol === 'string' ? data.protocol : '';
+    const port = Number(data.port);
+    const addresses = Array.isArray(data.addresses) ? data.addresses : [];
+
+    if (!protocol || !port) return fallback;
+
+    const urls = addresses
+      .filter((address: unknown): address is string => typeof address === 'string' && address.length > 0)
+      .map((address: string) => `${protocol}://${address}:${port}`);
+
+    return urls.length > 0 ? urls : fallback;
+  } catch {
+    return fallback;
   }
-
-  const response = await fetch('/api/system/cast-info');
-  if (!response.ok) {
-    throw new Error('Não foi possível descobrir o endereço de rede do CineLocal.');
-  }
-
-  const data = await response.json();
-  const protocol = data.protocol || window.location.protocol.replace(':', '') || 'http';
-  const port = Number(data.port) || Number(window.location.port) || 3000;
-  const addresses = Array.isArray(data.addresses) ? data.addresses : [];
-
-  const urls = addresses
-    .filter((address: unknown): address is string => typeof address === 'string' && address.length > 0)
-    .map((address: string) => `${protocol}://${address}:${port}`);
-
-  if (urls.length === 0) {
-    throw new Error('Nenhum endereço de rede local foi encontrado para o Chromecast.');
-  }
-
-  return urls;
 }
 
 export function getCastErrorMessage(error: unknown): string {

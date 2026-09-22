@@ -387,7 +387,8 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
   const audioTrackParam = req.query.audio as string | undefined;
   const parsedAudioTrack = audioTrackParam !== undefined ? parseInt(audioTrackParam, 10) : 0;
   const audioTrackIndex = Number.isInteger(parsedAudioTrack) && parsedAudioTrack >= 0 ? parsedAudioTrack : 0;
-  const forceTranscode = req.query.transcode === 'true' || req.query.transcode === '1';
+  const castMode = req.query.cast === 'true' || req.query.cast === '1';
+  const forceTranscode = castMode || req.query.transcode === 'true' || req.query.transcode === '1';
 
   const pair = findEpisode(mediaId, episodeId);
   if (!pair) {
@@ -475,6 +476,7 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
       // HLS segment URLs. Add the audio/session selector to every segment so
       // each request resolves to the same FFmpeg session as the playlist.
       const segmentQuery = new URLSearchParams({ audio: String(audioTrackIndex) });
+      if (castMode) segmentQuery.set('cast', '1');
       if (forceTranscode) segmentQuery.set('transcode', '1');
       const manifest = fs.readFileSync(targetFile, 'utf8').replace(
         /^(segment_\d+\.ts)$/gm,
@@ -777,8 +779,8 @@ apiRouter.get('/system/cast-info', (req: Request, res: Response) => {
     .map((entry) => entry.address);
 
   res.json({
-    protocol: req.protocol,
-    port: req.socket.localPort || Number(process.env.PORT) || 3000,
+    protocol: req.app.locals.castMediaProtocol || null,
+    port: Number(req.app.locals.castMediaPort) || null,
     addresses: [...new Set(addresses)],
   });
 });

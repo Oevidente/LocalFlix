@@ -219,9 +219,13 @@ export async function getOrCreateHlsSession(
     let exitCode: number | null = null;
     let spawnError: Error | null = null;
 
+    // A Cast session must always use the H.264/AAC path when transcoding is
+    // requested, even if the source video could otherwise be copied.
+    const copyVideo = canDirectCopyVideo && !forceTranscode;
+
     // Try direct copy first if eligible, otherwise transcode
     try {
-      proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, canDirectCopyVideo);
+      proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, copyVideo);
     } catch (err: any) {
       throw new Error(`Erro ao iniciar processo FFmpeg: ${err.message}`);
     }
@@ -269,7 +273,7 @@ export async function getOrCreateHlsSession(
     }
 
     // If copy failed or crashed immediately, attempt fallback to ultrafast transcode
-    if ((!manifestReady || (hasExited && exitCode !== 0)) && canDirectCopyVideo && !spawnError) {
+    if ((!manifestReady || (hasExited && exitCode !== 0)) && copyVideo && !spawnError) {
       console.warn(`[HLS] Remux copy failed, attempting transcode fallback...`);
       try {
         proc.kill('SIGKILL');

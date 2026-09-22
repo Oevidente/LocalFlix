@@ -58,4 +58,6 @@ Se você plugar o pendrive em outro computador e a letra do drive mudar:
 - Inicie um vídeo e clique no ícone de transmissão no canto inferior direito do player.
 - Para o Chromecast acessar os vídeos, permita o Node.js/CineLocal na rede **Privada** do Firewall do Windows.
 - O Chromecast recebe o fluxo diretamente do computador; não é necessário enviar os arquivos para a nuvem.
-- No celular Android, o Chrome exige que o CineLocal esteja em **HTTPS** para liberar o Google Cast pela web. O Chrome no iPhone/iPad não oferece transmissão web para Chromecast.
+- O `start.bat` cria o certificado HTTPS local e abre o site em `https://localhost:3050`.
+- Para acessar pelo Android, abra `https://IP_DO_PC:3050` e instale manualmente `certs/cinelocal.crt` como certificado CA no celular. O Chrome no iPhone/iPad não oferece transmissão web para Chromecast.
+- O Chromecast usa uma porta HTTP auxiliar para receber os segmentos HLS; MKV é convertido pelo FFmpeg para H.264/AAC em HLS MPEG-TS antes da transmissão.
