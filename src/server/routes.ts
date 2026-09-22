@@ -327,11 +327,11 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
     '-af', 'aresample=async=1000:min_hard_comp=0.100000:first_pts=0'
   );
 
-  // Fragmented MP4 flags for direct pipe streaming to MSE / HTML5 video player
+  // Fragmented MP4 flags for direct pipe streaming to HTML5 video player
   args.push(
     '-max_muxing_queue_size', '4096',
     '-avoid_negative_ts', 'make_zero',
-    '-movflags', 'frag_keyframe+empty_moov+default_base_moof+negative_cts_offsets',
+    '-movflags', 'frag_keyframe+default_base_moof+negative_cts_offsets',
     '-f', 'mp4',
     'pipe:1'
   );
