@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-22T23:05:05.395Z",
+  "updatedAt": "2026-09-22T23:06:01.875Z",
   "settings": {
     "preferredAudioLanguage": "por",
     "preferredSubtitleLanguage": "por",
@@ -2916,7 +2916,7 @@
               "filePath": "J:\\www.UIndex.org    -    Resident.Evil.2026.1080p.TELESYNC.MULTi.x264-DKS\\Resident.Evil.2026.1080p.TELESYNC.MULTi.x264-DKS.mkv",
               "extension": ".mkv",
               "sizeBytes": 5217714176,
-              "durationSeconds": 5189,
+              "durationSeconds": 5189.098,
               "videoCodec": "h264",
               "pixFmt": "yuv420p",
               "resolution": "1920x1080",
@@ -2951,18 +2951,18 @@
                 }
               ],
               "watched": false,
-              "progressSeconds": 100,
+              "progressSeconds": 156,
               "selectedAudioIndex": 0,
               "selectedSubtitleIndex": 0,
-              "lastWatchedAt": "2026-09-22T23:05:05.395Z"
+              "lastWatchedAt": "2026-09-22T23:06:01.875Z"
             }
           ]
         }
       ],
       "createdAt": "2026-09-22T22:42:52.531Z",
-      "updatedAt": "2026-09-22T23:05:05.395Z",
+      "updatedAt": "2026-09-22T23:06:01.875Z",
       "lastWatchedEpisodeId": "ep_s1e1_67e62a574442",
-      "lastWatchedAt": "2026-09-22T23:05:05.395Z"
+      "lastWatchedAt": "2026-09-22T23:06:01.875Z"
     },
     {
       "id": "media_b80327bde9b91970",
