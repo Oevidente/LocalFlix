@@ -82,6 +82,18 @@ function parseWebVtt(text: string): SubtitleCue[] {
     .sort((a, b) => a.start - b.start);
 }
 
+function getCastCustomData(media: any): Record<string, any> {
+  const customData = media?.customData;
+  if (customData && typeof customData === 'object') return customData;
+  if (typeof customData === 'string') {
+    try {
+      const parsed = JSON.parse(customData);
+      if (parsed && typeof parsed === 'object') return parsed;
+    } catch {}
+  }
+  return {};
+}
+
 type SubtitleSize = 'small' | 'medium' | 'large';
 
 const SUBTITLE_SIZE_STORAGE_KEY = 'cinelocal-subtitle-size';
@@ -429,8 +441,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const position = castCurrentTimeRef.current;
     const video = videoRef.current;
     const shouldResumeLocalPlayback = castWasPlayingRef.current;
+    const needsLocalStreamReload =
+      video &&
+      Number.isFinite(position) &&
+      position < hlsStreamOffsetRef.current - 0.5;
 
-    if (video && Number.isFinite(position) && position > 0) {
+    if (needsLocalStreamReload) {
+      // A local HLS session started after the position we are returning to
+      // cannot seek backwards into an earlier segment. Recreate it from the
+      // Chromecast position so the browser resumes at the exact same point.
+      pendingReloadPositionRef.current = Math.max(0, position);
+      resumeAfterReloadRef.current = shouldResumeLocalPlayback;
+      setCurrentTime(position);
+      setHlsReloadVersion((version) => version + 1);
+    } else if (video && Number.isFinite(position)) {
       try {
         video.currentTime = Math.max(0, position - hlsStreamOffsetRef.current);
         setCurrentTime(position);
@@ -449,10 +473,39 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setIsCasting(false);
     setCastDeviceName(null);
 
-    if (video && shouldResumeLocalPlayback) {
+    if (video && shouldResumeLocalPlayback && !needsLocalStreamReload) {
       video.play().catch(() => {});
     }
   }, []);
+
+  const disconnectCast = useCallback(async () => {
+    const context = castContextRef.current || getCastContext();
+    const session = castSessionRef.current || context?.getCurrentSession?.();
+    const remoteMedia = castMediaRef.current;
+    const estimatedTime = remoteMedia?.getEstimatedTime?.();
+
+    if (typeof estimatedTime === 'number' && Number.isFinite(estimatedTime)) {
+      castCurrentTimeRef.current = Math.max(0, castStreamOffsetRef.current + estimatedTime);
+      setCurrentTime(castCurrentTimeRef.current);
+    }
+
+    if (remoteMedia?.playerState) {
+      castWasPlayingRef.current = remoteMedia.playerState === 'PLAYING' || remoteMedia.playerState === 'BUFFERING';
+    }
+
+    restoreLocalAfterCast();
+
+    try {
+      if (typeof session?.endSession === 'function') {
+        await session.endSession(true);
+      } else if (typeof context?.endCurrentSession === 'function') {
+        await context.endCurrentSession(true);
+      }
+    } catch {
+      // Local playback has already been restored; a receiver-side disconnect
+      // failure should not leave the player locked in Cast mode.
+    }
+  }, [restoreLocalAfterCast]);
 
   // Initialize the Google Cast sender framework when the SDK becomes ready.
   useEffect(() => {
@@ -480,8 +533,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           const existingRemoteMedia = session.getMediaSession?.();
           if (existingRemoteMedia) {
             castActiveRef.current = true;
-            castStreamOffsetRef.current = Number(existingRemoteMedia.customData?.castStartSeconds) || 0;
-            castLastLoadedEpisodeIdRef.current = existingRemoteMedia.customData?.episodeId || null;
+            const customData = getCastCustomData(existingRemoteMedia);
+            const savedCastOffset = Number(customData.castStartSeconds);
+            if (Number.isFinite(savedCastOffset) && savedCastOffset >= 0) {
+              castStreamOffsetRef.current = savedCastOffset;
+            }
+            castLastLoadedEpisodeIdRef.current = customData.episodeId || null;
             setIsCasting(true);
             registerCastMedia(session);
           }
@@ -785,8 +842,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     targetEpisode: Episode = episode,
     targetAudioIndex = targetEpisode.id === episode.id ? selectedAudioIndex : targetEpisode.selectedAudioIndex ?? 0,
     requestedPosition?: number,
-    requestedAutoplay?: boolean
+    requestedAutoplay?: boolean,
+    toggleConnection = true
   ) => {
+    if (toggleConnection && (isCasting || castActiveRef.current)) {
+      await disconnectCast();
+      return;
+    }
+
     const context = castContextRef.current || getCastContext();
     if (!context) {
       const hostname = window.location.hostname.toLowerCase();
@@ -822,6 +885,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       const targetIsDirectMP4 = targetEpisode.extension === '.mp4' || targetEpisode.extension === '.webm';
       const shouldUseHls = !targetIsDirectMP4 || isForceTranscode || targetAudioIndex > 0;
       const castStartOffset = shouldUseHls ? Math.max(0, position) : 0;
+      // HLS generated for Cast starts at zero in the receiver. Keep the
+      // absolute source position available before loadMedia fires session
+      // events, so receiver updates are converted to the original timeline.
+      castStreamOffsetRef.current = castStartOffset;
+      castCurrentTimeRef.current = position;
       const streamPath = shouldUseHls
         ? `/api/media/${targetMedia.id}/episode/${targetEpisode.id}/hls/master.m3u8?audio=${targetAudioIndex}&cast=1${
             castStartOffset > 0 ? `&seek=${encodeURIComponent(castStartOffset)}` : ''
@@ -870,15 +938,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             ? selectedSubtitleIndex
             : targetEpisode.selectedSubtitleIndex ?? -1;
           const targetSubtitleOffset = (targetEpisode.id === episode.id ? subtitleOffsetSeconds : 0) - castStartOffset;
-          if (mediaApi.TrackType?.TEXT && targetEpisode.subtitleTracks.length > 0) {
+          const textTrackType = mediaApi.TrackType?.TEXT || 'TEXT';
+          if (targetEpisode.subtitleTracks.length > 0) {
             mediaInfo.tracks = targetEpisode.subtitleTracks.map((track) => {
-              const castTrack = new mediaApi.Track(track.index + 1, mediaApi.TrackType.TEXT);
+              const castTrack = new mediaApi.Track(track.index + 1, textTrackType);
               const subtitleOffsetQuery = targetSubtitleOffset !== 0
                 ? `?offset=${encodeURIComponent(targetSubtitleOffset)}`
                 : '';
               castTrack.trackContentId = `${baseUrl}/api/media/${targetMedia.id}/episode/${targetEpisode.id}/subtitles/${track.index}${subtitleOffsetQuery}`;
               castTrack.trackContentType = 'text/vtt';
-              if (mediaApi.TextTrackType?.SUBTITLES) castTrack.subtype = mediaApi.TextTrackType.SUBTITLES;
+              castTrack.subtype = mediaApi.TextTrackType?.SUBTITLES || 'SUBTITLES';
               castTrack.name = track.title || `Legenda ${track.index + 1}`;
               castTrack.language = track.language || 'pt';
               return castTrack;
@@ -897,6 +966,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           const remoteMedia = await waitForCastMediaSession(session);
           if (!remoteMedia) {
             throw new Error('O Chromecast carregou a mídia, mas a sessão de controle ainda não está disponível.');
+          }
+
+          // Some receiver versions ignore activeTrackIds from the initial
+          // LOAD when the media starts paused. Apply the selected subtitle
+          // again after the remote media session is available.
+          const activeCastTrackId = targetSubtitleIndex >= 0
+            ? mediaInfo.tracks?.[targetSubtitleIndex]?.trackId
+            : undefined;
+          if (
+            activeCastTrackId &&
+            mediaApi.EditTracksInfoRequest &&
+            typeof remoteMedia.editTracksInfo === 'function'
+          ) {
+            const editTracksRequest = new mediaApi.EditTracksInfoRequest([activeCastTrackId]);
+            await new Promise<void>((resolve) => {
+              remoteMedia.editTracksInfo(editTracksRequest, () => resolve(), () => resolve());
+            });
           }
 
           if (!shouldUseHls && position > 0 && mediaApi.SeekRequest && typeof remoteMedia.seek === 'function') {
@@ -949,7 +1035,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // a new LOAD request for the selected episode.
   useEffect(() => {
     if (!isCasting || !castSessionRef.current || castLastLoadedEpisodeIdRef.current === episode.id) return;
-    void handleCast(media, episode, episode.selectedAudioIndex ?? 0, 0, true);
+    void handleCast(media, episode, episode.selectedAudioIndex ?? 0, 0, true, false);
   }, [episode.id, isCasting, media.id]);
 
   const sendCastMediaCommand = (methodName: 'play' | 'pause' | 'seek' | 'setVolume' | 'editTracksInfo', request?: any): boolean => {
@@ -1017,7 +1103,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       selectedAudioIndexRef.current = index;
       setShowAudioSubModal(false);
       saveProgress(position, duration, false, true, index, selectedSubtitleIndex);
-      void handleCast(media, episode, index, position, isPlaying);
+      void handleCast(media, episode, index, position, isPlaying, false);
       return;
     }
 
@@ -1093,7 +1179,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         // input seek; a normal remote seek cannot reach it.
         castCurrentTimeRef.current = clampedSec;
         setCurrentTime(clampedSec);
-        void handleCast(media, episode, selectedAudioIndex, clampedSec, isPlaying);
+        void handleCast(media, episode, selectedAudioIndex, clampedSec, isPlaying, false);
         setTimeout(() => {
           isSeekingRef.current = false;
         }, 600);

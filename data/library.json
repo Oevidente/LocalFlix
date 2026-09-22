@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-22T20:10:34.760Z",
+  "updatedAt": "2026-09-22T21:02:54.330Z",
   "settings": {
     "preferredAudioLanguage": "por",
     "preferredSubtitleLanguage": "por",
@@ -2848,7 +2848,7 @@
               "filePath": "J:\\The Odyssey 2026\\The Odyssey 2026 1080p AMZN WEB-DL DDP5 1 H 264-Kitsune.mkv",
               "extension": ".mkv",
               "sizeBytes": 4673211458,
-              "durationSeconds": 5163,
+              "durationSeconds": 5165.117741863551,
               "videoCodec": "h264",
               "pixFmt": "yuv420p",
               "resolution": "1920x800",
@@ -2881,18 +2881,18 @@
                 }
               ],
               "watched": false,
-              "progressSeconds": 22,
+              "progressSeconds": 3431,
               "selectedAudioIndex": 0,
-              "selectedSubtitleIndex": 0,
-              "lastWatchedAt": "2026-09-22T20:10:34.760Z"
+              "selectedSubtitleIndex": 1,
+              "lastWatchedAt": "2026-09-22T21:02:54.330Z"
             }
           ]
         }
       ],
       "createdAt": "2026-09-22T16:05:21.314Z",
-      "updatedAt": "2026-09-22T20:10:34.760Z",
+      "updatedAt": "2026-09-22T21:02:54.330Z",
       "lastWatchedEpisodeId": "ep_s1e1_fe1399a13c29",
-      "lastWatchedAt": "2026-09-22T20:10:34.760Z"
+      "lastWatchedAt": "2026-09-22T21:02:54.330Z"
     }
   ]
 }

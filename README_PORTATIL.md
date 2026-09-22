@@ -12,6 +12,7 @@ Você pode copiar a pasta inteira do aplicativo para qualquer pendrive ou HD ext
 CineLocal/
 │
 ├── start.bat             # Clique duplo no Windows para abrir e rodar
+├── instalar dependências.bat # Instala as dependências JavaScript no Windows
 ├── start.sh              # No Linux / macOS
 │
 ├── bin/                  # Coloque aqui os executáveis portáteis (opcional se já tiver no sistema)
@@ -31,10 +32,18 @@ CineLocal/
 
 ## 🚀 Como Usar no Windows
 1. Conecte o pendrive no PC (ou abra a pasta do CineLocal).
-2. Dê um duplo clique no arquivo `start.bat`.
-3. O terminal iniciará o servidor local e seu navegador abrirá automaticamente em `https://localhost:3050`.
+2. Na primeira utilização, execute `instalar dependências.bat` com internet disponível.
+3. Depois, dê um duplo clique no arquivo `start.bat`.
+4. O terminal iniciará o servidor local e seu navegador abrirá automaticamente em `https://localhost:3050`.
 
 > **Dica de Porta**: Se quiser usar outra porta, basta editar a linha `set PORT=3050` dentro do `start.bat`.
+
+### Dependências no modo portátil
+
+- O arquivo `instalar dependências.bat` executa `npm install --include=dev` e mantém o cache do npm dentro de `.cache/npm`, no mesmo disco do CineLocal.
+- O Windows precisa ter Node.js LTS e npm disponíveis. Para um pacote totalmente portátil, inclua uma distribuição completa do Node (incluindo `node.exe` e `npm.cmd`) dentro da pasta `bin`.
+- Depois que `node_modules` for instalado, a pasta inteira pode ser copiada para o pendrive e usada sem reinstalar as dependências em cada execução.
+- O FFmpeg é separado das dependências JavaScript. Para MKV, coloque `ffmpeg.exe` e `ffprobe.exe` em `bin` ou use o instalador disponível dentro do CineLocal.
 
 ---
 

@@ -36,6 +36,28 @@ if exist "%~dp0bin" set "PATH=%~dp0bin;%PATH%"
 if exist "%~dp0ffmpeg\bin" set "PATH=%~dp0ffmpeg\bin;%PATH%"
 if exist "%~dp0ffmpeg" set "PATH=%~dp0ffmpeg;%PATH%"
 
+:: Verifica o runtime e as dependencias JavaScript antes de iniciar
+where node >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERRO] Node.js nao foi encontrado.
+    echo Execute "instalar dependências.bat" ou coloque node.exe na pasta bin.
+    pause
+    exit /b 1
+)
+where npm.cmd >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERRO] npm nao foi encontrado.
+    echo Instale o Node.js LTS ou use uma distribuicao portatil completa.
+    pause
+    exit /b 1
+)
+if not exist "%~dp0node_modules\tsx" (
+    echo [ERRO] Dependencias do CineLocal nao foram instaladas.
+    echo Execute primeiro "instalar dependências.bat".
+    pause
+    exit /b 1
+)
+
 :: Verifica se o FFmpeg esta presente
 where ffmpeg >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (

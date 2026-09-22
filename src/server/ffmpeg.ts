@@ -472,8 +472,14 @@ export function isBrowserNativeDirectPlayable(filePath: string, videoCodec?: str
 
 // Stream subtitle as WebVTT (either from internal stream via ffmpeg or external file)
 function parseWebVttTimestamp(value: string): number {
-  const [hours, minutes, seconds] = value.split(':').map(Number);
-  return (hours * 3600) + (minutes * 60) + seconds;
+  const parts = value.split(':').map(Number);
+  if (parts.length === 3) {
+    return (parts[0] * 3600) + (parts[1] * 60) + parts[2];
+  }
+  if (parts.length === 2) {
+    return (parts[0] * 60) + parts[1];
+  }
+  return Number(parts[0]) || 0;
 }
 
 function formatWebVttTimestamp(totalSeconds: number): string {
@@ -488,7 +494,7 @@ export function shiftWebVttTimestamps(content: string, offsetSeconds: number): s
   if (!Number.isFinite(offsetSeconds) || offsetSeconds === 0) return content;
 
   return content.replace(
-    /(\d{2}:\d{2}:\d{2}\.\d{3})\s+-->\s+(\d{2}:\d{2}:\d{2}\.\d{3})/g,
+    /(\d{1,3}:\d{2}(?::\d{2})?\.\d{3})\s+-->\s+(\d{1,3}:\d{2}(?::\d{2})?\.\d{3})/g,
     (_match, start, end) => `${formatWebVttTimestamp(parseWebVttTimestamp(start) + offsetSeconds)} --> ${formatWebVttTimestamp(parseWebVttTimestamp(end) + offsetSeconds)}`
   );
 }
