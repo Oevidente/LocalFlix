@@ -384,7 +384,8 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
 apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Request, res: Response) => {
   const { mediaId, episodeId, file } = req.params;
   const audioTrackParam = req.query.audio as string | undefined;
-  const audioTrackIndex = audioTrackParam !== undefined ? parseInt(audioTrackParam, 10) : 0;
+  const parsedAudioTrack = audioTrackParam !== undefined ? parseInt(audioTrackParam, 10) : 0;
+  const audioTrackIndex = Number.isInteger(parsedAudioTrack) && parsedAudioTrack >= 0 ? parsedAudioTrack : 0;
   const forceTranscode = req.query.transcode === 'true' || req.query.transcode === '1';
 
   const pair = findEpisode(mediaId, episodeId);
@@ -419,7 +420,7 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
     const existingSession = findActiveSession(
       mediaId,
       episodeId,
-      audioTrackParam !== undefined ? audioTrackIndex : undefined,
+      audioTrackIndex,
       isTranscodedSession
     );
 
@@ -466,6 +467,21 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
     } else if (file.endsWith('.ts')) {
       res.setHeader('Content-Type', 'video/mp2t');
       res.setHeader('Cache-Control', 'public, max-age=3600');
+    }
+
+    if (file === 'master.m3u8') {
+      // Query parameters from the playlist URL are not inherited by relative
+      // HLS segment URLs. Add the audio/session selector to every segment so
+      // each request resolves to the same FFmpeg session as the playlist.
+      const segmentQuery = new URLSearchParams({ audio: String(audioTrackIndex) });
+      if (forceTranscode) segmentQuery.set('transcode', '1');
+      const manifest = fs.readFileSync(targetFile, 'utf8').replace(
+        /^(segment_\d+\.ts)$/gm,
+        `$1?${segmentQuery.toString()}`
+      );
+      res.setHeader('Content-Length', Buffer.byteLength(manifest, 'utf8'));
+      res.send(manifest);
+      return;
     }
 
     res.sendFile(path.resolve(targetFile), { dotfiles: 'allow' }, (err: any) => {

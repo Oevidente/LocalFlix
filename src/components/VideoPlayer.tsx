@@ -47,6 +47,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const progressSaveTimer = useRef<any>(null);
   const saveProgressDebounceTimer = useRef<any>(null);
   const isSeekingRef = useRef<boolean>(false);
+  const pendingReloadPositionRef = useRef<number | null>(null);
+  const resumeAfterReloadRef = useRef<boolean>(true);
 
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -60,6 +62,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Audio & Subtitle Tracks
   const [selectedAudioIndex, setSelectedAudioIndex] = useState<number>(
+    episode.selectedAudioIndex !== undefined ? episode.selectedAudioIndex : 0
+  );
+  const selectedAudioIndexRef = useRef<number>(
     episode.selectedAudioIndex !== undefined ? episode.selectedAudioIndex : 0
   );
   const [selectedSubtitleIndex, setSelectedSubtitleIndex] = useState<number>(
@@ -84,7 +89,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Save progress helper (debounced to avoid thrashing server and disk)
   const saveProgress = useCallback(
-    (timeSec: number, totalDur?: number, completed?: boolean, immediate = false) => {
+    (
+      timeSec: number,
+      totalDur?: number,
+      completed?: boolean,
+      immediate = false,
+      audioIndexOverride?: number,
+      subtitleIndexOverride?: number
+    ) => {
       if (timeSec < 0 || isNaN(timeSec)) return;
 
       const performSave = () => {
@@ -94,8 +106,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           progressSeconds: Math.floor(timeSec),
           durationSeconds: totalDur || duration,
           completed: completed,
-          audioIndex: selectedAudioIndex,
-          subtitleIndex: selectedSubtitleIndex,
+          audioIndex: audioIndexOverride ?? selectedAudioIndexRef.current,
+          subtitleIndex: subtitleIndexOverride ?? selectedSubtitleIndex,
         };
 
         try {
@@ -140,8 +152,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const video = videoRef.current;
     if (!video) return;
 
+    const requestedSeek = pendingReloadPositionRef.current;
+    pendingReloadPositionRef.current = null;
     const initialSeek =
-      episode.progressSeconds > 10 && !episode.watched ? episode.progressSeconds : 0;
+      requestedSeek !== null
+        ? requestedSeek
+        : episode.progressSeconds > 10 && !episode.watched
+          ? episode.progressSeconds
+          : 0;
+    const resumePlayback = requestedSeek === null || resumeAfterReloadRef.current;
 
     if (hlsRef.current) {
       hlsRef.current.destroy();
@@ -179,14 +198,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          if (initialSeek > 0) {
+          if (initialSeek >= 0 && (initialSeek > 0 || requestedSeek !== null)) {
             try {
               video.currentTime = initialSeek;
             } catch (err) {
               console.warn('[CineLocal] Falha ao aplicar seek inicial:', err);
             }
           }
-          video.play().catch(() => {});
+          if (resumePlayback) {
+            video.play().catch(() => {});
+          }
         });
 
         hls.on(Hls.Events.LEVEL_LOADED, (_event, data) => {
@@ -259,8 +280,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = hlsUrl;
         const onLoaded = () => {
-          if (initialSeek > 0) video.currentTime = initialSeek;
-          video.play().catch(() => {});
+          if (initialSeek >= 0 && (initialSeek > 0 || requestedSeek !== null)) {
+            video.currentTime = initialSeek;
+          }
+          if (resumePlayback) {
+            video.play().catch(() => {});
+          }
         };
         video.addEventListener('loadedmetadata', onLoaded, { once: true });
       }
@@ -333,11 +358,35 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Handle switching audio tracks
   const handleSelectAudio = (index: number) => {
-    setSelectedAudioIndex(index);
-    const video = videoRef.current;
-    if (video) {
-      saveProgress(video.currentTime);
+    if (index === selectedAudioIndex) {
+      setShowAudioSubModal(false);
+      return;
     }
+
+    const video = videoRef.current;
+    const position = video && Number.isFinite(video.currentTime) ? video.currentTime : currentTime;
+    pendingReloadPositionRef.current = Math.max(0, position || 0);
+    resumeAfterReloadRef.current = !!video && !video.paused;
+    // onPause can fire synchronously below. Make that save use the newly
+    // selected track instead of racing the explicit save after setState.
+    selectedAudioIndexRef.current = index;
+
+    // Stop the old HLS pipeline before creating the new one, but keep the
+    // exact playback position for the replacement stream.
+    if (video && !video.paused) {
+      video.pause();
+    }
+
+    setSelectedAudioIndex(index);
+    setShowAudioSubModal(false);
+    saveProgress(
+      Math.max(0, position || 0),
+      duration,
+      false,
+      true,
+      index,
+      selectedSubtitleIndex
+    );
   };
 
   // Handle seeking

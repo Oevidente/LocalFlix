@@ -74,6 +74,11 @@ export function findActiveSession(
       s.lastAccess = Date.now();
       return s;
     }
+
+    // A requested audio track must never fall back to another track's
+    // session. Doing so silently locks playback to whichever audio session
+    // happened to be created first.
+    return undefined;
   }
 
   // Fallback to any active session for this media/episode
