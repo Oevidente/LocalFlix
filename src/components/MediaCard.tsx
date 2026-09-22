@@ -33,9 +33,15 @@ export const MediaCard: React.FC<MediaCardProps> = ({
     ? Math.min(100, Math.floor((activeEp.progressSeconds / activeEp.durationSeconds) * 100))
     : 0;
 
-  const posterUrl = `/api/media/${media.id}/poster`;
-  const thumbUrl = activeEp ? `/api/media/${media.id}/episode/${activeEp.id}/thumb` : posterUrl;
-  const displayImage = variant === 'backdrop' ? thumbUrl : posterUrl;
+  const posterUrl = media.posterPath?.startsWith('http')
+    ? media.posterPath
+    : `/api/media/${media.id}/poster`;
+
+  const backdropUrl = media.backdropPath
+    ? (media.backdropPath.startsWith('http') ? media.backdropPath : `/api/media/${media.id}/backdrop`)
+    : (activeEp ? `/api/media/${media.id}/episode/${activeEp.id}/thumb` : posterUrl);
+
+  const displayImage = variant === 'backdrop' ? backdropUrl : posterUrl;
 
   return (
     <div

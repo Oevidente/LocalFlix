@@ -214,3 +214,14 @@ export function relocateMediaFolder(mediaId: string, newFolderPath: string): { s
   writeLibrary(lib);
   return { success: true, message: 'Pasta relocalizada com sucesso' };
 }
+
+export function updateMediaBanner(mediaId: string, bannerUrl: string): boolean {
+  const lib = readLibrary();
+  const media = lib.items.find((i) => i.id === mediaId);
+  if (!media) return false;
+
+  media.backdropPath = bannerUrl && bannerUrl.trim() ? bannerUrl.trim() : undefined;
+  media.updatedAt = new Date().toISOString();
+  writeLibrary(lib, true);
+  return true;
+}

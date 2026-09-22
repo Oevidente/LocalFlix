@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
-import { spawn, execFile } from 'child_process';
+import { spawn, execFile, exec } from 'child_process';
 import {
   readLibrary,
   writeLibrary,
@@ -10,6 +10,7 @@ import {
   updateEpisodeProgress,
   toggleEpisodeWatched,
   relocateMediaFolder,
+  updateMediaBanner,
   getDataDir,
 } from './storage';
 import { scanMediaFolder } from './scanner';
@@ -63,6 +64,12 @@ apiRouter.post('/library/add', async (req: Request, res: Response) => {
       }
       mediaItem.lastWatchedEpisodeId = existing.lastWatchedEpisodeId;
       mediaItem.lastWatchedAt = existing.lastWatchedAt;
+      if (existing.backdropPath) {
+        mediaItem.backdropPath = existing.backdropPath;
+      }
+      if (existing.posterPath) {
+        mediaItem.posterPath = existing.posterPath;
+      }
       lib.items[existingIndex] = mediaItem;
     } else {
       lib.items.push(mediaItem);
@@ -106,6 +113,12 @@ apiRouter.post('/library/rescan/:id', async (req: Request, res: Response) => {
     }
     updatedItem.lastWatchedEpisodeId = media.lastWatchedEpisodeId;
     updatedItem.lastWatchedAt = media.lastWatchedAt;
+    if (media.backdropPath) {
+      updatedItem.backdropPath = media.backdropPath;
+    }
+    if (media.posterPath) {
+      updatedItem.posterPath = media.posterPath;
+    }
 
     lib.items[idx] = updatedItem;
     writeLibrary(lib);
@@ -389,6 +402,19 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/subtitles/:index', (req: Reque
   streamSubtitlesToVtt(pair.episode.filePath, streamIdx, res);
 });
 
+// 9.5 Update media banner image by URL
+apiRouter.post('/media/:id/banner', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { bannerUrl } = req.body;
+  const ok = updateMediaBanner(id, typeof bannerUrl === 'string' ? bannerUrl : '');
+  if (!ok) {
+    res.status(404).json({ error: 'Mídia não encontrada' });
+    return;
+  }
+  const updatedMedia = findMediaItem(id);
+  res.json({ success: true, media: updatedMedia });
+});
+
 // 10. Poster image
 apiRouter.get('/media/:mediaId/poster', (req: Request, res: Response) => {
   const { mediaId } = req.params;
@@ -398,12 +424,23 @@ apiRouter.get('/media/:mediaId/poster', (req: Request, res: Response) => {
     return;
   }
 
+  // If posterPath is a remote URL, redirect
+  if (media.posterPath && (media.posterPath.startsWith('http://') || media.posterPath.startsWith('https://'))) {
+    res.redirect(media.posterPath);
+    return;
+  }
+
   if (media.posterPath && fs.existsSync(media.posterPath)) {
     res.sendFile(media.posterPath);
     return;
   }
 
-  // Fallback: try backdrop or first episode thumbnail
+  // Fallback: try backdrop URL or file
+  if (media.backdropPath && (media.backdropPath.startsWith('http://') || media.backdropPath.startsWith('https://'))) {
+    res.redirect(media.backdropPath);
+    return;
+  }
+
   if (media.backdropPath && fs.existsSync(media.backdropPath)) {
     res.sendFile(media.backdropPath);
     return;
@@ -422,6 +459,52 @@ apiRouter.get('/media/:mediaId/poster', (req: Request, res: Response) => {
   }
 
   res.status(404).send('Poster não encontrado');
+});
+
+// 10.5 Backdrop / Banner image
+apiRouter.get(['/media/:mediaId/backdrop', '/media/:mediaId/banner'], (req: Request, res: Response) => {
+  const { mediaId } = req.params;
+  const media = findMediaItem(mediaId);
+  if (!media) {
+    res.status(404).send('Mídia não encontrada');
+    return;
+  }
+
+  // If backdropPath is a remote URL, redirect directly
+  if (media.backdropPath && (media.backdropPath.startsWith('http://') || media.backdropPath.startsWith('https://'))) {
+    res.redirect(media.backdropPath);
+    return;
+  }
+
+  if (media.backdropPath && fs.existsSync(media.backdropPath)) {
+    res.sendFile(media.backdropPath);
+    return;
+  }
+
+  // Fallback: try poster if available
+  if (media.posterPath && (media.posterPath.startsWith('http://') || media.posterPath.startsWith('https://'))) {
+    res.redirect(media.posterPath);
+    return;
+  }
+
+  if (media.posterPath && fs.existsSync(media.posterPath)) {
+    res.sendFile(media.posterPath);
+    return;
+  }
+
+  const firstEp = media.seasons[0]?.episodes[0];
+  if (firstEp && fs.existsSync(firstEp.filePath)) {
+    generateThumbnail(firstEp.filePath, 15).then((thumbPath) => {
+      if (thumbPath && fs.existsSync(thumbPath)) {
+        res.sendFile(thumbPath);
+      } else {
+        res.status(404).send('Banner não disponível');
+      }
+    });
+    return;
+  }
+
+  res.status(404).send('Banner não encontrado');
 });
 
 // 11. Episode thumbnail
@@ -532,6 +615,96 @@ apiRouter.get('/system/status', (req: Request, res: Response) => {
   };
 
   res.json(status);
+});
+
+// 13.5 Native System Explorer Folder Picker
+apiRouter.post('/system/pick-folder', (req: Request, res: Response) => {
+  const platform = process.platform;
+
+  if (platform === 'win32') {
+    // Windows: Use PowerShell Shell.Application BrowseForFolder dialog
+    const script = `
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+$app = New-Object -ComObject Shell.Application;
+$folder = $app.BrowseForFolder(0, 'Selecione a pasta onde estao seus filmes ou series:', 0, 0);
+if ($folder -and $folder.Self.Path) {
+    [Console]::Out.Write($folder.Self.Path)
+}
+`;
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
+      { timeout: 120000, encoding: 'utf-8' },
+      (error, stdout, stderr) => {
+        if (error) {
+          if ((error as any).killed) {
+            res.json({ success: false, cancelled: true, message: 'Tempo limite esgotado' });
+          } else {
+            res.json({ success: false, unsupported: true, error: error.message });
+          }
+          return;
+        }
+        const selected = (stdout || '').trim();
+        if (!selected) {
+          res.json({ success: false, cancelled: true });
+          return;
+        }
+        res.json({ success: true, folderPath: selected });
+      }
+    );
+    return;
+  }
+
+  if (platform === 'darwin') {
+    // macOS: Use AppleScript native folder chooser
+    const script = `POSIX path of (choose folder with prompt "Selecione a pasta onde estao seus filmes ou series:")`;
+    execFile('osascript', ['-e', script], { timeout: 120000, encoding: 'utf-8' }, (error, stdout) => {
+      if (error) {
+        res.json({ success: false, cancelled: true });
+        return;
+      }
+      const selected = (stdout || '').trim();
+      if (!selected) {
+        res.json({ success: false, cancelled: true });
+        return;
+      }
+      res.json({ success: true, folderPath: selected });
+    });
+    return;
+  }
+
+  if (platform === 'linux') {
+    // Linux: check if X11/Wayland display is available
+    if (!process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
+      res.json({
+        success: false,
+        unsupported: true,
+        message: 'Ambiente gráfico não disponível para abrir explorador nativo',
+      });
+      return;
+    }
+
+    const cmd = `zenity --file-selection --directory --title="Selecione a pasta de midia" 2>/dev/null || kdialog --getexistingdirectory 2>/dev/null`;
+    exec(cmd, { timeout: 120000, encoding: 'utf-8' }, (error, stdout) => {
+      if (error) {
+        res.json({ success: false, cancelled: true });
+        return;
+      }
+      const selected = (stdout || '').trim();
+      if (!selected) {
+        res.json({ success: false, cancelled: true });
+        return;
+      }
+      res.json({ success: true, folderPath: selected });
+    });
+    return;
+  }
+
+  res.json({
+    success: false,
+    unsupported: true,
+    message: 'Sistema operacional não suportado para explorador nativo',
+  });
 });
 
 // 14. Demo generator: creates sample MP4 and MKV media in ./demo_media/ so user can test immediately!

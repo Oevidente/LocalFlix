@@ -29,7 +29,9 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
     targetEpisode = media.seasons[0].episodes[0];
   }
 
-  const posterUrl = `/api/media/${media.id}/poster`;
+  const bannerUrl = media.backdropPath
+    ? (media.backdropPath.startsWith('http') ? media.backdropPath : `/api/media/${media.id}/backdrop`)
+    : (media.posterPath?.startsWith('http') ? media.posterPath : `/api/media/${media.id}/poster`);
   const isContinue = targetEpisode && targetEpisode.progressSeconds > 10 && !targetEpisode.watched;
 
   return (
@@ -37,7 +39,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
       {/* Background Image / Backdrop */}
       <div className="absolute inset-0">
         <img
-          src={posterUrl}
+          src={bannerUrl}
           alt={media.title}
           className="w-full h-full object-cover object-center opacity-45 scale-105 filter blur-xs"
           onError={(e) => {

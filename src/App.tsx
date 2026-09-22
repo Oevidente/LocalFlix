@@ -20,8 +20,31 @@ export default function App() {
   const [activeMediaDetail, setActiveMediaDetail] = useState<MediaItem | null>(null);
   const [playingState, setPlayingState] = useState<{ media: MediaItem; episode: Episode } | null>(null);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [initialAddFolder, setInitialAddFolder] = useState<string>('');
+  const [isPickingFolder, setIsPickingFolder] = useState<boolean>(false);
   const [showSystemModal, setShowSystemModal] = useState<boolean>(false);
   const [relocateTarget, setRelocateTarget] = useState<MediaItem | null>(null);
+
+  const handleOpenAddModal = async () => {
+    setIsPickingFolder(true);
+    try {
+      const res = await fetch('/api/system/pick-folder', { method: 'POST' });
+      const data = await res.json();
+      if (data.success && data.folderPath) {
+        setInitialAddFolder(data.folderPath);
+        setShowAddModal(true);
+        return;
+      } else if (data.cancelled) {
+        return;
+      }
+    } catch (err) {
+      console.error('Erro ao chamar explorador nativo:', err);
+    } finally {
+      setIsPickingFolder(false);
+    }
+    setInitialAddFolder('');
+    setShowAddModal(true);
+  };
 
   // Fetch library from local server
   const fetchLibrary = useCallback(async () => {
@@ -155,9 +178,51 @@ export default function App() {
     return undefined;
   }, [playingState]);
 
+  // Find previous episode (when not the first episode)
+  const prevEpisode = useMemo(() => {
+    if (!playingState) return undefined;
+    const { media, episode } = playingState;
+
+    const allEpisodes = media.seasons.flatMap((s) => s.episodes);
+    const currentIndex = allEpisodes.findIndex((e) => e.id === episode.id);
+    if (currentIndex > 0) {
+      return allEpisodes[currentIndex - 1];
+    }
+    return undefined;
+  }, [playingState]);
+
   const handlePlayNextEpisode = () => {
     if (playingState && nextEpisode) {
       setPlayingState({ media: playingState.media, episode: nextEpisode });
+    }
+  };
+
+  const handlePlayPrevEpisode = () => {
+    if (playingState && prevEpisode) {
+      setPlayingState({ media: playingState.media, episode: prevEpisode });
+    }
+  };
+
+  const handleUpdateBanner = async (mediaId: string, bannerUrl: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/media/${mediaId}/banner`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bannerUrl }),
+      });
+      if (res.ok) {
+        await fetchLibrary();
+        setActiveMediaDetail((prev) => {
+          if (prev && prev.id === mediaId) {
+            return { ...prev, backdropPath: bannerUrl || undefined };
+          }
+          return prev;
+        });
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
     }
   };
 
@@ -256,10 +321,11 @@ export default function App() {
       <Navbar
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        onOpenAddModal={() => setShowAddModal(true)}
+        onOpenAddModal={handleOpenAddModal}
         onOpenSystemModal={() => setShowSystemModal(true)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        isPickingFolder={isPickingFolder}
       />
 
       {/* Main Content Area */}
@@ -282,11 +348,21 @@ export default function App() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md">
             <button
               id="empty-add-folder-btn"
-              onClick={() => setShowAddModal(true)}
-              className="w-full flex items-center justify-center space-x-2 px-6 py-3.5 rounded-lg bg-[#E50914] hover:bg-red-700 text-white font-bold transition-all shadow-xl active:scale-95 text-sm"
+              onClick={handleOpenAddModal}
+              disabled={isPickingFolder}
+              className="w-full flex items-center justify-center space-x-2 px-6 py-3.5 rounded-lg bg-[#E50914] hover:bg-red-700 text-white font-bold transition-all shadow-xl active:scale-95 text-sm disabled:opacity-75"
             >
-              <FolderPlus className="w-5 h-5" />
-              <span>Adicionar Pasta do PC</span>
+              {isPickingFolder ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Abrindo Explorador do PC...</span>
+                </>
+              ) : (
+                <>
+                  <FolderPlus className="w-5 h-5" />
+                  <span>Adicionar Pasta do PC</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -391,6 +467,7 @@ export default function App() {
           onRescan={handleRescan}
           onOpenRelocate={(m) => setRelocateTarget(m)}
           onDeleteMedia={handleDeleteMedia}
+          onUpdateBanner={handleUpdateBanner}
         />
       )}
 
@@ -406,13 +483,19 @@ export default function App() {
           }}
           onPlayNextEpisode={handlePlayNextEpisode}
           nextEpisode={nextEpisode}
+          onPlayPrevEpisode={handlePlayPrevEpisode}
+          prevEpisode={prevEpisode}
         />
       )}
 
       {/* Add Folder Modal */}
       {showAddModal && (
         <AddMediaModal
-          onClose={() => setShowAddModal(false)}
+          initialFolderPath={initialAddFolder}
+          onClose={() => {
+            setShowAddModal(false);
+            setInitialAddFolder('');
+          }}
           onAddFolder={handleAddFolder}
         />
       )}

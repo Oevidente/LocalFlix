@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Film, Plus, HardDrive, Search, Tv } from 'lucide-react';
+import { Film, Plus, HardDrive, Search, Tv, Loader2 } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: 'all' | 'series' | 'movie' | 'continue';
@@ -8,6 +8,7 @@ interface NavbarProps {
   onOpenSystemModal: () => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  isPickingFolder?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,6 +18,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSystemModal,
   searchQuery,
   onSearchChange,
+  isPickingFolder = false,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -143,11 +145,23 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             id="add-folder-btn"
             onClick={onOpenAddModal}
-            className="flex items-center space-x-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-md bg-[#E50914] hover:bg-[#b80710] text-white text-xs sm:text-sm font-semibold transition-all shadow-md active:scale-95"
+            disabled={isPickingFolder}
+            className="flex items-center space-x-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-md bg-[#E50914] hover:bg-[#b80710] text-white text-xs sm:text-sm font-semibold transition-all shadow-md active:scale-95 disabled:opacity-75 cursor-pointer"
+            title="Adicionar pasta do PC pelo explorador nativo"
           >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Adicionar Pasta</span>
-            <span className="sm:hidden">Adicionar</span>
+            {isPickingFolder ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="hidden sm:inline">Abrindo Explorador...</span>
+                <span className="sm:hidden">Explorador...</span>
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Adicionar Pasta do PC</span>
+                <span className="sm:hidden">Pasta PC</span>
+              </>
+            )}
           </button>
 
           {/* System & Storage status button */}

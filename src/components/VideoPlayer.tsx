@@ -11,6 +11,7 @@ import {
   Minimize,
   Subtitles,
   SkipForward,
+  SkipBack,
   Settings,
   AlertTriangle,
   Loader2,
@@ -24,6 +25,8 @@ interface VideoPlayerProps {
   onClose: () => void;
   onPlayNextEpisode?: () => void;
   nextEpisode?: Episode;
+  onPlayPrevEpisode?: () => void;
+  prevEpisode?: Episode;
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -32,6 +35,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onClose,
   onPlayNextEpisode,
   nextEpisode,
+  onPlayPrevEpisode,
+  prevEpisode,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -358,6 +363,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         case 'm':
           e.preventDefault();
           toggleMute();
+          break;
+        case 'p':
+          if (e.shiftKey && prevEpisode && onPlayPrevEpisode) {
+            e.preventDefault();
+            onPlayPrevEpisode();
+          }
+          break;
+        case 'n':
+          if (e.shiftKey && nextEpisode && onPlayNextEpisode) {
+            e.preventDefault();
+            onPlayNextEpisode();
+          }
           break;
         case 'escape':
           e.preventDefault();
@@ -843,6 +860,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         <div className="flex items-center justify-between text-white">
           {/* Left Controls */}
           <div className="flex items-center space-x-3 sm:space-x-4">
+            {/* Previous Episode Button (shown when not the first episode) */}
+            {prevEpisode && onPlayPrevEpisode && (
+              <button
+                id="player-prev-ep-btn"
+                onClick={onPlayPrevEpisode}
+                className="p-1 text-neutral-300 hover:text-white transition-colors cursor-pointer"
+                title={`Episódio Anterior: ${prevEpisode.title} (Shift + P)`}
+              >
+                <SkipBack className="w-5 h-5" />
+              </button>
+            )}
+
             {/* Play / Pause */}
             <button
               id="player-play-pause-btn"

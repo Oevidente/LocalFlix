@@ -1,21 +1,82 @@
-import React, { useState } from 'react';
-import { X, FolderPlus, FolderSearch, AlertCircle, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, FolderPlus, FolderSearch, AlertCircle, Loader2, FolderOpen } from 'lucide-react';
 import { FolderBrowser } from './FolderBrowser';
 
 interface AddMediaModalProps {
   onClose: () => void;
   onAddFolder: (folderPath: string, title?: string) => Promise<void>;
+  initialFolderPath?: string;
 }
 
 export const AddMediaModal: React.FC<AddMediaModalProps> = ({
   onClose,
   onAddFolder,
+  initialFolderPath = '',
 }) => {
-  const [folderPath, setFolderPath] = useState('');
+  const [folderPath, setFolderPath] = useState(initialFolderPath);
   const [title, setTitle] = useState('');
-  const [showBrowser, setShowBrowser] = useState(true);
+  const [showBrowser, setShowBrowser] = useState(!initialFolderPath);
   const [isScanning, setIsScanning] = useState(false);
+  const [isPickingNative, setIsPickingNative] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialFolderPath) {
+      setFolderPath(initialFolderPath);
+      setShowBrowser(false);
+      // Auto fill title from folder name if empty
+      const parts = initialFolderPath.replace(/\\/g, '/').split('/').filter(Boolean);
+      const folderName = parts[parts.length - 1];
+      if (folderName && !title) {
+        setTitle(folderName);
+      }
+    }
+  }, [initialFolderPath]);
+
+  const handleOpenNativeExplorer = async () => {
+    setIsPickingNative(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/system/pick-folder', { method: 'POST' });
+      const data = await res.json();
+      if (data.success && data.folderPath) {
+        setFolderPath(data.folderPath);
+        setShowBrowser(false);
+        const parts = data.folderPath.replace(/\\/g, '/').split('/').filter(Boolean);
+        const folderName = parts[parts.length - 1];
+        if (folderName && !title) {
+          setTitle(folderName);
+        }
+        return;
+      } else if (data.cancelled) {
+        // User cancelled picker dialog
+        return;
+      } else if (data.unsupported) {
+        // If native GUI on server is unsupported, try browser native directory picker if available
+        if (typeof (window as any).showDirectoryPicker === 'function') {
+          try {
+            const handle = await (window as any).showDirectoryPicker();
+            if (handle && handle.name) {
+              setFolderPath(`./${handle.name}`);
+              if (!title) setTitle(handle.name);
+              return;
+            }
+          } catch (err: any) {
+            if (err.name !== 'AbortError') {
+              setError('Selecione uma pasta utilizando a árvore abaixo.');
+            }
+            return;
+          }
+        }
+        setError('Explorador gráfico indisponível no ambiente atual. Utilize o navegador de pastas abaixo.');
+        setShowBrowser(true);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro ao abrir explorador');
+    } finally {
+      setIsPickingNative(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,24 +142,64 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-semibold text-neutral-300">Caminho da Pasta no PC</label>
-              <button
-                type="button"
-                onClick={() => setShowBrowser(!showBrowser)}
-                className="text-xs text-red-400 hover:text-red-300 flex items-center space-x-1"
-              >
-                <FolderSearch className="w-3.5 h-3.5" />
-                <span>{showBrowser ? 'Ocultar Navegador' : 'Explorar Pastas'}</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  id="open-native-dialog-btn"
+                  onClick={handleOpenNativeExplorer}
+                  disabled={isPickingNative}
+                  className="text-xs text-amber-400 hover:text-amber-300 flex items-center space-x-1 font-semibold"
+                  title="Abrir a janela do explorador nativo do Windows ou do sistema"
+                >
+                  {isPickingNative ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Aguardando seleção...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      <span>Abrir Explorador do PC</span>
+                    </>
+                  )}
+                </button>
+                <span className="text-neutral-600">|</span>
+                <button
+                  type="button"
+                  onClick={() => setShowBrowser(!showBrowser)}
+                  className="text-xs text-neutral-400 hover:text-neutral-200 flex items-center space-x-1"
+                >
+                  <FolderSearch className="w-3.5 h-3.5" />
+                  <span>{showBrowser ? 'Ocultar Pastas' : 'Navegar no Servidor'}</span>
+                </button>
+              </div>
             </div>
 
-            <input
-              type="text"
-              value={folderPath}
-              onChange={(e) => setFolderPath(e.target.value)}
-              placeholder="Ex: C:\Series\Stranger Things ou ./demo_media"
-              className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500 font-mono text-xs"
-              required
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={folderPath}
+                onChange={(e) => setFolderPath(e.target.value)}
+                placeholder="Ex: C:\Series\Stranger Things ou ./demo_media"
+                className="flex-1 bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500 font-mono text-xs"
+                required
+              />
+              <button
+                type="button"
+                id="btn-trigger-system-explorer"
+                onClick={handleOpenNativeExplorer}
+                disabled={isPickingNative}
+                className="shrink-0 px-3 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer"
+                title="Abrir explorador de arquivos nativo do sistema"
+              >
+                {isPickingNative ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                ) : (
+                  <FolderOpen className="w-4 h-4 text-amber-400" />
+                )}
+                <span className="hidden sm:inline">Explorador do PC</span>
+              </button>
+            </div>
           </div>
 
           {/* Folder Browser */}
@@ -106,7 +207,14 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
             <div className="animate-in fade-in duration-150">
               <div className="text-[11px] text-neutral-400 mb-1">Navegue pelas pastas do PC:</div>
               <FolderBrowser
-                onSelectPath={(path) => setFolderPath(path)}
+                onSelectPath={(path) => {
+                  setFolderPath(path);
+                  const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
+                  const folderName = parts[parts.length - 1];
+                  if (folderName && !title) {
+                    setTitle(folderName);
+                  }
+                }}
                 currentSelected={folderPath}
               />
             </div>
@@ -155,3 +263,4 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
     </div>
   );
 };
+

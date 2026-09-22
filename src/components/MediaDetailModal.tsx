@@ -11,6 +11,9 @@ import {
   Layers,
   Subtitles,
   Volume2,
+  Image as ImageIcon,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import { MediaItem, Episode, Season } from '../types';
 import { formatTime, formatBytes } from '../utils';
@@ -23,6 +26,7 @@ interface MediaDetailModalProps {
   onRescan: (mediaId: string) => Promise<void>;
   onOpenRelocate: (media: MediaItem) => void;
   onDeleteMedia: (mediaId: string) => void;
+  onUpdateBanner?: (mediaId: string, bannerUrl: string) => Promise<boolean>;
 }
 
 export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
@@ -33,12 +37,17 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   onRescan,
   onOpenRelocate,
   onDeleteMedia,
+  onUpdateBanner,
 }) => {
   const [selectedSeasonNumber, setSelectedSeasonNumber] = useState<number>(
     media.seasons[0]?.seasonNumber || 1
   );
   const [isRescanning, setIsRescanning] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showBannerInput, setShowBannerInput] = useState(false);
+  const [bannerUrlInput, setBannerUrlInput] = useState(media.backdropPath || '');
+  const [isSavingBanner, setIsSavingBanner] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState<string | null>(null);
 
   const selectedSeason: Season | undefined =
     media.seasons.find((s) => s.seasonNumber === selectedSeasonNumber) || media.seasons[0];
@@ -52,7 +61,52 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     }
   };
 
-  const posterUrl = `/api/media/${media.id}/poster`;
+  const handleSaveBanner = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!onUpdateBanner) return;
+
+    setIsSavingBanner(true);
+    setBannerMessage(null);
+    try {
+      const ok = await onUpdateBanner(media.id, bannerUrlInput.trim());
+      if (ok) {
+        setBannerMessage('Banner salvo com sucesso!');
+        setTimeout(() => {
+          setBannerMessage(null);
+          setShowBannerInput(false);
+        }, 1200);
+      } else {
+        setBannerMessage('Não foi possível salvar o banner.');
+      }
+    } catch {
+      setBannerMessage('Erro ao atualizar banner.');
+    } finally {
+      setIsSavingBanner(false);
+    }
+  };
+
+  const handleRemoveBanner = async () => {
+    if (!onUpdateBanner) return;
+    setIsSavingBanner(true);
+    setBannerMessage(null);
+    try {
+      const ok = await onUpdateBanner(media.id, '');
+      if (ok) {
+        setBannerUrlInput('');
+        setBannerMessage('Banner removido!');
+        setTimeout(() => {
+          setBannerMessage(null);
+          setShowBannerInput(false);
+        }, 1200);
+      }
+    } finally {
+      setIsSavingBanner(false);
+    }
+  };
+
+  const bannerUrl = media.backdropPath
+    ? (media.backdropPath.startsWith('http') ? media.backdropPath : `/api/media/${media.id}/backdrop`)
+    : (media.posterPath?.startsWith('http') ? media.posterPath : `/api/media/${media.id}/poster`);
 
   return (
     <div
@@ -73,10 +127,23 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
           <X className="w-5 h-5" />
         </button>
 
+        {/* Banner Edit Header Button */}
+        {onUpdateBanner && (
+          <button
+            id="detail-edit-banner-header-btn"
+            onClick={() => setShowBannerInput(!showBannerInput)}
+            className="absolute top-4 left-4 z-30 flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-black/70 hover:bg-black/90 text-xs font-semibold text-white/90 hover:text-white transition-all border border-white/10 backdrop-blur-sm cursor-pointer shadow-lg active:scale-95"
+            title="Adicionar ou alterar imagem do banner através de URL"
+          >
+            <ImageIcon className="w-3.5 h-3.5 text-pink-400" />
+            <span>{media.backdropPath ? 'Alterar Banner (URL)' : 'Adicionar Banner (URL)'}</span>
+          </button>
+        )}
+
         {/* Modal Header Banner */}
         <div className="relative h-64 sm:h-80 w-full overflow-hidden bg-black">
           <img
-            src={posterUrl}
+            src={bannerUrl}
             alt={media.title}
             className="w-full h-full object-cover opacity-50 filter blur-xs scale-105"
             onError={(e) => {
@@ -131,6 +198,22 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
 
           {/* Action Buttons */}
           <div className="flex items-center space-x-2">
+            {onUpdateBanner && (
+              <button
+                id="detail-edit-banner-action-btn"
+                onClick={() => setShowBannerInput(!showBannerInput)}
+                className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded font-medium transition-colors border ${
+                  showBannerInput
+                    ? 'bg-pink-950/70 border-pink-700/70 text-pink-300'
+                    : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-white/5'
+                }`}
+                title="Adicionar ou alterar imagem do banner através de URL"
+              >
+                <ImageIcon className="w-3.5 h-3.5 text-pink-400" />
+                <span>Banner (URL)</span>
+              </button>
+            )}
+
             <button
               onClick={() => onOpenRelocate(media)}
               className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-medium transition-colors border border-white/5"
@@ -176,6 +259,93 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
             )}
           </div>
         </div>
+
+        {/* Banner URL Editor Panel */}
+        {showBannerInput && (
+          <div className="p-4 bg-neutral-900 border-b border-neutral-800 animate-in fade-in duration-200">
+            <div className="max-w-2xl mx-auto space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-xs font-bold text-white">
+                  <ImageIcon className="w-4 h-4 text-pink-400" />
+                  <span>Personalizar Imagem do Banner (Backdrop por URL)</span>
+                </div>
+                {bannerMessage && (
+                  <span className="text-xs font-semibold text-emerald-400 flex items-center space-x-1">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{bannerMessage}</span>
+                  </span>
+                )}
+              </div>
+
+              <form onSubmit={handleSaveBanner} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] text-neutral-400 mb-1">
+                    Insira a URL direta da imagem (ex: https://image.tmdb.org/... ou link de imagem web):
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="banner-url-input"
+                      type="url"
+                      value={bannerUrlInput}
+                      onChange={(e) => setBannerUrlInput(e.target.value)}
+                      placeholder="https://exemplo.com/imagem-banner.jpg"
+                      className="flex-1 bg-black/60 border border-neutral-700 focus:border-pink-500 rounded-lg px-3 py-1.5 text-xs text-white placeholder-neutral-500 font-mono outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSavingBanner || !bannerUrlInput.trim()}
+                      className="px-4 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-700 disabled:opacity-50 text-white text-xs font-bold transition-all shadow active:scale-95 flex items-center space-x-1"
+                    >
+                      {isSavingBanner ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Salvando...</span>
+                        </>
+                      ) : (
+                        <span>Salvar Banner</span>
+                      )}
+                    </button>
+                    {media.backdropPath && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveBanner}
+                        disabled={isSavingBanner}
+                        className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-medium transition-colors"
+                      >
+                        Remover
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowBannerInput(false)}
+                      className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400 text-xs font-medium transition-colors"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </div>
+
+                {/* Banner Live Preview */}
+                {bannerUrlInput.trim() && (
+                  <div className="space-y-1">
+                    <div className="text-[11px] text-neutral-500">Prévia da Imagem do Banner:</div>
+                    <div className="relative w-full h-32 rounded-lg overflow-hidden bg-black border border-white/10">
+                      <img
+                        src={bannerUrlInput.trim()}
+                        alt="Prévia do Banner"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Season Selector & Episode List */}
         <div className="p-6">
