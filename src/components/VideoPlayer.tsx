@@ -16,6 +16,7 @@ import {
   Settings,
   AlertTriangle,
   Loader2,
+  Download,
 } from 'lucide-react';
 import { MediaItem, Episode, AudioTrackInfo, SubtitleTrackInfo } from '../types';
 import { formatTime } from '../utils';
@@ -75,6 +76,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isForceTranscode, setIsForceTranscode] = useState<boolean>(false);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isRecovering, setIsRecovering] = useState<boolean>(false);
+  const [isInstallingFfmpeg, setIsInstallingFfmpeg] = useState<boolean>(false);
+  const [installFfmpegMsg, setInstallFfmpegMsg] = useState<string | null>(null);
 
   const hlsRef = useRef<Hls | null>(null);
   const isDirectMP4 = episode.extension === '.mp4' || episode.extension === '.webm';
@@ -626,32 +629,83 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       {playbackError && (
         <div
           id="player-error-overlay"
-          className="absolute inset-0 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center z-50 p-6 text-center"
+          className="absolute inset-0 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center z-50 p-6 text-center"
         >
           <div className="w-14 h-14 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center mb-4 text-red-400">
             <AlertTriangle className="w-7 h-7" />
           </div>
           <h3 className="text-xl font-bold text-white mb-2">Falha na Reprodução</h3>
-          <p className="text-neutral-400 text-sm max-w-md mb-6">{playbackError}</p>
-          <div className="flex items-center space-x-3">
+          <p className="text-neutral-300 text-sm max-w-lg mb-6 leading-relaxed">{playbackError}</p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md mb-4">
+            {playbackError.toLowerCase().includes('ffmpeg') && (
+              <button
+                id="player-install-ffmpeg-btn"
+                type="button"
+                disabled={isInstallingFfmpeg}
+                onClick={async () => {
+                  setIsInstallingFfmpeg(true);
+                  setInstallFfmpegMsg(null);
+                  try {
+                    const res = await fetch('/api/system/install-ffmpeg', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                      setInstallFfmpegMsg('FFmpeg instalado! Reiniciando reprodução...');
+                      setTimeout(() => {
+                        setPlaybackError(null);
+                        setInstallFfmpegMsg(null);
+                        handleStreamRecovery(true);
+                      }, 1500);
+                    } else {
+                      setInstallFfmpegMsg(data.message || 'Não foi possível baixar automaticamente. Baixe o ffmpeg.exe e coloque na pasta bin.');
+                    }
+                  } catch {
+                    setInstallFfmpegMsg('Erro ao contatar o servidor.');
+                  } finally {
+                    setIsInstallingFfmpeg(false);
+                  }
+                }}
+                className="w-full sm:w-auto px-5 py-2.5 rounded bg-sky-600 hover:bg-sky-500 disabled:bg-neutral-700 text-white font-medium text-sm transition-colors shadow-lg flex items-center justify-center space-x-2"
+              >
+                {isInstallingFfmpeg ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Instalando FFmpeg na pasta bin...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span>Instalar FFmpeg (1 Clique)</span>
+                  </>
+                )}
+              </button>
+            )}
+
             <button
               id="player-retry-transcode-btn"
               onClick={() => {
                 setPlaybackError(null);
+                setInstallFfmpegMsg(null);
                 handleStreamRecovery(true);
               }}
-              className="px-5 py-2.5 rounded bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-colors shadow-lg"
+              className="w-full sm:w-auto px-5 py-2.5 rounded bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-colors shadow-lg"
             >
               Tentar Novamente
             </button>
             <button
               id="player-close-error-btn"
               onClick={onClose}
-              className="px-5 py-2.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-medium text-sm transition-colors"
+              className="w-full sm:w-auto px-5 py-2.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-medium text-sm transition-colors"
             >
               Voltar
             </button>
           </div>
+
+          {installFfmpegMsg && (
+            <p className={`text-xs mt-2 font-medium ${installFfmpegMsg.includes('sucesso') || installFfmpegMsg.includes('instalado') ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {installFfmpegMsg}
+            </p>
+          )}
         </div>
       )}
 

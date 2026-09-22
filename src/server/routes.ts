@@ -14,7 +14,13 @@ import {
   getDataDir,
 } from './storage';
 import { scanMediaFolder } from './scanner';
-import { getBinaries, generateThumbnail, isBrowserNativeDirectPlayable, streamSubtitlesToVtt } from './ffmpeg';
+import {
+  getBinaries,
+  generateThumbnail,
+  isBrowserNativeDirectPlayable,
+  streamSubtitlesToVtt,
+  downloadAndInstallFFmpeg,
+} from './ffmpeg';
 import { getOrCreateHlsSession, findActiveSession } from './hls';
 import { BrowseItem, SystemStatus } from '../types';
 
@@ -711,6 +717,16 @@ apiRouter.get('/system/status', (req: Request, res: Response) => {
   };
 
   res.json(status);
+});
+
+// 13.1 Install Portable FFmpeg into ./bin/
+apiRouter.post('/system/install-ffmpeg', async (req: Request, res: Response) => {
+  try {
+    const result = await downloadAndInstallFFmpeg();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Erro ao baixar FFmpeg' });
+  }
 });
 
 // 13.5 Native System Explorer Folder Picker

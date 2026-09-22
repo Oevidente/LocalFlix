@@ -177,7 +177,94 @@ export function getBinaries(): { ffmpeg: string | null; ffprobe: string | null }
   return { ffmpeg: resolvedFfmpeg, ffprobe: resolvedFfprobe };
 }
 
-// Clear binary cache if user adds binaries at runtime
+// Automatically download and install portable FFmpeg for Windows/Linux into ./bin/ folder
+export async function downloadAndInstallFFmpeg(): Promise<{ success: boolean; message: string; binaries: { ffmpeg: string | null; ffprobe: string | null } }> {
+  const rootDir = process.cwd();
+  const binDir = path.join(rootDir, 'bin');
+  if (!fs.existsSync(binDir)) {
+    fs.mkdirSync(binDir, { recursive: true });
+  }
+
+  const isWindows = process.platform === 'win32';
+
+  if (isWindows) {
+    const psScript = `
+$ProgressPreference = 'SilentlyContinue';
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;
+$binDir = '${binDir.replace(/\\/g, '\\\\')}';
+$zipUrl = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip';
+$zipPath = Join-Path $env:TEMP 'cinelocal_ffmpeg.zip';
+$extractDir = Join-Path $env:TEMP 'cinelocal_ffmpeg_extract';
+
+if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue };
+if (Test-Path $zipPath) { Remove-Item $zipPath -Force -ErrorAction SilentlyContinue };
+
+Write-Output 'DOWNLOADING';
+try {
+    Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing -TimeoutSec 180;
+} catch {
+    # Fallback to Gyan essentials
+    $zipUrl = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip';
+    Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing -TimeoutSec 180;
+}
+
+Write-Output 'EXTRACTING';
+Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force;
+
+$ffmpegExe = Get-ChildItem -Path $extractDir -Filter 'ffmpeg.exe' -Recurse | Select-Object -First 1;
+$ffprobeExe = Get-ChildItem -Path $extractDir -Filter 'ffprobe.exe' -Recurse | Select-Object -First 1;
+
+if ($ffmpegExe) {
+    Copy-Item $ffmpegExe.FullName -Destination (Join-Path $binDir 'ffmpeg.exe') -Force;
+}
+if ($ffprobeExe) {
+    Copy-Item $ffprobeExe.FullName -Destination (Join-Path $binDir 'ffprobe.exe') -Force;
+}
+
+Remove-Item $zipPath -Force -ErrorAction SilentlyContinue;
+Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue;
+Write-Output 'DONE';
+`;
+
+    return new Promise((resolve) => {
+      execFile(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', psScript],
+        { timeout: 300000 },
+        (err, stdout, stderr) => {
+          invalidateBinariesCache();
+          const bins = getBinaries();
+          if (bins.ffmpeg) {
+            resolve({
+              success: true,
+              message: 'FFmpeg instalado com sucesso na pasta bin do CineLocal!',
+              binaries: bins,
+            });
+          } else {
+            resolve({
+              success: false,
+              message: `Falha ao baixar FFmpeg: ${err?.message || stderr || stdout || 'Erro desconhecido'}`,
+              binaries: bins,
+            });
+          }
+        }
+      );
+    });
+  }
+
+  // Linux / macOS fallback
+  invalidateBinariesCache();
+  const bins = getBinaries();
+  return {
+    success: !!bins.ffmpeg,
+    message: bins.ffmpeg
+      ? 'FFmpeg detectado no sistema.'
+      : 'No Linux ou macOS, instale o ffmpeg via terminal (ex: sudo apt install ffmpeg ou brew install ffmpeg).',
+    binaries: bins,
+  };
+}
+
+// Invalidate binary cache to force re-detection
 export function invalidateBinariesCache() {
   cachedFfmpegPath = undefined;
   cachedFfprobePath = undefined;

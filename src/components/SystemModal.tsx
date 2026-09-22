@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, HardDrive, CheckCircle, AlertTriangle, Terminal, FileJson } from 'lucide-react';
+import { X, HardDrive, CheckCircle, AlertTriangle, Terminal, FileJson, Download, Loader2 } from 'lucide-react';
 import { SystemStatus } from '../types';
 
 interface SystemModalProps {
@@ -11,14 +11,39 @@ export const SystemModal: React.FC<SystemModalProps> = ({
 }) => {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [installingFfmpeg, setInstallingFfmpeg] = useState(false);
+  const [installMessage, setInstallMessage] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchStatus = () => {
     fetch('/api/system/status')
       .then((res) => res.json())
       .then((data) => setStatus(data))
       .catch((err) => console.error('Error fetching system status:', err))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchStatus();
   }, []);
+
+  const handleInstallFfmpeg = async () => {
+    setInstallingFfmpeg(true);
+    setInstallMessage(null);
+    try {
+      const res = await fetch('/api/system/install-ffmpeg', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setInstallMessage('FFmpeg instalado com sucesso na pasta bin!');
+        fetchStatus();
+      } else {
+        setInstallMessage(data.message || 'Falha ao instalar automaticamente.');
+      }
+    } catch {
+      setInstallMessage('Erro ao comunicar com o servidor.');
+    } finally {
+      setInstallingFfmpeg(false);
+    }
+  };
 
   return (
     <div
@@ -88,14 +113,14 @@ export const SystemModal: React.FC<SystemModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span>FFmpeg:</span>
                   {status?.ffmpegFound ? (
-                    <span className="flex items-center space-x-1 text-emerald-400 font-mono text-[11px]">
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      <span>{status.ffmpegPath}</span>
+                    <span className="flex items-center space-x-1 text-emerald-400 font-mono text-[11px] truncate max-w-[280px]">
+                      <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate">{status.ffmpegPath}</span>
                     </span>
                   ) : (
                     <span className="flex items-center space-x-1 text-amber-400">
                       <AlertTriangle className="w-3.5 h-3.5" />
-                      <span>Não encontrado (coloque em bin/)</span>
+                      <span>Não encontrado</span>
                     </span>
                   )}
                 </div>
@@ -103,29 +128,60 @@ export const SystemModal: React.FC<SystemModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span>FFprobe:</span>
                   {status?.ffprobeFound ? (
-                    <span className="flex items-center space-x-1 text-emerald-400 font-mono text-[11px]">
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      <span>{status.ffprobePath}</span>
+                    <span className="flex items-center space-x-1 text-emerald-400 font-mono text-[11px] truncate max-w-[280px]">
+                      <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate">{status.ffprobePath}</span>
                     </span>
                   ) : (
                     <span className="flex items-center space-x-1 text-amber-400">
                       <AlertTriangle className="w-3.5 h-3.5" />
-                      <span>Não encontrado (coloque em bin/)</span>
+                      <span>Não encontrado</span>
                     </span>
                   )}
                 </div>
+
+                {!status?.ffmpegFound && (
+                  <div className="mt-2 pt-2 border-t border-neutral-800 space-y-2">
+                    <p className="text-[11px] text-neutral-400">
+                      O FFmpeg é necessário para reproduzir arquivos <strong>.MKV</strong> e áudios com múltiplos canais.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleInstallFfmpeg}
+                      disabled={installingFfmpeg}
+                      className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-sky-600 hover:bg-sky-500 disabled:bg-neutral-700 text-white rounded-md font-medium text-xs transition-colors shadow"
+                    >
+                      {installingFfmpeg ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Baixando e instalando FFmpeg em bin/...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Instalar FFmpeg Automaticamente (1 Clique)</span>
+                        </>
+                      )}
+                    </button>
+                    {installMessage && (
+                      <p className={`text-[11px] font-medium ${installMessage.includes('sucesso') ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {installMessage}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Portable Pendrive guide */}
             <div className="p-3 rounded-lg bg-neutral-900/50 border border-neutral-800 text-neutral-400 space-y-1.5">
-              <div className="font-semibold text-white">Como rodar do Pendrive no Windows:</div>
+              <div className="font-semibold text-white">Como rodar no Windows:</div>
               <p className="text-[11px] leading-relaxed">
-                1. Copie a pasta do app para seu pendrive.
+                1. Dê um duplo clique no arquivo <strong className="text-white">start.bat</strong> na pasta do CineLocal.
                 <br />
-                2. Dê um duplo clique no arquivo <strong className="text-white">start.bat</strong>.
+                2. O app iniciará e abrirá automaticamente seu navegador em <strong className="text-white">http://localhost:3050</strong>.
                 <br />
-                3. O app iniciará e abrirá automaticamente seu navegador em <strong className="text-white">http://localhost:3000</strong>.
+                3. Para instalar manualmente o FFmpeg, basta extrair o <strong>ffmpeg.exe</strong> e <strong>ffprobe.exe</strong> para dentro da pasta <strong>bin/</strong>.
               </p>
             </div>
 
