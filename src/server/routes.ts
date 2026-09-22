@@ -413,7 +413,8 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
 
     const existingSession = findActiveSession(mediaId, episodeId, audioTrackParam !== undefined ? audioTrackIndex : undefined);
 
-    if (existingSession && file !== 'master.m3u8') {
+    if (existingSession && fs.existsSync(existingSession.manifestPath)) {
+      existingSession.lastAccess = Date.now();
       sessionDir = existingSession.sessionDir;
       manifestPath = existingSession.manifestPath;
     } else {

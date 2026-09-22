@@ -91,7 +91,7 @@ function spawnFfmpegHls(
     '-analyzeduration', '20M',
     '-probesize', '20M',
     '-i', filePath,
-    '-map', '0:v:0',
+    '-map', '0:V:0?',
   ];
 
   if (audioStreamIndex !== undefined) {
@@ -101,7 +101,10 @@ function spawnFfmpegHls(
   }
 
   if (canCopy) {
-    args.push('-c:v', 'copy');
+    args.push(
+      '-c:v', 'copy',
+      '-bsf:v', 'h264_mp4toannexb'
+    );
   } else {
     args.push(
       '-c:v', 'libx264',
@@ -128,7 +131,7 @@ function spawnFfmpegHls(
     '-hls_time', '4',
     '-hls_list_size', '0',
     '-hls_playlist_type', 'event',
-    '-hls_flags', 'append_list+omit_endlist+independent_segments',
+    '-hls_flags', 'independent_segments+temp_file',
     '-hls_segment_type', 'mpegts',
     '-hls_segment_filename', path.join(sessionDir, 'segment_%04d.ts'),
     manifestPath
@@ -295,8 +298,14 @@ export async function getOrCreateHlsSession(
     process: proc,
     createdAt: Date.now(),
     lastAccess: Date.now(),
-    isComplete: false,
+    isComplete: hasExited && exitCode === 0,
   };
+
+  proc.on('close', (code) => {
+    if (code === 0) {
+      session.isComplete = true;
+    }
+  });
 
   activeSessions.set(sessionId, session);
 

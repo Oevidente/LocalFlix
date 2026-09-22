@@ -162,8 +162,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           maxBufferLength: 60,
           maxMaxBufferLength: 120,
           backBufferLength: 60,
-          manifestLoadingTimeOut: 15000,
-          levelLoadingTimeOut: 15000,
+          manifestLoadingTimeOut: 20000,
+          manifestLoadingMaxRetry: 5,
+          levelLoadingTimeOut: 20000,
+          levelLoadingMaxRetry: 5,
+          fragLoadingTimeOut: 20000,
+          fragLoadingMaxRetry: 5,
         });
         hlsRef.current = hls;
         hls.loadSource(hlsUrl);
@@ -197,7 +201,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                 networkErrorCount++;
-                if (data.response?.code === 500 || networkErrorCount > 2) {
+                if (data.response?.code === 500 || networkErrorCount > 3) {
                   hls.destroy();
                   try {
                     const res = await fetch('/api/system/status');
@@ -228,6 +232,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 }
                 break;
             }
+          } else if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+            hls.recoverMediaError();
           }
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
