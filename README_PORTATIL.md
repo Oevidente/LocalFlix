@@ -51,3 +51,11 @@ Se você plugar o pendrive em outro computador e a letra do drive mudar:
 - **MP4 / WebM**: Toca direto pelo navegador com alta performance e seek instantâneo.
 - **MKV / AVI / Áudio AC3/DTS**: Remuxado e transcodificado automaticamente pelo `ffmpeg` em tempo real.
 - **Legendas**: Suporta legendas embutidas no MKV/MP4 e arquivos externos (`.srt`, `.vtt`, `.ass`).
+
+## 📺 Transmitir para Chromecast
+
+- Abra o CineLocal no Google Chrome e deixe o computador e o Chromecast na mesma rede Wi-Fi/LAN.
+- Inicie um vídeo e clique no ícone de transmissão no canto inferior direito do player.
+- Para o Chromecast acessar os vídeos, permita o Node.js/CineLocal na rede **Privada** do Firewall do Windows.
+- O Chromecast recebe o fluxo diretamente do computador; não é necessário enviar os arquivos para a nuvem.
+- No celular Android, o Chrome exige que o CineLocal esteja em **HTTPS** para liberar o Google Cast pela web. O Chrome no iPhone/iPad não oferece transmissão web para Chromecast.

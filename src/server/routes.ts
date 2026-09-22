@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { spawn, execFile, exec } from 'child_process';
 import {
@@ -763,6 +764,23 @@ apiRouter.get('/system/status', (req: Request, res: Response) => {
   };
 
   res.json(status);
+});
+
+// 13.0.1 LAN addresses used by Chromecast to reach this local server
+apiRouter.get('/system/cast-info', (req: Request, res: Response) => {
+  const addresses = Object.values(os.networkInterfaces())
+    .flatMap((entries) => entries || [])
+    .filter((entry) => {
+      const isIpv4 = entry.family === 'IPv4' || String(entry.family) === '4';
+      return isIpv4 && !entry.internal && !entry.address.startsWith('169.254.');
+    })
+    .map((entry) => entry.address);
+
+  res.json({
+    protocol: req.protocol,
+    port: req.socket.localPort || Number(process.env.PORT) || 3000,
+    addresses: [...new Set(addresses)],
+  });
 });
 
 // 13.1 Install Portable FFmpeg into ./bin/

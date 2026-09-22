@@ -8,6 +8,7 @@ import {
   RotateCw,
   Volume2,
   VolumeX,
+  Cast as CastIcon,
   Maximize,
   Minimize,
   Subtitles,
@@ -20,6 +21,12 @@ import {
 } from 'lucide-react';
 import { MediaItem, Episode, AudioTrackInfo, SubtitleTrackInfo } from '../types';
 import { formatTime } from '../utils';
+import {
+  getCastContext,
+  getCastErrorMessage,
+  resolveCastBaseUrls,
+  subscribeToCastAvailability,
+} from '../cast';
 
 interface VideoPlayerProps {
   media: MediaItem;
@@ -83,9 +90,26 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isRecovering, setIsRecovering] = useState<boolean>(false);
   const [isInstallingFfmpeg, setIsInstallingFfmpeg] = useState<boolean>(false);
   const [installFfmpegMsg, setInstallFfmpegMsg] = useState<string | null>(null);
+  const [castAvailable, setCastAvailable] = useState<boolean>(false);
+  const [isCasting, setIsCasting] = useState<boolean>(false);
+  const [isCastLoading, setIsCastLoading] = useState<boolean>(false);
+  const [castDeviceName, setCastDeviceName] = useState<string | null>(null);
+  const [castError, setCastError] = useState<string | null>(null);
 
   const hlsRef = useRef<Hls | null>(null);
+  const castContextRef = useRef<any>(null);
+  const castSessionRef = useRef<any>(null);
+  const castMediaRef = useRef<any>(null);
+  const castMediaListenerRef = useRef<((isAlive: boolean) => void) | null>(null);
+  const castCurrentTimeRef = useRef<number>(0);
+  const castLastProgressSaveRef = useRef<number>(0);
+  const castActiveRef = useRef<boolean>(false);
+  const castWasPlayingRef = useRef<boolean>(false);
   const isDirectMP4 = episode.extension === '.mp4' || episode.extension === '.webm';
+  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const isAndroidMobile = /Android/i.test(userAgent);
+  const isAppleMobile = /iPhone|iPad|iPod/i.test(userAgent);
+  const showCastButton = castAvailable || isAndroidMobile || isAppleMobile;
 
   // Save progress helper (debounced to avoid thrashing server and disk)
   const saveProgress = useCallback(
@@ -134,6 +158,115 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     },
     [media.id, episode.id, duration, selectedAudioIndex, selectedSubtitleIndex]
   );
+
+  const registerCastMedia = useCallback(
+    (session: any) => {
+      const media = session?.getMediaSession?.();
+      if (!media || media === castMediaRef.current) return;
+
+      if (castMediaRef.current && castMediaListenerRef.current) {
+        castMediaRef.current.removeUpdateListener?.(castMediaListenerRef.current);
+      }
+
+      const updateListener = () => {
+        const estimatedTime = media.getEstimatedTime?.();
+        if (typeof estimatedTime !== 'number' || !Number.isFinite(estimatedTime)) return;
+
+        castCurrentTimeRef.current = Math.max(0, estimatedTime);
+        setCurrentTime(castCurrentTimeRef.current);
+
+        const now = Date.now();
+        if (now - castLastProgressSaveRef.current >= 8000) {
+          castLastProgressSaveRef.current = now;
+          saveProgress(castCurrentTimeRef.current, duration, false, true);
+        }
+      };
+
+      castMediaRef.current = media;
+      castMediaListenerRef.current = updateListener;
+      media.addUpdateListener?.(updateListener);
+      updateListener();
+    },
+    [duration, saveProgress]
+  );
+
+  const restoreLocalAfterCast = useCallback(() => {
+    const position = castCurrentTimeRef.current;
+    const video = videoRef.current;
+
+    if (video && Number.isFinite(position) && position > 0) {
+      try {
+        video.currentTime = position;
+        setCurrentTime(position);
+      } catch {}
+    }
+
+    if (video && castWasPlayingRef.current) {
+      video.play().catch(() => {});
+    }
+
+    if (castMediaRef.current && castMediaListenerRef.current) {
+      castMediaRef.current.removeUpdateListener?.(castMediaListenerRef.current);
+    }
+    castMediaRef.current = null;
+    castMediaListenerRef.current = null;
+    castSessionRef.current = null;
+    castActiveRef.current = false;
+    setIsCasting(false);
+    setCastDeviceName(null);
+  }, []);
+
+  // Initialize the Google Cast sender framework when the SDK becomes ready.
+  useEffect(() => {
+    let removeContextListeners = () => {};
+
+    const unsubscribe = subscribeToCastAvailability((context) => {
+      removeContextListeners();
+      removeContextListeners = () => {};
+
+      if (!context) {
+        setCastAvailable(false);
+        return;
+      }
+
+      setCastAvailable(true);
+      castContextRef.current = context;
+      const eventTypes = (window as any).cast?.framework?.CastContextEventType || {};
+
+      const syncCastSession = () => {
+        const session = context.getCurrentSession?.();
+        if (session) {
+          castSessionRef.current = session;
+          const device = session.getCastDevice?.();
+          setCastDeviceName(device?.friendlyName || device?.getFriendlyName?.() || null);
+          registerCastMedia(session);
+        } else if (castActiveRef.current) {
+          restoreLocalAfterCast();
+        }
+      };
+
+      const listeners: Array<[string | undefined, () => void]> = [
+        [eventTypes.CAST_STATE_CHANGED, syncCastSession],
+        [eventTypes.SESSION_STATE_CHANGED, syncCastSession],
+      ];
+
+      for (const [eventName, listener] of listeners) {
+        if (eventName) context.addEventListener?.(eventName, listener);
+      }
+
+      syncCastSession();
+      removeContextListeners = () => {
+        for (const [eventName, listener] of listeners) {
+          if (eventName) context.removeEventListener?.(eventName, listener);
+        }
+      };
+    });
+
+    return () => {
+      unsubscribe();
+      removeContextListeners();
+    };
+  }, [registerCastMedia, restoreLocalAfterCast]);
 
   // Auto-hide controls
   const handleUserActivity = useCallback(() => {
@@ -355,6 +488,114 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
     }
   }, [selectedSubtitleIndex, episode.subtitleTracks]);
+
+  const handleCast = async () => {
+    const context = castContextRef.current || getCastContext();
+    if (!context) {
+      const hostname = window.location.hostname.toLowerCase();
+      const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]';
+
+      if (isAppleMobile) {
+        setCastError('O Chrome no iPhone/iPad não oferece suporte ao Google Cast pela web. Use o Chrome em um celular Android ou um computador compatível.');
+      } else if (window.location.protocol !== 'https:' && !isLocalHost) {
+        setCastError('No celular, o Google Cast exige HTTPS. Abra o CineLocal por um endereço HTTPS na rede local para transmitir.');
+      } else {
+        setCastError('O Google Cast não está disponível neste navegador. Use o Google Chrome e verifique se o Chromecast está na mesma rede.');
+      }
+      return;
+    }
+
+    setCastError(null);
+    setIsCastLoading(true);
+
+    try {
+      let session = context.getCurrentSession?.();
+      if (!session) {
+        await context.requestSession();
+        session = context.getCurrentSession?.();
+      }
+
+      if (!session) {
+        throw new Error('Nenhuma sessão do Chromecast foi iniciada.');
+      }
+
+      const video = videoRef.current;
+      const position = video && Number.isFinite(video.currentTime) ? Math.max(0, video.currentTime) : currentTime;
+      const wasPlaying = !!video && !video.paused;
+      const shouldUseHls = !isDirectMP4 || isForceTranscode || selectedAudioIndex > 0;
+      const streamPath = shouldUseHls
+        ? `/api/media/${media.id}/episode/${episode.id}/hls/master.m3u8?audio=${selectedAudioIndex}${
+            isForceTranscode ? '&transcode=1' : ''
+          }`
+        : `/api/media/${media.id}/episode/${episode.id}/stream`;
+      const contentType = shouldUseHls
+        ? 'application/x-mpegURL'
+        : episode.extension === '.webm'
+          ? 'video/webm'
+          : 'video/mp4';
+      const browserWindow = window as any;
+      const mediaApi = browserWindow.chrome.cast.media;
+      const baseUrls = await resolveCastBaseUrls();
+      let lastError: unknown = null;
+      let loaded = false;
+
+      for (const baseUrl of baseUrls) {
+        try {
+          const mediaInfo = new mediaApi.MediaInfo(`${baseUrl}${streamPath}`, contentType);
+          mediaInfo.streamType = mediaApi.StreamType.BUFFERED;
+
+          if (shouldUseHls) {
+            if (mediaApi.HlsSegmentFormat?.TS) {
+              mediaInfo.hlsSegmentFormat = mediaApi.HlsSegmentFormat.TS;
+            }
+            if (mediaApi.HlsVideoSegmentFormat?.MPEG2_TS) {
+              mediaInfo.hlsVideoSegmentFormat = mediaApi.HlsVideoSegmentFormat.MPEG2_TS;
+            }
+          }
+
+          const metadata = new mediaApi.GenericMediaMetadata();
+          metadata.title = media.title;
+          metadata.subtitle = media.kind === 'series'
+            ? `Temporada ${episode.seasonNumber} · Episódio ${episode.episodeNumber} · ${episode.title}`
+            : episode.title;
+          mediaInfo.metadata = metadata;
+          mediaInfo.customData = {
+            mediaId: media.id,
+            episodeId: episode.id,
+            audioIndex: selectedAudioIndex,
+          };
+
+          const loadRequest = new mediaApi.LoadRequest(mediaInfo);
+          loadRequest.autoplay = wasPlaying;
+          loadRequest.currentTime = position;
+          await session.loadMedia(loadRequest);
+          loaded = true;
+          break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      if (!loaded) throw lastError || new Error('O Chromecast não conseguiu carregar esta mídia.');
+
+      castSessionRef.current = session;
+      castActiveRef.current = true;
+      castWasPlayingRef.current = wasPlaying;
+      castCurrentTimeRef.current = position;
+      castLastProgressSaveRef.current = Date.now();
+      const device = session.getCastDevice?.();
+      setCastDeviceName(device?.friendlyName || device?.getFriendlyName?.() || null);
+      setIsCasting(true);
+      registerCastMedia(session);
+
+      // Let the receiver become the only playback source.
+      if (video && !video.paused) video.pause();
+    } catch (error) {
+      setCastError(getCastErrorMessage(error));
+    } finally {
+      setIsCastLoading(false);
+    }
+  };
 
   // Handle switching audio tracks
   const handleSelectAudio = (index: number) => {
@@ -717,6 +958,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <Loader2 className="w-12 h-12 text-red-500 animate-spin mb-3" />
           <p className="text-white text-sm font-medium tracking-wide">Sincronizando reprodução...</p>
         </div>
+      )}
+
+      {castError && (
+        <button
+          type="button"
+          onClick={() => setCastError(null)}
+          className="absolute top-20 left-1/2 -translate-x-1/2 z-50 max-w-[min(90vw,32rem)] rounded-lg border border-amber-500/40 bg-neutral-950/95 px-4 py-3 text-left text-xs text-amber-200 shadow-xl"
+          title="Fechar aviso"
+        >
+          <span className="font-semibold text-amber-300">Chromecast:</span> {castError}
+        </button>
       )}
 
       {/* Playback Error Overlay */}
@@ -1106,6 +1358,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
           {/* Right Controls */}
           <div className="flex items-center space-x-3 sm:space-x-4">
+            {showCastButton && (
+              <button
+                id="player-cast-btn"
+                type="button"
+                onClick={handleCast}
+                disabled={isCastLoading}
+                className={`p-1 transition-colors ${
+                  isCasting ? 'text-red-500' : 'text-neutral-300 hover:text-white'
+                } disabled:cursor-wait disabled:opacity-60`}
+                title={isCasting ? `Transmitindo${castDeviceName ? ` para ${castDeviceName}` : ''}` : 'Transmitir para Chromecast'}
+                aria-label="Transmitir para Chromecast"
+              >
+                <CastIcon className="w-5 h-5" />
+              </button>
+            )}
+
             {/* Audio & Subtitles Selector */}
             <button
               id="player-audio-sub-btn"

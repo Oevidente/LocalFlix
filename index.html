@@ -12,6 +12,14 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.__gCastApiAvailable = false;
+      window.__onGCastApiAvailable = function (isAvailable) {
+        window.__gCastApiAvailable = isAvailable;
+        window.dispatchEvent(new Event('cinelocal-cast-available'));
+      };
+    </script>
+    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

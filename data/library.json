@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-22T16:55:36.999Z",
+  "updatedAt": "2026-09-22T17:28:53.678Z",
   "settings": {
     "preferredAudioLanguage": "por",
     "preferredSubtitleLanguage": "por",
@@ -45,8 +45,8 @@
               ],
               "subtitleTracks": [],
               "watched": false,
-              "progressSeconds": 15,
-              "lastWatchedAt": "2026-09-22T16:07:45.564Z",
+              "progressSeconds": 3,
+              "lastWatchedAt": "2026-09-22T17:26:17.590Z",
               "selectedAudioIndex": 0,
               "selectedSubtitleIndex": -1
             },
@@ -217,9 +217,9 @@
         }
       ],
       "createdAt": "2026-09-22T16:07:28.903Z",
-      "updatedAt": "2026-09-22T16:07:45.564Z",
+      "updatedAt": "2026-09-22T17:26:17.590Z",
       "lastWatchedEpisodeId": "ep_s1e1_864ab1bceee4",
-      "lastWatchedAt": "2026-09-22T16:07:45.564Z"
+      "lastWatchedAt": "2026-09-22T17:26:17.590Z"
     },
     {
       "id": "media_85dc7677874fba01",
@@ -2646,7 +2646,7 @@
               "filePath": "J:\\Batman Knightfall Part 1 Knightfall\\Batman Knightfall Part 1 Knightfall 2026 1080p MA WEB-DL DDP5 1 H 264-BYNDR.mkv",
               "extension": ".mkv",
               "sizeBytes": 5059293514,
-              "durationSeconds": 4717,
+              "durationSeconds": 4716.998999999917,
               "videoCodec": "h264",
               "pixFmt": "yuv420p",
               "resolution": "1920x1080",
@@ -2759,8 +2759,8 @@
                 }
               ],
               "watched": false,
-              "progressSeconds": 318,
-              "lastWatchedAt": "2026-09-22T16:55:36.999Z",
+              "progressSeconds": 92,
+              "lastWatchedAt": "2026-09-22T17:23:23.684Z",
               "selectedAudioIndex": 0,
               "selectedSubtitleIndex": 10
             }
@@ -2768,9 +2768,9 @@
         }
       ],
       "createdAt": "2026-09-22T16:05:13.423Z",
-      "updatedAt": "2026-09-22T16:55:36.999Z",
+      "updatedAt": "2026-09-22T17:23:23.684Z",
       "lastWatchedEpisodeId": "ep_s1e1_15d5b7587483",
-      "lastWatchedAt": "2026-09-22T16:55:36.999Z"
+      "lastWatchedAt": "2026-09-22T17:23:23.684Z"
     },
     {
       "id": "media_91b5572d75c30790",
@@ -2958,11 +2958,11 @@
                   "isExternal": false
                 }
               ],
-              "watched": false,
-              "progressSeconds": 1014,
+              "watched": true,
+              "progressSeconds": 2804.2409999999995,
               "selectedAudioIndex": 1,
               "selectedSubtitleIndex": 0,
-              "lastWatchedAt": "2026-09-22T16:43:43.260Z"
+              "lastWatchedAt": "2026-09-22T17:18:00.516Z"
             },
             {
               "id": "ep_s1e5_6bd0a33ac733",
@@ -3021,8 +3021,8 @@
                   "isExternal": false
                 }
               ],
-              "watched": false,
-              "progressSeconds": 0
+              "watched": true,
+              "progressSeconds": 2843
             },
             {
               "id": "ep_s1e6_febbc9777156",
@@ -3081,8 +3081,8 @@
                   "isExternal": false
                 }
               ],
-              "watched": false,
-              "progressSeconds": 0
+              "watched": true,
+              "progressSeconds": 3042
             },
             {
               "id": "ep_s1e7_c0a878e4f1ec",
@@ -3141,8 +3141,8 @@
                   "isExternal": false
                 }
               ],
-              "watched": false,
-              "progressSeconds": 0
+              "watched": true,
+              "progressSeconds": 2823
             },
             {
               "id": "ep_s1e8_be092ce86839",
@@ -3153,7 +3153,7 @@
               "filePath": "E:\\Pluribus\\Pluribus.S01E08.WEB-DL.1080p.x264.DUAL.5.1-SF.mkv",
               "extension": ".mkv",
               "sizeBytes": 886926562,
-              "durationSeconds": 2659,
+              "durationSeconds": 2659.014333333335,
               "videoCodec": "h264",
               "pixFmt": "yuv420p",
               "resolution": "1920x800",
@@ -3202,7 +3202,10 @@
                 }
               ],
               "watched": false,
-              "progressSeconds": 0
+              "progressSeconds": 18,
+              "selectedAudioIndex": 0,
+              "selectedSubtitleIndex": -1,
+              "lastWatchedAt": "2026-09-22T17:28:53.678Z"
             },
             {
               "id": "ep_s1e9_26e9a79d4f77",
@@ -3268,9 +3271,9 @@
         }
       ],
       "createdAt": "2026-09-22T16:39:24.131Z",
-      "updatedAt": "2026-09-22T16:43:43.260Z",
-      "lastWatchedEpisodeId": "ep_s1e4_23cb21fc3ffb",
-      "lastWatchedAt": "2026-09-22T16:43:43.260Z"
+      "updatedAt": "2026-09-22T17:28:53.678Z",
+      "lastWatchedEpisodeId": "ep_s1e8_be092ce86839",
+      "lastWatchedAt": "2026-09-22T17:28:53.678Z"
     }
   ]
 }
