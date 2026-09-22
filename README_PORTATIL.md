@@ -30,9 +30,11 @@ CineLocal/
 ---
 
 ## 🚀 Como Usar no Windows
-1. Conecte o pendrive no PC.
+1. Conecte o pendrive no PC (ou abra a pasta do CineLocal).
 2. Dê um duplo clique no arquivo `start.bat`.
-3. O terminal iniciará o servidor local e seu navegador abrirá automaticamente em `http://localhost:3000`.
+3. O terminal iniciará o servidor local e seu navegador abrirá automaticamente em `http://localhost:3050`.
+
+> **Dica de Porta**: Se quiser usar outra porta, basta editar a linha `set PORT=3050` dentro do `start.bat`.
 
 ---
 

@@ -5,9 +5,12 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$DIR"
 
+export PORT="${PORT:-3050}"
+
 echo "======================================================"
 echo "   CineLocal - Biblioteca de Mídia 100% Offline"
 echo "======================================================"
+echo "[INFO] Porta configurada: $PORT"
 echo ""
 
 # Adiciona pasta bin local ao PATH se existir
@@ -15,11 +18,24 @@ if [ -d "$DIR/bin" ]; then
   export PATH="$DIR/bin:$PATH"
 fi
 
-# Abre o navegador padrão após 2 segundos
-(sleep 2 && (xdg-open http://localhost:3000 2>/dev/null || open http://localhost:3000 2>/dev/null || true)) &
+# Verifica Node.js
+if ! command -v node >/dev/null 2>&1; then
+  echo "[ERRO] Node.js não foi encontrado no sistema!"
+  echo "Por favor instale o Node.js (https://nodejs.org) para continuar."
+  exit 1
+fi
+
+# Instala dependências se necessário
+if [ ! -d "$DIR/node_modules" ]; then
+  echo "[INFO] Instalando dependências (npm install)..."
+  npm install
+fi
+
+# Abre o navegador padrão após 3 segundos
+(sleep 3 && (xdg-open "http://localhost:$PORT" 2>/dev/null || open "http://localhost:$PORT" 2>/dev/null || true)) &
 
 if [ -f "$DIR/dist/server.cjs" ]; then
   node "$DIR/dist/server.cjs"
 else
-  npm start || npx tsx server.ts
+  npm run build && node "$DIR/dist/server.cjs" || npx tsx server.ts
 fi
