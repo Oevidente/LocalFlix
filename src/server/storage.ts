@@ -37,10 +37,16 @@ const DEFAULT_LIBRARY: LibraryData = {
   items: [],
 };
 
+let cachedLibrary: LibraryData | null = null;
+let writeDebounceTimer: NodeJS.Timeout | null = null;
+
 export function readLibrary(): LibraryData {
+  if (cachedLibrary) {
+    return cachedLibrary;
+  }
   try {
     if (!fs.existsSync(LIBRARY_FILE)) {
-      writeLibrary(DEFAULT_LIBRARY);
+      writeLibrary(DEFAULT_LIBRARY, true);
       return DEFAULT_LIBRARY;
     }
     const raw = fs.readFileSync(LIBRARY_FILE, 'utf-8');
@@ -48,6 +54,7 @@ export function readLibrary(): LibraryData {
     if (!parsed.items || !Array.isArray(parsed.items)) {
       parsed.items = [];
     }
+    cachedLibrary = parsed;
     return parsed;
   } catch (error) {
     console.error('Error reading library.json:', error);
@@ -55,15 +62,36 @@ export function readLibrary(): LibraryData {
   }
 }
 
-export function writeLibrary(data: LibraryData): void {
-  try {
-    data.updatedAt = new Date().toISOString();
-    const tempFile = `${LIBRARY_FILE}.tmp`;
-    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
-    fs.renameSync(tempFile, LIBRARY_FILE);
-  } catch (error) {
-    console.error('Error writing library.json:', error);
+export function writeLibrary(data: LibraryData, immediate = false): void {
+  data.updatedAt = new Date().toISOString();
+  cachedLibrary = data;
+
+  const flushToDisk = () => {
+    try {
+      const tempFile = `${LIBRARY_FILE}.tmp`;
+      fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
+      fs.renameSync(tempFile, LIBRARY_FILE);
+    } catch (error) {
+      console.error('Error writing library.json:', error);
+    }
+  };
+
+  if (immediate) {
+    if (writeDebounceTimer) {
+      clearTimeout(writeDebounceTimer);
+      writeDebounceTimer = null;
+    }
+    flushToDisk();
+    return;
   }
+
+  if (writeDebounceTimer) {
+    clearTimeout(writeDebounceTimer);
+  }
+  writeDebounceTimer = setTimeout(() => {
+    writeDebounceTimer = null;
+    flushToDisk();
+  }, 1500);
 }
 
 export function findMediaItem(id: string): MediaItem | undefined {

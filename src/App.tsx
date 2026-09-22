@@ -137,6 +137,7 @@ export default function App() {
       targetEp = media.seasons[0].episodes[0];
     }
     if (targetEp) {
+      setActiveMediaDetail(null);
       setPlayingState({ media, episode: targetEp });
     }
   };

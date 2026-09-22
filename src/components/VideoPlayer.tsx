@@ -38,6 +38,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const progressBarRef = useRef<HTMLDivElement>(null);
   const hideControlsTimer = useRef<any>(null);
   const progressSaveTimer = useRef<any>(null);
+  const saveProgressDebounceTimer = useRef<any>(null);
+  const isSeekingRef = useRef<boolean>(false);
 
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -101,28 +103,42 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return getStreamUrl(selectedAudioIndex, !isDirectMP4 ? initialProgress : 0, false);
   });
 
-  // Save progress helper
+  // Save progress helper (debounced to avoid thrashing server and disk)
   const saveProgress = useCallback(
-    (timeSec: number, totalDur?: number, completed?: boolean) => {
-      if (timeSec < 0) return;
-      const payload = {
-        mediaId: media.id,
-        episodeId: episode.id,
-        progressSeconds: timeSec,
-        durationSeconds: totalDur || duration,
-        completed: completed,
-        audioIndex: selectedAudioIndex,
-        subtitleIndex: selectedSubtitleIndex,
+    (timeSec: number, totalDur?: number, completed?: boolean, immediate = false) => {
+      if (timeSec < 0 || isNaN(timeSec)) return;
+
+      const performSave = () => {
+        const payload = {
+          mediaId: media.id,
+          episodeId: episode.id,
+          progressSeconds: Math.floor(timeSec),
+          durationSeconds: totalDur || duration,
+          completed: completed,
+          audioIndex: selectedAudioIndex,
+          subtitleIndex: selectedSubtitleIndex,
+        };
+
+        try {
+          fetch('/api/library/progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          }).catch((err) => console.error('Error saving progress:', err));
+        } catch (e) {
+          console.error('Error saving progress:', e);
+        }
       };
 
-      try {
-        fetch('/api/library/progress', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        }).catch((err) => console.error('Error saving progress:', err));
-      } catch (e) {
-        console.error('Error saving progress:', e);
+      if (saveProgressDebounceTimer.current) {
+        clearTimeout(saveProgressDebounceTimer.current);
+        saveProgressDebounceTimer.current = null;
+      }
+
+      if (immediate || completed) {
+        performSave();
+      } else {
+        saveProgressDebounceTimer.current = setTimeout(performSave, 1500);
       }
     },
     [media.id, episode.id, duration, selectedAudioIndex, selectedSubtitleIndex]
@@ -247,10 +263,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const video = videoRef.current;
     if (!video) return;
 
-    const clampedSec = Math.max(0, Math.min(targetSec, duration || targetSec));
+    // Immediately cancel any active countdown when user manually seeks
+    if (countdownInterval.current) {
+      clearInterval(countdownInterval.current);
+      countdownInterval.current = null;
+    }
+    setShowNextCountdown(false);
+
+    isSeekingRef.current = true;
+    const clampedSec = Math.max(0, Math.min(targetSec, duration > 0 ? duration : targetSec));
 
     if (isDirectMP4 && !isForceTranscode && streamSrc.indexOf('seek=') === -1) {
-      video.currentTime = clampedSec;
+      try {
+        video.currentTime = clampedSec;
+      } catch (err) {
+        console.warn('Seek error on HTML5 video:', err);
+      }
       setCurrentTime(clampedSec);
     } else {
       // MKV or transcoded stream: reload stream from seek position
@@ -258,8 +286,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setStreamSrc(getStreamUrl(selectedAudioIndex, clampedSec, isForceTranscode));
       setCurrentTime(clampedSec);
     }
-    saveProgress(clampedSec);
+    saveProgress(clampedSec, duration, false, false);
+
+    setTimeout(() => {
+      isSeekingRef.current = false;
+    }, 1000);
   };
+
+  // Sync isFullscreen with native browser events
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -319,7 +360,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           toggleMute();
           break;
         case 'escape':
-          if (!isFullscreen) {
+          e.preventDefault();
+          if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+            setIsFullscreen(false);
+          } else {
             onClose();
           }
           break;
@@ -369,6 +414,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (video.duration && !isNaN(video.duration) && isFinite(video.duration)) {
       if (isDirectMP4) {
         setDuration(video.duration);
+      }
+    }
+
+    // Reset countdown if user moved back before the final 15 seconds
+    if (showNextCountdown && duration > 30 && exact < duration - 15) {
+      setShowNextCountdown(false);
+      if (countdownInterval.current) {
+        clearInterval(countdownInterval.current);
+        countdownInterval.current = null;
       }
     }
 
@@ -423,6 +477,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   );
 
   const handleEnded = () => {
+    // Ignore ended events triggered during seek transitions
+    if (isSeekingRef.current) {
+      return;
+    }
     setIsPlaying(false);
     const video = videoRef.current;
     const exact = isDirectMP4 && streamSrc.indexOf('seek=') === -1 && !isForceTranscode
@@ -430,10 +488,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       : seekOffset + (video?.currentTime || 0);
 
     // Only consider the episode genuinely completed if it played through near the real duration
-    const isActuallyFinished = duration > 30 ? exact >= Math.max(duration - 20, duration * 0.85) : true;
+    const isActuallyFinished =
+      duration > 30 && isFinite(duration) ? exact >= Math.max(duration - 20, duration * 0.9) : false;
 
     if (isActuallyFinished) {
-      saveProgress(duration, duration, true);
+      saveProgress(duration, duration, true, true);
       if (nextEpisode && onPlayNextEpisode) {
         onPlayNextEpisode();
       }
@@ -444,6 +503,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const handleVideoError = () => {
+    // Ignore error events triggered during seek or stream transition
+    if (isSeekingRef.current) {
+      return;
+    }
     const err = videoRef.current?.error;
     console.warn('[VideoPlayer] Video element error encountered:', err);
     if (!isForceTranscode) {
@@ -457,14 +520,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const handleProgressBarMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressBarRef.current) return;
     const rect = progressBarRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return;
     const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     setHoverPosition(pos * 100);
     setHoverTime(pos * (duration || 100));
   };
 
   const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
     if (!progressBarRef.current) return;
     const rect = progressBarRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return;
     const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const target = pos * (duration || 100);
     handleSeek(target);
@@ -476,7 +542,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     <div
       ref={containerRef}
       id="video-player-container"
-      className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none overflow-hidden"
+      className="fixed inset-0 z-[100] bg-black flex items-center justify-center select-none overflow-hidden"
       onMouseMove={handleUserActivity}
       onClick={handleUserActivity}
     >
@@ -487,17 +553,29 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         src={streamSrc}
         className="w-full h-full object-contain cursor-pointer"
         onTimeUpdate={handleTimeUpdate}
-        onPlay={() => setIsPlaying(true)}
+        onPlay={() => {
+          setIsPlaying(true);
+          isSeekingRef.current = false;
+        }}
+        onSeeking={() => {
+          isSeekingRef.current = true;
+        }}
+        onSeeked={() => {
+          setTimeout(() => {
+            isSeekingRef.current = false;
+          }, 400);
+        }}
         onPause={() => {
           setIsPlaying(false);
           const exact = isDirectMP4 && !isForceTranscode ? videoRef.current?.currentTime || 0 : seekOffset + (videoRef.current?.currentTime || 0);
-          saveProgress(exact);
+          saveProgress(exact, duration, false, true);
         }}
         onEnded={handleEnded}
         onError={handleVideoError}
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           if (videoRef.current?.paused) {
-            videoRef.current.play();
+            videoRef.current.play().catch(() => {});
           } else {
             videoRef.current?.pause();
           }
@@ -563,6 +641,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       {/* Top Header Bar */}
       <div
         id="player-top-bar"
+        onClick={(e) => e.stopPropagation()}
         className={`absolute top-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-b from-black/80 via-black/40 to-transparent flex items-center justify-between z-40 transition-opacity duration-300 ${
           controlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
