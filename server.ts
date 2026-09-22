@@ -17,7 +17,9 @@ process.on('unhandledRejection', (reason: any) => {
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+  const DEFAULT_PORT = 3050;
+  const configuredPort = Number(process.env.PORT);
+  const PORT = Number.isInteger(configuredPort) && configuredPort > 0 ? configuredPort : DEFAULT_PORT;
   const httpsRequested = process.env.HTTPS === 'true' || process.env.HTTPS === '1';
   const certificateDirectory = process.env.HTTPS_CERT_DIR || path.join(process.cwd(), 'certs');
   const pfxPath = process.env.HTTPS_PFX_PATH || path.join(certificateDirectory, 'cinelocal.pfx');

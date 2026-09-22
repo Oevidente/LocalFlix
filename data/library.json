@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-22T17:34:41.625Z",
+  "updatedAt": "2026-09-22T17:57:46.951Z",
   "settings": {
     "preferredAudioLanguage": "por",
     "preferredSubtitleLanguage": "por",
@@ -660,8 +660,8 @@
                 }
               ],
               "watched": false,
-              "progressSeconds": 0,
-              "lastWatchedAt": "2026-09-22T16:55:05.594Z",
+              "progressSeconds": 10,
+              "lastWatchedAt": "2026-09-22T17:56:23.466Z",
               "selectedAudioIndex": 1,
               "selectedSubtitleIndex": 0
             },
@@ -2620,9 +2620,9 @@
         }
       ],
       "createdAt": "2026-09-22T16:05:31.195Z",
-      "updatedAt": "2026-09-22T16:55:05.594Z",
+      "updatedAt": "2026-09-22T17:56:23.466Z",
       "lastWatchedEpisodeId": "ep_s2e1_cafe97ea8e64",
-      "lastWatchedAt": "2026-09-22T16:55:05.594Z"
+      "lastWatchedAt": "2026-09-22T17:56:23.466Z"
     },
     {
       "id": "media_983358608e93d241",
@@ -2963,11 +2963,11 @@
                   "isExternal": false
                 }
               ],
-              "watched": true,
-              "progressSeconds": 2804.2409999999995,
+              "watched": false,
+              "progressSeconds": 4,
               "selectedAudioIndex": 1,
               "selectedSubtitleIndex": 0,
-              "lastWatchedAt": "2026-09-22T17:18:00.516Z"
+              "lastWatchedAt": "2026-09-22T17:57:46.951Z"
             },
             {
               "id": "ep_s1e5_6bd0a33ac733",
@@ -3276,9 +3276,9 @@
         }
       ],
       "createdAt": "2026-09-22T16:39:24.131Z",
-      "updatedAt": "2026-09-22T17:28:53.678Z",
-      "lastWatchedEpisodeId": "ep_s1e8_be092ce86839",
-      "lastWatchedAt": "2026-09-22T17:28:53.678Z"
+      "updatedAt": "2026-09-22T17:57:46.951Z",
+      "lastWatchedEpisodeId": "ep_s1e4_23cb21fc3ffb",
+      "lastWatchedAt": "2026-09-22T17:57:46.951Z"
     }
   ]
 }
