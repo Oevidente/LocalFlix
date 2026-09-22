@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-22T15:16:52.686Z",
+  "updatedAt": "2026-09-22T15:59:04.097Z",
   "settings": {
     "preferredAudioLanguage": "por",
     "preferredSubtitleLanguage": "por",
@@ -160,14 +160,14 @@
               "filePath": "J:\\Ruptura\\Ruptura S02E01 WEB-DL 1080p x264 DUAL 5.1.mkv",
               "extension": ".mkv",
               "sizeBytes": 1409717595,
-              "durationSeconds": 0,
+              "durationSeconds": 5.034666666666666,
               "audioTracks": [],
               "subtitleTracks": [],
               "watched": false,
-              "progressSeconds": 0,
+              "progressSeconds": 4,
               "selectedAudioIndex": 0,
               "selectedSubtitleIndex": -1,
-              "lastWatchedAt": "2026-09-22T15:16:39.034Z"
+              "lastWatchedAt": "2026-09-22T15:58:39.279Z"
             },
             {
               "id": "ep_s2e2_f6bfa907a3a6",
@@ -178,11 +178,14 @@
               "filePath": "J:\\Ruptura\\Ruptura S02E02 WEB-DL 1080p x264 DUAL 5.1.mkv",
               "extension": ".mkv",
               "sizeBytes": 1319376531,
-              "durationSeconds": 0,
+              "durationSeconds": 5.005,
               "audioTracks": [],
               "subtitleTracks": [],
               "watched": false,
-              "progressSeconds": 0
+              "progressSeconds": 0,
+              "selectedAudioIndex": 0,
+              "selectedSubtitleIndex": -1,
+              "lastWatchedAt": "2026-09-22T15:56:35.566Z"
             },
             {
               "id": "ep_s2e3_f225c7ce02a8",
@@ -308,9 +311,9 @@
         }
       ],
       "createdAt": "2026-09-22T14:19:26.439Z",
-      "updatedAt": "2026-09-22T15:16:39.035Z",
+      "updatedAt": "2026-09-22T15:58:39.279Z",
       "lastWatchedEpisodeId": "ep_s2e1_cafe97ea8e64",
-      "lastWatchedAt": "2026-09-22T15:16:39.034Z",
+      "lastWatchedAt": "2026-09-22T15:58:39.279Z",
       "backdropPath": "https://m.media-amazon.com/images/M/MV5BZDI5YzJhODQtMzQyNy00YWNmLWIxMjUtNDBjNjA5YWRjMzExXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg"
     },
     {
@@ -335,22 +338,22 @@
               "filePath": "J:\\Batman Knightfall Part 1 Knightfall\\Batman Knightfall Part 1 Knightfall 2026 1080p MA WEB-DL DDP5 1 H 264-BYNDR.mkv",
               "extension": ".mkv",
               "sizeBytes": 5059293514,
-              "durationSeconds": 0,
+              "durationSeconds": 5.034666666666666,
               "audioTracks": [],
               "subtitleTracks": [],
               "watched": false,
-              "progressSeconds": 0,
+              "progressSeconds": 4,
               "selectedAudioIndex": 0,
               "selectedSubtitleIndex": -1,
-              "lastWatchedAt": "2026-09-22T15:16:52.686Z"
+              "lastWatchedAt": "2026-09-22T15:59:04.097Z"
             }
           ]
         }
       ],
       "createdAt": "2026-09-22T14:48:14.332Z",
-      "updatedAt": "2026-09-22T15:16:52.686Z",
+      "updatedAt": "2026-09-22T15:59:04.097Z",
       "lastWatchedEpisodeId": "ep_s1e1_15d5b7587483",
-      "lastWatchedAt": "2026-09-22T15:16:52.686Z"
+      "lastWatchedAt": "2026-09-22T15:59:04.097Z"
     },
     {
       "id": "media_91b5572d75c30790",
