@@ -5,7 +5,7 @@ import { apiRouter } from './src/server/routes';
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3050;
+  const PORT = Number(process.env.PORT) || 3000;
 
   // Middleware
   app.use(express.json());
