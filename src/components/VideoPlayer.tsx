@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Hls from 'hls.js';
 import {
   ArrowLeft,
   Play,
@@ -75,36 +76,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isRecovering, setIsRecovering] = useState<boolean>(false);
 
-  // Calculate stream source
+  const hlsRef = useRef<Hls | null>(null);
   const isDirectMP4 = episode.extension === '.mp4' || episode.extension === '.webm';
-  const initialProgress =
-    episode.progressSeconds > 10 && !episode.watched ? episode.progressSeconds : 0;
-  const [seekOffset, setSeekOffset] = useState<number>(!isDirectMP4 ? initialProgress : 0);
-
-  // Build stream URL
-  const getStreamUrl = useCallback(
-    (audioIdx: number, seekSec: number = 0, forceTrans: boolean = false) => {
-      let url = `/api/media/${media.id}/episode/${episode.id}/stream`;
-      const params = new URLSearchParams();
-      const needsTranscode = forceTrans || isForceTranscode;
-      if (audioIdx > 0 || !isDirectMP4 || needsTranscode) {
-        params.append('audio', audioIdx.toString());
-      }
-      if (needsTranscode) {
-        params.append('transcode', '1');
-      }
-      if ((!isDirectMP4 || needsTranscode) && seekSec > 0) {
-        params.append('seek', Math.floor(seekSec).toString());
-      }
-      const qs = params.toString();
-      return qs ? `${url}?${qs}` : url;
-    },
-    [media.id, episode.id, isDirectMP4, isForceTranscode]
-  );
-
-  const [streamSrc, setStreamSrc] = useState<string>(() => {
-    return getStreamUrl(selectedAudioIndex, !isDirectMP4 ? initialProgress : 0, false);
-  });
 
   // Save progress helper (debounced to avoid thrashing server and disk)
   const saveProgress = useCallback(
@@ -159,62 +132,124 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }, 3500);
   }, []);
 
-  // Initialize playback and seek to saved position
+  // Initialize playback (HLS engine for MKV/transcoded, native HTTP Range 206 for MP4/WebM)
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const initialSeek = episode.progressSeconds > 10 && !episode.watched ? episode.progressSeconds : 0;
+    const initialSeek =
+      episode.progressSeconds > 10 && !episode.watched ? episode.progressSeconds : 0;
 
-    const handleLoadedMetadata = () => {
-      if (video.duration && !isNaN(video.duration) && isFinite(video.duration)) {
-        if (isDirectMP4) {
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    const shouldUseHls = !isDirectMP4 || isForceTranscode || selectedAudioIndex > 0;
+
+    if (shouldUseHls) {
+      const hlsUrl = `/api/media/${media.id}/episode/${episode.id}/hls/master.m3u8?audio=${selectedAudioIndex}${
+        isForceTranscode ? '&transcode=1' : ''
+      }`;
+
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
+          backBufferLength: 60,
+        });
+        hlsRef.current = hls;
+        hls.loadSource(hlsUrl);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          if (initialSeek > 0) {
+            try {
+              video.currentTime = initialSeek;
+            } catch {}
+          }
+          video.play().catch(() => {});
+        });
+
+        hls.on(Hls.Events.LEVEL_LOADED, (_event, data) => {
+          if (data.details.totalduration && isFinite(data.details.totalduration)) {
+            setDuration(data.details.totalduration);
+          }
+        });
+
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) {
+            console.warn('[HLS] Fatal error:', data);
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                hls.destroy();
+                if (!isForceTranscode) {
+                  setIsForceTranscode(true);
+                } else {
+                  setPlaybackError('Não foi possível continuar a reprodução deste arquivo MKV.');
+                }
+                break;
+            }
+          }
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = hlsUrl;
+        const onLoaded = () => {
+          if (initialSeek > 0) video.currentTime = initialSeek;
+          video.play().catch(() => {});
+        };
+        video.addEventListener('loadedmetadata', onLoaded, { once: true });
+      }
+    } else {
+      // Direct native MP4 / WebM
+      const directUrl = `/api/media/${media.id}/episode/${episode.id}/stream`;
+      video.src = directUrl;
+      const onLoaded = () => {
+        if (video.duration && isFinite(video.duration)) {
           setDuration(video.duration);
         }
-      }
-      if (isDirectMP4 && initialSeek > 0) {
-        video.currentTime = initialSeek;
-      }
-      video.play().catch(() => {});
-    };
-
-    const handleCanPlay = () => {
-      video.play().catch(() => {});
-    };
-
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('canplay', handleCanPlay);
+        if (initialSeek > 0) {
+          video.currentTime = initialSeek;
+        }
+        video.play().catch(() => {});
+      };
+      video.addEventListener('loadedmetadata', onLoaded, { once: true });
+    }
 
     return () => {
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('canplay', handleCanPlay);
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
     };
-  }, [episode.id, isDirectMP4]);
+  }, [media.id, episode.id, isDirectMP4, isForceTranscode, selectedAudioIndex]);
 
   // Periodic progress saving (every 5 seconds)
   useEffect(() => {
     progressSaveTimer.current = setInterval(() => {
       if (videoRef.current && !videoRef.current.paused) {
-        const exactTime = isDirectMP4
-          ? videoRef.current.currentTime
-          : seekOffset + videoRef.current.currentTime;
-        saveProgress(exactTime);
+        saveProgress(videoRef.current.currentTime);
       }
     }, 5000);
 
     return () => {
       if (progressSaveTimer.current) clearInterval(progressSaveTimer.current);
     };
-  }, [saveProgress, isDirectMP4, seekOffset]);
+  }, [saveProgress]);
 
-  // Save on pause or beforeunload
+  // Save on beforeunload
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (videoRef.current) {
-        const exactTime = isDirectMP4
-          ? videoRef.current.currentTime
-          : seekOffset + videoRef.current.currentTime;
-        saveProgress(exactTime);
+        saveProgress(videoRef.current.currentTime);
       }
     };
 
@@ -223,7 +258,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       window.removeEventListener('beforeunload', handleBeforeUnload);
       handleBeforeUnload();
     };
-  }, [saveProgress, isDirectMP4, seekOffset]);
+  }, [saveProgress]);
 
   // Subtitle track application
   useEffect(() => {
@@ -244,28 +279,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const handleSelectAudio = (index: number) => {
     setSelectedAudioIndex(index);
     const video = videoRef.current;
-    if (!video) return;
-
-    const currentExact = isDirectMP4 && !isForceTranscode
-      ? video.currentTime
-      : seekOffset + video.currentTime;
-
-    saveProgress(currentExact);
-
-    // Reload stream with chosen audio
-    if (!isDirectMP4 || isForceTranscode) {
-      setSeekOffset(currentExact);
-      setStreamSrc(getStreamUrl(index, currentExact, isForceTranscode));
-    } else {
-      // In direct mp4, if audio index > 0, switch to ffmpeg remux
-      if (index > 0) {
-        setSeekOffset(currentExact);
-        setStreamSrc(getStreamUrl(index, currentExact, false));
-      } else {
-        setSeekOffset(0);
-        setStreamSrc(getStreamUrl(0, 0, false));
-        video.currentTime = currentExact;
-      }
+    if (video) {
+      saveProgress(video.currentTime);
     }
   };
 
@@ -274,7 +289,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const video = videoRef.current;
     if (!video) return;
 
-    // Immediately cancel any active countdown when user manually seeks
     if (countdownInterval.current) {
       clearInterval(countdownInterval.current);
       countdownInterval.current = null;
@@ -284,24 +298,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     isSeekingRef.current = true;
     const clampedSec = Math.max(0, Math.min(targetSec, duration > 0 ? duration : targetSec));
 
-    if (isDirectMP4 && !isForceTranscode && streamSrc.indexOf('seek=') === -1) {
-      try {
-        video.currentTime = clampedSec;
-      } catch (err) {
-        console.warn('Seek error on HTML5 video:', err);
-      }
-      setCurrentTime(clampedSec);
-    } else {
-      // MKV or transcoded stream: reload stream from seek position
-      setSeekOffset(clampedSec);
-      setStreamSrc(getStreamUrl(selectedAudioIndex, clampedSec, isForceTranscode));
-      setCurrentTime(clampedSec);
+    try {
+      video.currentTime = clampedSec;
+    } catch (err) {
+      console.warn('Seek error on video:', err);
     }
+    setCurrentTime(clampedSec);
     saveProgress(clampedSec, duration, false, false);
 
     setTimeout(() => {
       isSeekingRef.current = false;
-    }, 1000);
+    }, 600);
   };
 
   // Sync isFullscreen with native browser events
@@ -428,16 +435,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const video = videoRef.current;
     if (!video) return;
 
-    const exact = isDirectMP4 && streamSrc.indexOf('seek=') === -1
-      ? video.currentTime
-      : seekOffset + video.currentTime;
-
+    const exact = video.currentTime;
     setCurrentTime(exact);
 
     if (video.duration && !isNaN(video.duration) && isFinite(video.duration)) {
-      if (isDirectMP4) {
-        setDuration(video.duration);
-      }
+      setDuration(video.duration);
     }
 
     // Reset countdown if user moved back before the final 15 seconds
@@ -467,50 +469,29 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Automatic Stream Recovery when stream terminates prematurely or decode fails
+  // Automatic Stream Recovery
   const handleStreamRecovery = useCallback(
     (enableTranscode = true) => {
       if (isRecovering) return;
       setIsRecovering(true);
-      const video = videoRef.current;
-      const exact = isDirectMP4 && streamSrc.indexOf('seek=') === -1 && !isForceTranscode
-        ? video?.currentTime || currentTime
-        : seekOffset + (video?.currentTime || 0);
-
-      const resumeTime = Math.max(0, exact);
 
       if (enableTranscode) {
         setIsForceTranscode(true);
       }
 
-      setSeekOffset(resumeTime);
-      setCurrentTime(resumeTime);
-      const newUrl = getStreamUrl(selectedAudioIndex, resumeTime, enableTranscode || isForceTranscode);
-      setStreamSrc(newUrl);
-
       setTimeout(() => {
         setIsRecovering(false);
-        if (videoRef.current) {
-          videoRef.current.load();
-          videoRef.current.play().catch(() => {});
-        }
-      }, 400);
+      }, 800);
     },
-    [isRecovering, isDirectMP4, streamSrc, isForceTranscode, currentTime, seekOffset, selectedAudioIndex, getStreamUrl]
+    [isRecovering]
   );
 
   const handleEnded = () => {
-    // Ignore ended events triggered during seek transitions
-    if (isSeekingRef.current) {
-      return;
-    }
+    if (isSeekingRef.current) return;
     setIsPlaying(false);
     const video = videoRef.current;
-    const exact = isDirectMP4 && streamSrc.indexOf('seek=') === -1 && !isForceTranscode
-      ? video?.currentTime || currentTime
-      : seekOffset + (video?.currentTime || 0);
+    const exact = video?.currentTime || currentTime;
 
-    // Only consider the episode genuinely completed if it played through near the real duration
     const isActuallyFinished =
       duration > 30 && isFinite(duration) ? exact >= Math.max(duration - 20, duration * 0.9) : false;
 
@@ -520,16 +501,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onPlayNextEpisode();
       }
     } else {
-      // Premature stream cutoff (common after bumper/vinheta splice)
       handleStreamRecovery(true);
     }
   };
 
   const handleVideoError = () => {
-    // Ignore error events triggered during seek or stream recovery transition
-    if (isSeekingRef.current || isRecovering) {
-      return;
-    }
+    if (isSeekingRef.current || isRecovering) return;
     const err = videoRef.current?.error;
     console.warn('[VideoPlayer] Video element error encountered:', err);
     if (!isForceTranscode) {
@@ -569,11 +546,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       onMouseMove={handleUserActivity}
       onClick={handleUserActivity}
     >
-      {/* HTML5 Video Element */}
+      {/* HTML5 Video Element with HLS / Native streaming */}
       <video
         ref={videoRef}
         id="html5-video-player"
-        src={streamSrc}
         className="w-full h-full object-contain cursor-pointer"
         onTimeUpdate={handleTimeUpdate}
         onPlay={() => {
@@ -590,8 +566,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }}
         onPause={() => {
           setIsPlaying(false);
-          const exact = isDirectMP4 && !isForceTranscode ? videoRef.current?.currentTime || 0 : seekOffset + (videoRef.current?.currentTime || 0);
-          saveProgress(exact, duration, false, true);
+          saveProgress(videoRef.current?.currentTime || 0, duration, false, true);
         }}
         onEnded={handleEnded}
         onError={handleVideoError}

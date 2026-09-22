@@ -15,6 +15,7 @@ import {
 } from './storage';
 import { scanMediaFolder } from './scanner';
 import { getBinaries, generateThumbnail, isBrowserNativeDirectPlayable, streamSubtitlesToVtt } from './ffmpeg';
+import { getOrCreateHlsSession } from './hls';
 import { BrowseItem, SystemStatus } from '../types';
 
 export const apiRouter = Router();
@@ -371,6 +372,74 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
       proc.kill('SIGKILL');
     } catch {}
   });
+});
+
+// 8.1 HLS Streaming (M3U8 Manifest and TS Segments for MKV & Transcoded streams)
+apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Request, res: Response) => {
+  const { mediaId, episodeId, file } = req.params;
+  const audioTrackParam = req.query.audio as string | undefined;
+  const audioTrackIndex = audioTrackParam !== undefined ? parseInt(audioTrackParam, 10) : 0;
+  const forceTranscode = req.query.transcode === 'true' || req.query.transcode === '1';
+
+  const pair = findEpisode(mediaId, episodeId);
+  if (!pair) {
+    res.status(404).send('Episódio não encontrado');
+    return;
+  }
+
+  const { episode } = pair;
+  const filePath = episode.filePath;
+  if (!fs.existsSync(filePath)) {
+    res.status(404).send(`Arquivo não encontrado: ${filePath}`);
+    return;
+  }
+
+  const selectedAudio = episode.audioTracks[audioTrackIndex] || episode.audioTracks[0];
+  const audioStreamIndex = selectedAudio ? selectedAudio.streamIndex : undefined;
+
+  const isH264 = !!(episode.videoCodec?.toLowerCase().includes('264') || episode.videoCodec?.toLowerCase().includes('avc'));
+  const is10BitOrHighColor = !!(episode.pixFmt && (episode.pixFmt.includes('10') || episode.pixFmt.includes('444') || episode.pixFmt.includes('422')));
+  const canDirectCopyVideo = Boolean(!forceTranscode && isH264 && !is10BitOrHighColor);
+
+  try {
+    const { sessionDir, manifestPath } = await getOrCreateHlsSession(
+      mediaId,
+      episodeId,
+      filePath,
+      audioStreamIndex,
+      audioTrackIndex,
+      canDirectCopyVideo
+    );
+
+    const targetFile = file === 'master.m3u8' ? manifestPath : path.join(sessionDir, file);
+
+    if (!fs.existsSync(targetFile)) {
+      const startWait = Date.now();
+      while (Date.now() - startWait < 3000 && !fs.existsSync(targetFile)) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
+
+    if (!fs.existsSync(targetFile)) {
+      res.status(404).send('Segmento HLS não encontrado');
+      return;
+    }
+
+    if (file.endsWith('.m3u8')) {
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else if (file.endsWith('.ts')) {
+      res.setHeader('Content-Type', 'video/MP2T');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+    }
+
+    fs.createReadStream(targetFile).pipe(res);
+  } catch (err: any) {
+    console.error('[HLS] Stream error:', err);
+    if (!res.headersSent) {
+      res.status(500).send(`Erro ao preparar streaming HLS: ${err.message}`);
+    }
+  }
 });
 
 // 9. Subtitles (Internal stream or External file converted to WebVTT)
