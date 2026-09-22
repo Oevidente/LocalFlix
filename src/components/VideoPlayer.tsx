@@ -12,6 +12,8 @@ import {
   Subtitles,
   SkipForward,
   Settings,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import { MediaItem, Episode, AudioTrackInfo, SubtitleTrackInfo } from '../types';
 import { formatTime } from '../utils';
@@ -61,6 +63,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [countdownSeconds, setCountdownSeconds] = useState<number>(5);
   const countdownInterval = useRef<any>(null);
 
+  // Recovery & Transcode Fallback States
+  const [isForceTranscode, setIsForceTranscode] = useState<boolean>(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const [isRecovering, setIsRecovering] = useState<boolean>(false);
+
   // Calculate stream source
   const isDirectMP4 = episode.extension === '.mp4' || episode.extension === '.webm';
   // If user selected non-default audio or it's MKV/AVI, use ffmpeg streaming
@@ -68,26 +75,30 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Build stream URL
   const getStreamUrl = useCallback(
-    (audioIdx: number, seekSec: number = 0) => {
+    (audioIdx: number, seekSec: number = 0, forceTrans: boolean = false) => {
       let url = `/api/media/${media.id}/episode/${episode.id}/stream`;
       const params = new URLSearchParams();
-      if (audioIdx > 0 || !isDirectMP4) {
+      const needsTranscode = forceTrans || isForceTranscode;
+      if (audioIdx > 0 || !isDirectMP4 || needsTranscode) {
         params.append('audio', audioIdx.toString());
       }
-      if (!isDirectMP4 && seekSec > 0) {
+      if (needsTranscode) {
+        params.append('transcode', '1');
+      }
+      if ((!isDirectMP4 || needsTranscode) && seekSec > 0) {
         params.append('seek', Math.floor(seekSec).toString());
       }
       const qs = params.toString();
       return qs ? `${url}?${qs}` : url;
     },
-    [media.id, episode.id, isDirectMP4]
+    [media.id, episode.id, isDirectMP4, isForceTranscode]
   );
 
   const [streamSrc, setStreamSrc] = useState<string>(() => {
     // Initial start: resume from episode.progressSeconds if exists
     const initialProgress =
       episode.progressSeconds > 10 && !episode.watched ? episode.progressSeconds : 0;
-    return getStreamUrl(selectedAudioIndex, !isDirectMP4 ? initialProgress : 0);
+    return getStreamUrl(selectedAudioIndex, !isDirectMP4 ? initialProgress : 0, false);
   });
 
   // Save progress helper
@@ -208,24 +219,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const video = videoRef.current;
     if (!video) return;
 
-    const currentExact = isDirectMP4
+    const currentExact = isDirectMP4 && !isForceTranscode
       ? video.currentTime
       : seekOffset + video.currentTime;
 
     saveProgress(currentExact);
 
     // Reload stream with chosen audio
-    if (!isDirectMP4) {
+    if (!isDirectMP4 || isForceTranscode) {
       setSeekOffset(currentExact);
-      setStreamSrc(getStreamUrl(index, currentExact));
+      setStreamSrc(getStreamUrl(index, currentExact, isForceTranscode));
     } else {
       // In direct mp4, if audio index > 0, switch to ffmpeg remux
       if (index > 0) {
         setSeekOffset(currentExact);
-        setStreamSrc(getStreamUrl(index, currentExact));
+        setStreamSrc(getStreamUrl(index, currentExact, false));
       } else {
         setSeekOffset(0);
-        setStreamSrc(getStreamUrl(0, 0));
+        setStreamSrc(getStreamUrl(0, 0, false));
         video.currentTime = currentExact;
       }
     }
@@ -238,13 +249,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     const clampedSec = Math.max(0, Math.min(targetSec, duration || targetSec));
 
-    if (isDirectMP4 && streamSrc.indexOf('seek=') === -1) {
+    if (isDirectMP4 && !isForceTranscode && streamSrc.indexOf('seek=') === -1) {
       video.currentTime = clampedSec;
       setCurrentTime(clampedSec);
     } else {
       // MKV or transcoded stream: reload stream from seek position
       setSeekOffset(clampedSec);
-      setStreamSrc(getStreamUrl(selectedAudioIndex, clampedSec));
+      setStreamSrc(getStreamUrl(selectedAudioIndex, clampedSec, isForceTranscode));
       setCurrentTime(clampedSec);
     }
     saveProgress(clampedSec);
@@ -379,11 +390,66 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  // Automatic Stream Recovery when stream terminates prematurely or decode fails
+  const handleStreamRecovery = useCallback(
+    (enableTranscode = true) => {
+      if (isRecovering) return;
+      setIsRecovering(true);
+      const video = videoRef.current;
+      const exact = isDirectMP4 && streamSrc.indexOf('seek=') === -1 && !isForceTranscode
+        ? video?.currentTime || currentTime
+        : seekOffset + (video?.currentTime || 0);
+
+      const resumeTime = Math.max(0, exact);
+
+      if (enableTranscode) {
+        setIsForceTranscode(true);
+      }
+
+      setSeekOffset(resumeTime);
+      setCurrentTime(resumeTime);
+      const newUrl = getStreamUrl(selectedAudioIndex, resumeTime, enableTranscode || isForceTranscode);
+      setStreamSrc(newUrl);
+
+      setTimeout(() => {
+        setIsRecovering(false);
+        if (videoRef.current) {
+          videoRef.current.load();
+          videoRef.current.play().catch(() => {});
+        }
+      }, 400);
+    },
+    [isRecovering, isDirectMP4, streamSrc, isForceTranscode, currentTime, seekOffset, selectedAudioIndex, getStreamUrl]
+  );
+
   const handleEnded = () => {
     setIsPlaying(false);
-    saveProgress(duration, duration, true);
-    if (nextEpisode && onPlayNextEpisode) {
-      onPlayNextEpisode();
+    const video = videoRef.current;
+    const exact = isDirectMP4 && streamSrc.indexOf('seek=') === -1 && !isForceTranscode
+      ? video?.currentTime || currentTime
+      : seekOffset + (video?.currentTime || 0);
+
+    // Only consider the episode genuinely completed if it played through near the real duration
+    const isActuallyFinished = duration > 30 ? exact >= Math.max(duration - 20, duration * 0.85) : true;
+
+    if (isActuallyFinished) {
+      saveProgress(duration, duration, true);
+      if (nextEpisode && onPlayNextEpisode) {
+        onPlayNextEpisode();
+      }
+    } else {
+      // Premature stream cutoff (common after bumper/vinheta splice)
+      handleStreamRecovery(true);
+    }
+  };
+
+  const handleVideoError = () => {
+    const err = videoRef.current?.error;
+    console.warn('[VideoPlayer] Video element error encountered:', err);
+    if (!isForceTranscode) {
+      handleStreamRecovery(true);
+    } else {
+      setPlaybackError('Não foi possível continuar a reprodução deste formato diretamente.');
     }
   };
 
@@ -424,10 +490,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onPlay={() => setIsPlaying(true)}
         onPause={() => {
           setIsPlaying(false);
-          const exact = isDirectMP4 ? videoRef.current?.currentTime || 0 : seekOffset + (videoRef.current?.currentTime || 0);
+          const exact = isDirectMP4 && !isForceTranscode ? videoRef.current?.currentTime || 0 : seekOffset + (videoRef.current?.currentTime || 0);
           saveProgress(exact);
         }}
         onEnded={handleEnded}
+        onError={handleVideoError}
         onClick={() => {
           if (videoRef.current?.paused) {
             videoRef.current.play();
@@ -448,6 +515,50 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           />
         ))}
       </video>
+
+      {/* Stream Recovery Indicator */}
+      {isRecovering && (
+        <div
+          id="player-recovering-indicator"
+          className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center z-30 pointer-events-none"
+        >
+          <Loader2 className="w-12 h-12 text-red-500 animate-spin mb-3" />
+          <p className="text-white text-sm font-medium tracking-wide">Sincronizando reprodução...</p>
+        </div>
+      )}
+
+      {/* Playback Error Overlay */}
+      {playbackError && (
+        <div
+          id="player-error-overlay"
+          className="absolute inset-0 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center z-50 p-6 text-center"
+        >
+          <div className="w-14 h-14 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center mb-4 text-red-400">
+            <AlertTriangle className="w-7 h-7" />
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Falha na Reprodução</h3>
+          <p className="text-neutral-400 text-sm max-w-md mb-6">{playbackError}</p>
+          <div className="flex items-center space-x-3">
+            <button
+              id="player-retry-transcode-btn"
+              onClick={() => {
+                setPlaybackError(null);
+                handleStreamRecovery(true);
+              }}
+              className="px-5 py-2.5 rounded bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-colors shadow-lg"
+            >
+              Tentar Novamente
+            </button>
+            <button
+              id="player-close-error-btn"
+              onClick={onClose}
+              className="px-5 py-2.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-medium text-sm transition-colors"
+            >
+              Voltar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Top Header Bar */}
       <div

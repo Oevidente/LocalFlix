@@ -257,6 +257,10 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
 
   const args: string[] = [];
 
+  // Input flags: tolerate corrupt packets, missing PTS and discontinuous timestamps (common in spliced bumpers/vinhetas)
+  args.push('-fflags', '+genpts+discardcorrupt+igndts');
+  args.push('-err_detect', 'ignore_err');
+
   // Seek position before input for fast keyframe seek
   if (seekSeconds > 0) {
     args.push('-ss', seekSeconds.toString());
@@ -274,20 +278,37 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
     args.push('-map', '0:a:0?');
   }
 
-  // Video codec: if already h264/avc, copy directly (very fast, zero CPU degradation)
-  // If not h264 (e.g. mpeg2, avi, msmpeg), transcode quickly with libx264
+  // Video codec: if forceTranscode is requested or video is not standard h264, re-encode with libx264
+  // Transcoding guarantees consistent SPS/PPS, framerate, and resolution across bumper/vinheta cuts
   const isH264 = episode.videoCodec?.toLowerCase().includes('264') || episode.videoCodec?.toLowerCase().includes('avc');
-  if (isH264) {
-    args.push('-c:v', 'copy');
+  if (forceTranscode || !isH264) {
+    args.push(
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-tune', 'zerolatency',
+      '-crf', '23',
+      '-pix_fmt', 'yuv420p'
+    );
   } else {
-    args.push('-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-crf', '24');
+    args.push('-c:v', 'copy');
   }
 
-  // Audio: always encode to AAC so every browser plays it cleanly
-  args.push('-c:a', 'aac', '-b:a', '192k', '-ac', '2');
+  // Audio: always encode to AAC with async audio resampling so bumper/vinheta timestamp jumps don't desync or crash FFmpeg
+  args.push(
+    '-c:a', 'aac',
+    '-b:a', '192k',
+    '-ac', '2',
+    '-af', 'aresample=async=1000:min_hard_comp=0.100000:first_pts=0'
+  );
 
-  // Fragmented MP4 flags for direct pipe streaming to HTML5 video tag
-  args.push('-movflags', 'frag_keyframe+empty_moov+default_base_moof', '-f', 'mp4', 'pipe:1');
+  // Fragmented MP4 flags for direct pipe streaming to HTML5 video tag with negative CTS offsets and avoid negative TS
+  args.push(
+    '-max_muxing_queue_size', '4096',
+    '-avoid_negative_ts', 'make_zero',
+    '-movflags', 'frag_keyframe+empty_moov+default_base_moof+negative_cts_offsets',
+    '-f', 'mp4',
+    'pipe:1'
+  );
 
   res.writeHead(200, {
     'Content-Type': 'video/mp4',
@@ -298,7 +319,17 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
   const proc = spawn(ffmpeg, args);
   proc.stdout.pipe(res);
 
-  proc.stderr.on('data', () => {}); // silence log
+  let stderrTail = '';
+  proc.stderr.on('data', (chunk) => {
+    const text = chunk.toString();
+    stderrTail = (stderrTail + text).slice(-1000);
+  });
+
+  proc.on('close', (code) => {
+    if (code !== 0 && code !== null) {
+      console.warn(`[FFmpeg] Stream exited with code ${code}. Stderr snippet: ${stderrTail.trim()}`);
+    }
+  });
 
   proc.on('error', (err) => {
     console.error('FFmpeg streaming error:', err);

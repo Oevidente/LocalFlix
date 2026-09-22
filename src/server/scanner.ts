@@ -162,6 +162,9 @@ function findExternalSubtitles(videoPath: string, allFiles: string[]): SubtitleT
   return subTracks;
 }
 
+// Regex to identify auxiliary / promotional / sample video files
+const AUXILIARY_VIDEO_REGEX = /(^|[\._\-\s])(vinheta|intro|abertura|sample|trailer|teaser|preview|featurette|extra|bonus)([\._\-\s]|$)/i;
+
 export async function scanMediaFolder(folderPath: string, customTitle?: string): Promise<MediaItem> {
   const resolvedPath = path.resolve(folderPath);
   if (!fs.existsSync(resolvedPath)) {
@@ -169,10 +172,17 @@ export async function scanMediaFolder(folderPath: string, customTitle?: string):
   }
 
   const allFiles = getAllFiles(resolvedPath);
-  const videoFiles = allFiles.filter((f) => VIDEO_EXTENSIONS.has(path.extname(f).toLowerCase()));
+  const allVideoFiles = allFiles.filter((f) => VIDEO_EXTENSIONS.has(path.extname(f).toLowerCase()));
 
-  if (videoFiles.length === 0) {
+  if (allVideoFiles.length === 0) {
     throw new Error(`Nenhum arquivo de vídeo suportado (.mp4, .mkv, .avi, .webm) encontrado em ${resolvedPath}`);
+  }
+
+  // Filter out standalone sample/vinheta/intro files if there are primary media files
+  let videoFiles = allVideoFiles.filter((f) => !AUXILIARY_VIDEO_REGEX.test(path.basename(f)));
+  if (videoFiles.length === 0) {
+    // If all were deemed auxiliary, retain them so the folder isn't rejected
+    videoFiles = allVideoFiles;
   }
 
   // Check for poster and backdrop
