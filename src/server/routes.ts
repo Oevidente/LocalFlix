@@ -204,7 +204,7 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
 
   const audioTrackParam = req.query.audio as string | undefined;
   const seekParam = req.query.seek as string | undefined;
-  const forceTranscode = req.query.transcode === 'true';
+  const forceTranscode = req.query.transcode === 'true' || req.query.transcode === '1';
 
   const audioTrackIndex = audioTrackParam !== undefined ? parseInt(audioTrackParam, 10) : undefined;
   const seekSeconds = seekParam ? parseFloat(seekParam) : 0;
@@ -214,10 +214,10 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
   // - No custom seek offset that forces remux
   // - Browser native format (MP4/WebM)
   // - No specific audio track chosen that differs from default (or only 1 track)
-  // - Video codec is h264/vp8/vp9/av1
+  // - Video codec is h264/vp8/vp9/av1 with 8-bit yuv420p
   const directCompatible =
     !forceTranscode &&
-    isBrowserNativeDirectPlayable(filePath, episode.videoCodec, episode.audioTracks[0]?.codec) &&
+    isBrowserNativeDirectPlayable(filePath, episode.videoCodec, episode.audioTracks[0]?.codec, episode.pixFmt) &&
     (audioTrackIndex === undefined || audioTrackIndex === 0);
 
   if (directCompatible && !seekParam) {
@@ -281,8 +281,8 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
 
   args.push('-i', filePath);
 
-  // Map video stream 0
-  args.push('-map', '0:v:0');
+  // Map real video stream (skipping attached cover images)
+  args.push('-map', '0:V:0?');
 
   // Map chosen audio stream
   if (audioStreamIndex !== undefined) {
@@ -291,19 +291,32 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
     args.push('-map', '0:a:0?');
   }
 
-  // Video codec: if forceTranscode is requested or video is not standard h264, re-encode with libx264
-  // Transcoding guarantees consistent SPS/PPS, framerate, and resolution across bumper/vinheta cuts
+  // Video codec:
+  // Stream copy is only safe if:
+  // - Not forced transcode
+  // - Video codec is H.264 / AVC
+  // - Pixel format is standard 8-bit YUV420P (not 10-bit Hi10P, not YUV444P)
   const isH264 = episode.videoCodec?.toLowerCase().includes('264') || episode.videoCodec?.toLowerCase().includes('avc');
-  if (forceTranscode || !isH264) {
+  const is10BitOrHighColor = episode.pixFmt && (episode.pixFmt.includes('10') || episode.pixFmt.includes('444') || episode.pixFmt.includes('422'));
+  const canDirectCopyVideo = !forceTranscode && isH264 && !is10BitOrHighColor;
+
+  if (canDirectCopyVideo) {
+    args.push(
+      '-c:v', 'copy',
+      '-bsf:v', 'dump_extra'
+    );
+  } else {
     args.push(
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
       '-tune', 'zerolatency',
+      '-profile:v', 'baseline',
+      '-level', '3.1',
       '-crf', '23',
-      '-pix_fmt', 'yuv420p'
+      '-pix_fmt', 'yuv420p',
+      '-g', '30',
+      '-keyint_min', '30'
     );
-  } else {
-    args.push('-c:v', 'copy');
   }
 
   // Audio: always encode to AAC with async audio resampling so bumper/vinheta timestamp jumps don't desync or crash FFmpeg
@@ -314,7 +327,7 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
     '-af', 'aresample=async=1000:min_hard_comp=0.100000:first_pts=0'
   );
 
-  // Fragmented MP4 flags for direct pipe streaming to HTML5 video tag with negative CTS offsets and avoid negative TS
+  // Fragmented MP4 flags for direct pipe streaming to MSE / HTML5 video player
   args.push(
     '-max_muxing_queue_size', '4096',
     '-avoid_negative_ts', 'make_zero',
@@ -325,8 +338,10 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
 
   res.writeHead(200, {
     'Content-Type': 'video/mp4',
-    'Cache-Control': 'no-cache',
-    'Transfer-Encoding': 'chunked',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'Connection': 'keep-alive',
   });
 
   const proc = spawn(ffmpeg, args);

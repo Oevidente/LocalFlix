@@ -7,6 +7,7 @@ import { getThumbnailDir } from './storage';
 export interface FFprobeData {
   durationSeconds: number;
   videoCodec?: string;
+  pixFmt?: string;
   resolution?: string;
   audioTracks: AudioTrackInfo[];
   subtitleTracks: SubtitleTrackInfo[];
@@ -95,6 +96,7 @@ export async function probeMedia(filePath: string): Promise<FFprobeData> {
         }
 
         let videoCodec: string | undefined;
+        let pixFmt: string | undefined;
         let resolution: string | undefined;
         const audioTracks: AudioTrackInfo[] = [];
         const subtitleTracks: SubtitleTrackInfo[] = [];
@@ -105,6 +107,7 @@ export async function probeMedia(filePath: string): Promise<FFprobeData> {
         for (const stream of streams) {
           if (stream.codec_type === 'video' && !videoCodec) {
             videoCodec = stream.codec_name;
+            pixFmt = stream.pix_fmt;
             if (stream.width && stream.height) {
               resolution = `${stream.width}x${stream.height}`;
             }
@@ -141,6 +144,7 @@ export async function probeMedia(filePath: string): Promise<FFprobeData> {
         resolve({
           durationSeconds,
           videoCodec,
+          pixFmt,
           resolution,
           audioTracks,
           subtitleTracks,
@@ -187,16 +191,18 @@ export async function generateThumbnail(filePath: string, timeSec: number = 10):
 }
 
 // Check if file is direct-playable in standard browser without transcoding
-export function isBrowserNativeDirectPlayable(filePath: string, videoCodec?: string, audioCodec?: string): boolean {
+export function isBrowserNativeDirectPlayable(filePath: string, videoCodec?: string, audioCodec?: string, pixFmt?: string): boolean {
   const ext = path.extname(filePath).toLowerCase();
   if (ext === '.mp4' || ext === '.m4v' || ext === '.webm') {
     const vc = (videoCodec || '').toLowerCase();
     const ac = (audioCodec || '').toLowerCase();
-    // Video: h264, vp8, vp9, av1
+    const pf = (pixFmt || '').toLowerCase();
+    // Video: h264 (8-bit yuv420p), vp8, vp9, av1
     // Audio: aac, mp3, opus, vorbis
     const isVGood = !vc || vc === 'h264' || vc === 'vp8' || vc === 'vp9' || vc === 'av1';
     const isAGood = !ac || ac === 'aac' || ac === 'mp3' || ac === 'opus' || ac === 'vorbis';
-    return isVGood && isAGood;
+    const isPixGood = !pf || pf === 'yuv420p';
+    return isVGood && isAGood && isPixGood;
   }
   return false;
 }

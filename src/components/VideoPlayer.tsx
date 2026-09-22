@@ -75,10 +75,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isRecovering, setIsRecovering] = useState<boolean>(false);
 
+  // Media Source Extensions refs for fragmented MP4 streams (MKV / Transcoded)
+  const mediaSourceRef = useRef<MediaSource | null>(null);
+  const sourceBufferRef = useRef<SourceBuffer | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
+
   // Calculate stream source
   const isDirectMP4 = episode.extension === '.mp4' || episode.extension === '.webm';
-  // If user selected non-default audio or it's MKV/AVI, use ffmpeg streaming
-  const [seekOffset, setSeekOffset] = useState<number>(0);
+  const initialProgress =
+    episode.progressSeconds > 10 && !episode.watched ? episode.progressSeconds : 0;
+  const [seekOffset, setSeekOffset] = useState<number>(!isDirectMP4 ? initialProgress : 0);
 
   // Build stream URL
   const getStreamUrl = useCallback(
@@ -102,9 +109,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   );
 
   const [streamSrc, setStreamSrc] = useState<string>(() => {
-    // Initial start: resume from episode.progressSeconds if exists
-    const initialProgress =
-      episode.progressSeconds > 10 && !episode.watched ? episode.progressSeconds : 0;
     return getStreamUrl(selectedAudioIndex, !isDirectMP4 ? initialProgress : 0, false);
   });
 
@@ -170,7 +174,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     const handleLoadedMetadata = () => {
       if (video.duration && !isNaN(video.duration) && isFinite(video.duration)) {
-        setDuration(video.duration);
+        if (isDirectMP4) {
+          setDuration(video.duration);
+        }
       }
       if (isDirectMP4 && initialSeek > 0) {
         video.currentTime = initialSeek;
@@ -178,12 +184,176 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       video.play().catch(() => {});
     };
 
+    const handleCanPlay = () => {
+      video.play().catch(() => {});
+    };
+
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('canplay', handleCanPlay);
 
     return () => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('canplay', handleCanPlay);
     };
   }, [episode.id, isDirectMP4]);
+
+  // MediaSource (MSE) pipeline for smooth real-time streaming of MKV / transcoded fMP4
+  useEffect(() => {
+    // For direct native MP4 / WebM files without forced transcode, use standard direct playback
+    if (isDirectMP4 && !isForceTranscode) {
+      if (videoRef.current && videoRef.current.src !== streamSrc) {
+        videoRef.current.src = streamSrc;
+      }
+      return;
+    }
+
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Check if browser environment supports MediaSource
+    if (typeof window === 'undefined' || !('MediaSource' in window)) {
+      video.src = streamSrc;
+      return;
+    }
+
+    let isCancelled = false;
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    const ms = new MediaSource();
+    mediaSourceRef.current = ms;
+
+    const objUrl = URL.createObjectURL(ms);
+    objectUrlRef.current = objUrl;
+    video.src = objUrl;
+
+    const handleSourceOpen = () => {
+      if (isCancelled || ms.readyState !== 'open') return;
+
+      const candidates = [
+        'video/mp4; codecs="avc1.42E01E, mp4a.40.2"',
+        'video/mp4; codecs="avc1.4d401f, mp4a.40.2"',
+        'video/mp4; codecs="avc1.640028, mp4a.40.2"',
+        'video/mp4; codecs="avc1.42E01E"',
+        'video/mp4',
+      ];
+      const mime = candidates.find((m) => MediaSource.isTypeSupported(m)) || 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+
+      let sb: SourceBuffer;
+      try {
+        sb = ms.addSourceBuffer(mime);
+        sb.mode = 'segments';
+        sourceBufferRef.current = sb;
+      } catch (err) {
+        console.warn('[MSE] addSourceBuffer error:', err);
+        if (!isCancelled) {
+          handleStreamRecovery(true);
+        }
+        return;
+      }
+
+      const chunkQueue: Uint8Array[] = [];
+      let isAppending = false;
+
+      const appendNext = () => {
+        if (isCancelled || !sourceBufferRef.current || sourceBufferRef.current.updating || isAppending) {
+          return;
+        }
+        if (chunkQueue.length === 0) return;
+
+        const next = chunkQueue.shift();
+        if (!next) return;
+
+        try {
+          isAppending = true;
+          sourceBufferRef.current.appendBuffer(next as unknown as BufferSource);
+        } catch (appendErr: any) {
+          isAppending = false;
+          console.warn('[MSE] appendBuffer error:', appendErr);
+          if (appendErr.name === 'QuotaExceededError' && video && sourceBufferRef.current.buffered.length > 0) {
+            try {
+              const start = sourceBufferRef.current.buffered.start(0);
+              const evictTo = Math.max(start, video.currentTime - 30);
+              if (evictTo > start) {
+                sourceBufferRef.current.remove(start, evictTo);
+                chunkQueue.unshift(next);
+                return;
+              }
+            } catch {}
+          }
+        }
+      };
+
+      const handleUpdateEnd = () => {
+        isAppending = false;
+        if (isCancelled) return;
+
+        // Auto-evict old buffer behind playhead
+        if (video && sourceBufferRef.current && !sourceBufferRef.current.updating && sourceBufferRef.current.buffered.length > 0) {
+          const start = sourceBufferRef.current.buffered.start(0);
+          if (video.currentTime - start > 90) {
+            try {
+              sourceBufferRef.current.remove(start, video.currentTime - 45);
+              return;
+            } catch {}
+          }
+        }
+
+        appendNext();
+      };
+
+      sb.addEventListener('updateend', handleUpdateEnd);
+
+      fetch(streamSrc, { signal: abortController.signal })
+        .then(async (response) => {
+          if (!response.ok || !response.body) {
+            throw new Error(`HTTP ${response.status}: Falha no fluxo do servidor`);
+          }
+          const reader = response.body.getReader();
+
+          while (!isCancelled) {
+            const { done, value } = await reader.read();
+            if (done) {
+              if (!isCancelled && ms.readyState === 'open' && sourceBufferRef.current && !sourceBufferRef.current.updating && chunkQueue.length === 0) {
+                try {
+                  ms.endOfStream();
+                } catch {}
+              }
+              break;
+            }
+            if (value && value.byteLength > 0) {
+              chunkQueue.push(value);
+              appendNext();
+            }
+          }
+        })
+        .catch((err) => {
+          if (err.name !== 'AbortError' && !isCancelled) {
+            console.warn('[MSE] Fetch stream error:', err);
+            handleStreamRecovery(true);
+          }
+        });
+    };
+
+    ms.addEventListener('sourceopen', handleSourceOpen, { once: true });
+
+    return () => {
+      isCancelled = true;
+      abortController.abort();
+      ms.removeEventListener('sourceopen', handleSourceOpen);
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+      if (ms.readyState === 'open') {
+        try {
+          ms.endOfStream();
+        } catch {}
+      }
+      mediaSourceRef.current = null;
+      sourceBufferRef.current = null;
+    };
+  }, [streamSrc, isDirectMP4, isForceTranscode]);
 
   // Periodic progress saving (every 5 seconds)
   useEffect(() => {
@@ -485,7 +655,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setTimeout(() => {
         setIsRecovering(false);
         if (videoRef.current) {
-          videoRef.current.load();
+          if (isDirectMP4 && !enableTranscode) {
+            videoRef.current.load();
+          }
           videoRef.current.play().catch(() => {});
         }
       }, 400);
@@ -520,8 +692,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const handleVideoError = () => {
-    // Ignore error events triggered during seek or stream transition
-    if (isSeekingRef.current) {
+    // Ignore error events triggered during seek or stream recovery transition
+    if (isSeekingRef.current || isRecovering) {
       return;
     }
     const err = videoRef.current?.error;
@@ -567,7 +739,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       <video
         ref={videoRef}
         id="html5-video-player"
-        src={streamSrc}
+        src={isDirectMP4 && !isForceTranscode ? streamSrc : undefined}
         className="w-full h-full object-contain cursor-pointer"
         onTimeUpdate={handleTimeUpdate}
         onPlay={() => {

@@ -236,6 +236,7 @@ export async function scanMediaFolder(folderPath: string, customTitle?: string):
       sizeBytes: stats.size,
       durationSeconds: probe.durationSeconds || 0,
       videoCodec: probe.videoCodec,
+      pixFmt: probe.pixFmt,
       resolution: probe.resolution,
       audioTracks: probe.audioTracks,
       subtitleTracks: allSubs,

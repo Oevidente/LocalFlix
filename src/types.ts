@@ -29,6 +29,7 @@ export interface Episode {
   sizeBytes: number;
   durationSeconds: number;
   videoCodec?: string;
+  pixFmt?: string;
   resolution?: string;
   audioTracks: AudioTrackInfo[];
   subtitleTracks: SubtitleTrackInfo[];
