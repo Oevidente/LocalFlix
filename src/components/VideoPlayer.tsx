@@ -21,6 +21,15 @@ import {
 import { MediaItem, Episode, AudioTrackInfo, SubtitleTrackInfo } from '../types';
 import { formatTime } from '../utils';
 
+function getBufferedRanges(video: HTMLVideoElement | null): string {
+  if (!video || !video.buffered || video.buffered.length === 0) return '[]';
+  const ranges: string[] = [];
+  for (let i = 0; i < video.buffered.length; i++) {
+    ranges.push(`[${video.buffered.start(i).toFixed(2)}s - ${video.buffered.end(i).toFixed(2)}s]`);
+  }
+  return ranges.join(', ');
+}
+
 interface VideoPlayerProps {
   media: MediaItem;
   episode: Episode;
@@ -162,27 +171,53 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           maxBufferLength: 60,
           maxMaxBufferLength: 120,
           backBufferLength: 60,
-          manifestLoadingTimeOut: 20000,
-          manifestLoadingMaxRetry: 5,
-          levelLoadingTimeOut: 20000,
-          levelLoadingMaxRetry: 5,
-          fragLoadingTimeOut: 20000,
-          fragLoadingMaxRetry: 5,
+          manifestLoadingTimeOut: 25000,
+          manifestLoadingMaxRetry: 6,
+          levelLoadingTimeOut: 25000,
+          levelLoadingMaxRetry: 6,
+          fragLoadingTimeOut: 25000,
+          fragLoadingMaxRetry: 6,
         });
         hlsRef.current = hls;
+
+        console.log(`[CineLocal-HLS] Initializing HLS engine for "${media.title} - ${episode.title}" with URL: ${hlsUrl}`);
+
         hls.loadSource(hlsUrl);
         hls.attachMedia(video);
 
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+          console.log('[CineLocal-HLS] Media attached to HTML5 video element.');
+        });
+
+        hls.on(Hls.Events.MANIFEST_LOADING, () => {
+          console.log('[CineLocal-HLS] Loading manifest...');
+        });
+
+        hls.on(Hls.Events.MANIFEST_LOADED, (_event, data) => {
+          console.log(`[CineLocal-HLS] Manifest loaded successfully. Levels: ${data.levels.length}, url: ${data.url}`);
+        });
+
+        hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
+          console.log(`[CineLocal-HLS] Manifest parsed. Levels found: ${data.levels.length}`);
           if (initialSeek > 0) {
             try {
               video.currentTime = initialSeek;
-            } catch {}
+              console.log(`[CineLocal-HLS] Resumed to initial seek position: ${initialSeek}s`);
+            } catch (err) {
+              console.warn('[CineLocal-HLS] Failed to apply initial seek:', err);
+            }
           }
-          video.play().catch(() => {});
+          video.play().catch((err) => {
+            console.warn('[CineLocal-HLS] Autoplay prevented or delayed:', err);
+          });
+        });
+
+        hls.on(Hls.Events.LEVEL_LOADING, (_event, data) => {
+          console.log(`[CineLocal-HLS] Loading level: ${data.level}, url: ${data.url}`);
         });
 
         hls.on(Hls.Events.LEVEL_LOADED, (_event, data) => {
+          console.log(`[CineLocal-HLS] Level loaded. Total duration: ${data.details.totalduration}s, fragments: ${data.details.fragments.length}, live: ${data.details.live}`);
           if (data.details.totalduration && isFinite(data.details.totalduration)) {
             if (data.details.live) {
               if (!episode.durationSeconds || episode.durationSeconds <= 0) {
@@ -194,13 +229,43 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           }
         });
 
+        hls.on(Hls.Events.FRAG_LOADING, (_event, data) => {
+          console.log(`[CineLocal-HLS] Loading fragment #${data.frag.sn} (duration: ${data.frag.duration}s, start: ${data.frag.start}s) - ${data.frag.relurl}`);
+        });
+
+        hls.on(Hls.Events.FRAG_LOADED, (_event, data) => {
+          console.log(`[CineLocal-HLS] Fragment #${data.frag.sn} loaded successfully (${data.payload?.byteLength || 0} bytes)`);
+        });
+
+        hls.on(Hls.Events.FRAG_PARSED, (_event, data) => {
+          console.log(`[CineLocal-HLS] Fragment #${data.frag.sn} parsed.`);
+        });
+
+        hls.on(Hls.Events.BUFFER_APPENDING, (_event, data) => {
+          console.log(`[CineLocal-HLS] Appending ${data.type} buffer chunk (${data.data.byteLength} bytes)...`);
+        });
+
+        hls.on(Hls.Events.BUFFER_APPENDED, (_event, data) => {
+          console.log(`[CineLocal-HLS] Buffer appended for ${data.type}. Buffered ranges:`, getBufferedRanges(video));
+        });
+
+        hls.on(Hls.Events.BUFFER_EOS, () => {
+          console.log('[CineLocal-HLS] Buffer End-of-Stream (BUFFER_EOS) reached.');
+        });
+
         let networkErrorCount = 0;
         hls.on(Hls.Events.ERROR, async (_event, data) => {
+          console.error(`[CineLocal-HLS ERROR] Type: ${data.type}, Details: ${data.details}, Fatal: ${data.fatal}`, {
+            errorData: data,
+            currentTime: video.currentTime,
+            buffered: getBufferedRanges(video),
+          });
+
           if (data.fatal) {
-            console.warn('[HLS] Fatal error:', data);
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                 networkErrorCount++;
+                console.warn(`[CineLocal-HLS] Fatal network error #${networkErrorCount}. Attempting recovery...`);
                 if (data.response?.code === 500 || networkErrorCount > 3) {
                   hls.destroy();
                   try {
@@ -221,9 +286,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 }
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
+                console.warn('[CineLocal-HLS] Fatal media error, attempting media recovery...');
                 hls.recoverMediaError();
                 break;
               default:
+                console.error('[CineLocal-HLS] Unrecoverable fatal error, falling back to full transcode...', data);
                 hls.destroy();
                 if (!isForceTranscode) {
                   setIsForceTranscode(true);
@@ -233,14 +300,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 break;
             }
           } else if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+            console.warn('[CineLocal-HLS] Non-fatal BUFFER_STALLED_ERROR detected, recovering media buffer...');
             hls.recoverMediaError();
+            // Nudge playback if stalled on frame boundary
+            if (!video.paused) {
+              video.currentTime = video.currentTime + 0.05;
+            }
           }
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        console.log('[CineLocal-HLS] Native Safari/iOS HLS support detected, loading src directly:', hlsUrl);
         video.src = hlsUrl;
         const onLoaded = () => {
           if (initialSeek > 0) video.currentTime = initialSeek;
-          video.play().catch(() => {});
+          video.play().catch((err) => console.warn('[CineLocal-Native-HLS] Play error:', err));
         };
         video.addEventListener('loadedmetadata', onLoaded, { once: true });
       }
@@ -597,18 +670,38 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         className="w-full h-full object-contain cursor-pointer"
         onTimeUpdate={handleTimeUpdate}
         onPlay={() => {
+          console.log('[CineLocal Video Element] "play" event fired. currentTime:', videoRef.current?.currentTime);
           setIsPlaying(true);
           isSeekingRef.current = false;
         }}
+        onPlaying={() => {
+          console.log('[CineLocal Video Element] "playing" event fired. Playback active at:', videoRef.current?.currentTime, 'buffered:', getBufferedRanges(videoRef.current));
+          setIsPlaying(true);
+        }}
+        onWaiting={() => {
+          console.warn('[CineLocal Video Element] "waiting" event fired (buffering stall). currentTime:', videoRef.current?.currentTime, 'buffered:', getBufferedRanges(videoRef.current));
+        }}
+        onStalled={() => {
+          console.warn('[CineLocal Video Element] "stalled" event fired (media data not reaching player). currentTime:', videoRef.current?.currentTime, 'readyState:', videoRef.current?.readyState);
+        }}
+        onLoadedMetadata={() => {
+          console.log('[CineLocal Video Element] "loadedmetadata" event. duration:', videoRef.current?.duration, 'videoWidth:', videoRef.current?.videoWidth, 'videoHeight:', videoRef.current?.videoHeight);
+        }}
+        onCanPlay={() => {
+          console.log('[CineLocal Video Element] "canplay" event. readyState:', videoRef.current?.readyState);
+        }}
         onSeeking={() => {
+          console.log('[CineLocal Video Element] "seeking" event to:', videoRef.current?.currentTime);
           isSeekingRef.current = true;
         }}
         onSeeked={() => {
+          console.log('[CineLocal Video Element] "seeked" event completed at:', videoRef.current?.currentTime);
           setTimeout(() => {
             isSeekingRef.current = false;
           }, 400);
         }}
         onPause={() => {
+          console.log('[CineLocal Video Element] "pause" event fired at:', videoRef.current?.currentTime);
           setIsPlaying(false);
           saveProgress(videoRef.current?.currentTime || 0, duration, false, true);
         }}
@@ -617,7 +710,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onClick={(e) => {
           e.stopPropagation();
           if (videoRef.current?.paused) {
-            videoRef.current.play().catch(() => {});
+            videoRef.current.play().catch((err) => console.warn('[CineLocal Video Element] Click play failed:', err));
           } else {
             videoRef.current?.pause();
           }

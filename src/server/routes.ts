@@ -387,8 +387,11 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
   const audioTrackIndex = audioTrackParam !== undefined ? parseInt(audioTrackParam, 10) : 0;
   const forceTranscode = req.query.transcode === 'true' || req.query.transcode === '1';
 
+  console.log(`[HLS Route] Received request for file="${file}", mediaId=${mediaId}, epId=${episodeId}, audioTrack=${audioTrackIndex}, forceTranscode=${forceTranscode}`);
+
   const pair = findEpisode(mediaId, episodeId);
   if (!pair) {
+    console.warn(`[HLS Route] Episode not found for mediaId=${mediaId}, epId=${episodeId}`);
     res.status(404).send('Episódio não encontrado');
     return;
   }
@@ -396,6 +399,7 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
   const { episode } = pair;
   const filePath = episode.filePath;
   if (!fs.existsSync(filePath)) {
+    console.warn(`[HLS Route] File does not exist on disk: ${filePath}`);
     res.status(404).send(`Arquivo não encontrado: ${filePath}`);
     return;
   }
@@ -417,7 +421,9 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
       existingSession.lastAccess = Date.now();
       sessionDir = existingSession.sessionDir;
       manifestPath = existingSession.manifestPath;
+      console.log(`[HLS Route] Reusing active session: ${existingSession.sessionId} (complete: ${existingSession.isComplete})`);
     } else {
+      console.log(`[HLS Route] Initializing new session for ${mediaId}_${episodeId}...`);
       const created = await getOrCreateHlsSession(
         mediaId,
         episodeId,
@@ -432,10 +438,18 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
 
     const targetFile = file === 'master.m3u8' ? manifestPath : path.join(sessionDir, file);
 
+    // If requesting a segment that FFmpeg is still generating, wait up to 25 seconds
     if (!fs.existsSync(targetFile)) {
       const startWait = Date.now();
-      while (Date.now() - startWait < 4000 && !fs.existsSync(targetFile)) {
+      console.log(`[HLS Route] Waiting for segment ${file} in ${sessionDir}...`);
+      while (Date.now() - startWait < 25000 && !fs.existsSync(targetFile)) {
         await new Promise((r) => setTimeout(r, 100));
+      }
+      if (fs.existsSync(targetFile)) {
+        console.log(`[HLS Route] Segment ${file} is now available after ${Date.now() - startWait}ms`);
+      } else {
+        const availableFiles = fs.existsSync(sessionDir) ? fs.readdirSync(sessionDir).join(', ') : 'dir_not_found';
+        console.error(`[HLS Route ERROR] Segment ${file} was NOT generated in 25s! Available files: [${availableFiles}]`);
       }
     }
 
@@ -443,6 +457,8 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
       res.status(404).send('Segmento HLS não encontrado');
       return;
     }
+
+    const stat = fs.statSync(targetFile);
 
     if (file.endsWith('.m3u8')) {
       res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
@@ -452,9 +468,10 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
       res.setHeader('Cache-Control', 'public, max-age=3600');
     }
 
+    res.setHeader('Content-Length', stat.size);
     fs.createReadStream(targetFile).pipe(res);
   } catch (err: any) {
-    console.error('[HLS] Stream error:', err);
+    console.error('[HLS Route Exception]:', err);
     if (!res.headersSent) {
       res.status(500).send(`Erro ao preparar streaming HLS: ${err.message}`);
     }
