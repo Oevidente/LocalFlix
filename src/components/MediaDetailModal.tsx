@@ -14,6 +14,7 @@ import {
   Image as ImageIcon,
   Check,
   Loader2,
+  Upload,
 } from 'lucide-react';
 import { MediaItem, Episode, Season } from '../types';
 import { formatTime, formatBytes } from '../utils';
@@ -27,6 +28,8 @@ interface MediaDetailModalProps {
   onOpenRelocate: (media: MediaItem) => void;
   onDeleteMedia: (mediaId: string) => void;
   onUpdateBanner?: (mediaId: string, bannerUrl: string) => Promise<boolean>;
+  onImportSubtitle: (mediaId: string, episodeId: string, file: File) => Promise<void>;
+  onRemoveImportedSubtitle: (mediaId: string, episodeId: string, trackIndex: number) => Promise<void>;
 }
 
 export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
@@ -38,6 +41,8 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   onOpenRelocate,
   onDeleteMedia,
   onUpdateBanner,
+  onImportSubtitle,
+  onRemoveImportedSubtitle,
 }) => {
   const [selectedSeasonNumber, setSelectedSeasonNumber] = useState<number>(
     media.seasons[0]?.seasonNumber || 1
@@ -48,6 +53,9 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const [bannerUrlInput, setBannerUrlInput] = useState(media.backdropPath || '');
   const [isSavingBanner, setIsSavingBanner] = useState(false);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
+  const [importingSubtitleEpisodeId, setImportingSubtitleEpisodeId] = useState<string | null>(null);
+  const [removingSubtitleKey, setRemovingSubtitleKey] = useState<string | null>(null);
+  const [subtitleMessage, setSubtitleMessage] = useState<{ episodeId: string; text: string; error?: boolean } | null>(null);
 
   const selectedSeason: Season | undefined =
     media.seasons.find((s) => s.seasonNumber === selectedSeasonNumber) || media.seasons[0];
@@ -58,6 +66,42 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
       await onRescan(media.id);
     } finally {
       setIsRescanning(false);
+    }
+  };
+
+  const handleSubtitleFileChange = async (episodeId: string, file?: File) => {
+    if (!file) return;
+    setImportingSubtitleEpisodeId(episodeId);
+    setSubtitleMessage(null);
+    try {
+      await onImportSubtitle(media.id, episodeId, file);
+      setSubtitleMessage({ episodeId, text: 'Legenda importada.' });
+    } catch (error) {
+      setSubtitleMessage({
+        episodeId,
+        text: error instanceof Error ? error.message : 'Não foi possível importar a legenda.',
+        error: true,
+      });
+    } finally {
+      setImportingSubtitleEpisodeId(null);
+    }
+  };
+
+  const handleRemoveImportedSubtitle = async (episodeId: string, trackIndex: number) => {
+    const key = `${episodeId}-${trackIndex}`;
+    setRemovingSubtitleKey(key);
+    setSubtitleMessage(null);
+    try {
+      await onRemoveImportedSubtitle(media.id, episodeId, trackIndex);
+      setSubtitleMessage({ episodeId, text: 'Legenda removida.' });
+    } catch (error) {
+      setSubtitleMessage({
+        episodeId,
+        text: error instanceof Error ? error.message : 'Não foi possível remover a legenda.',
+        error: true,
+      });
+    } finally {
+      setRemovingSubtitleKey(null);
     }
   };
 
@@ -376,6 +420,7 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
               const progressPercent = hasProgress
                 ? Math.min(100, Math.floor((ep.progressSeconds / ep.durationSeconds) * 100))
                 : 0;
+              const importedSubtitles = ep.subtitleTracks.filter((track) => track.isImported);
 
               return (
                 <div
@@ -446,11 +491,79 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                           </span>
                         )}
                       </div>
+
+                      {importedSubtitles.length > 0 && (
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          {importedSubtitles.map((track) => {
+                            const removeKey = `${ep.id}-${track.index}`;
+                            return (
+                              <span
+                                key={removeKey}
+                                className="inline-flex max-w-full items-center gap-1 rounded bg-sky-950/50 px-1.5 py-0.5 text-[10px] text-sky-300"
+                                title={track.filePath}
+                              >
+                                <span className="max-w-[12rem] truncate">{track.title || 'Legenda importada'}</span>
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void handleRemoveImportedSubtitle(ep.id, track.index);
+                                  }}
+                                  disabled={removingSubtitleKey === removeKey}
+                                  className="rounded p-0.5 text-sky-300 hover:bg-sky-800/70 hover:text-white disabled:opacity-50"
+                                  title="Remover legenda importada"
+                                  aria-label="Remover legenda importada"
+                                >
+                                  {removingSubtitleKey === removeKey ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <X className="h-3 w-3" />
+                                  )}
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {subtitleMessage?.episodeId === ep.id && (
+                        <div className={`mt-1 text-[10px] ${subtitleMessage.error ? 'text-red-400' : 'text-emerald-400'}`}>
+                          {subtitleMessage.text}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Right: Actions */}
                   <div className="flex items-center justify-end space-x-3 shrink-0 self-end sm:self-center">
+                    {/* Import subtitle */}
+                    <label
+                      htmlFor={`subtitle-import-${ep.id}`}
+                      onClick={(event) => event.stopPropagation()}
+                      className={`flex cursor-pointer items-center space-x-1 rounded bg-neutral-800 px-2.5 py-1 text-xs text-neutral-300 transition-colors hover:bg-neutral-700 hover:text-white ${
+                        importingSubtitleEpisodeId === ep.id ? 'pointer-events-none opacity-60' : ''
+                      }`}
+                      title="Importar legenda (.srt, .vtt, .ass ou .ssa)"
+                    >
+                      {importingSubtitleEpisodeId === ep.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-400" />
+                      ) : (
+                        <Upload className="h-3.5 w-3.5 text-sky-400" />
+                      )}
+                      <span className="hidden sm:inline">Legenda</span>
+                      <input
+                        id={`subtitle-import-${ep.id}`}
+                        type="file"
+                        accept=".srt,.vtt,.ass,.ssa,text/plain,text/vtt"
+                        className="hidden"
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = '';
+                          void handleSubtitleFileChange(ep.id, file);
+                        }}
+                      />
+                    </label>
+
                     {/* Watched toggle */}
                     <button
                       onClick={(e) => {

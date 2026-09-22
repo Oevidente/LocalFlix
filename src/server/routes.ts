@@ -28,6 +28,22 @@ import { BrowseItem, SystemStatus } from '../types';
 
 export const apiRouter = Router();
 
+const IMPORTED_SUBTITLE_EXTENSIONS = new Set(['.srt', '.vtt', '.ass', '.ssa']);
+const MAX_IMPORTED_SUBTITLE_BYTES = 10 * 1024 * 1024;
+
+function sanitizeSubtitleFileName(fileName: string, extension: string): string {
+  const baseName = path.basename(fileName, path.extname(fileName))
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return `${baseName || 'legenda'}${extension}`;
+}
+
+function isPathInsideDirectory(filePath: string, directory: string): boolean {
+  const relative = path.relative(path.resolve(directory), path.resolve(filePath));
+  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
 // 1. Get entire library
 apiRouter.get('/library', (req: Request, res: Response) => {
   const lib = readLibrary();
@@ -67,6 +83,10 @@ apiRouter.post('/library/add', async (req: Request, res: Response) => {
               newEp.lastWatchedAt = oldEp.lastWatchedAt;
               newEp.selectedAudioIndex = oldEp.selectedAudioIndex;
               newEp.selectedSubtitleIndex = oldEp.selectedSubtitleIndex;
+              newEp.subtitleTracks = [
+                ...newEp.subtitleTracks,
+                ...oldEp.subtitleTracks.filter((track) => track.isImported),
+              ];
             }
           }
         }
@@ -116,6 +136,10 @@ apiRouter.post('/library/rescan/:id', async (req: Request, res: Response) => {
             newEp.watched = oldEp.watched;
             newEp.progressSeconds = oldEp.progressSeconds;
             newEp.lastWatchedAt = oldEp.lastWatchedAt;
+            newEp.subtitleTracks = [
+              ...newEp.subtitleTracks,
+              ...oldEp.subtitleTracks.filter((track) => track.isImported),
+            ];
           }
         }
       }
@@ -563,11 +587,130 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/subtitles/:index', (req: Reque
         // Fallback to ffmpeg below
       }
     }
+
+    // ASS/SSA files are also converted by FFmpeg, but the input must be the
+    // external subtitle file rather than the episode video.
+    if (ext === '.ass' || ext === '.ssa') {
+      streamSubtitlesToVtt(track.filePath, 0, res, offsetSeconds);
+      return;
+    }
   }
 
   // Embedded subtitle stream or complex format via ffmpeg
   const streamIdx = track.streamIndex >= 0 ? track.streamIndex : 0;
   streamSubtitlesToVtt(pair.episode.filePath, streamIdx, res, offsetSeconds);
+});
+
+// 9.1 Import an external subtitle into the portable application data
+apiRouter.post('/media/:mediaId/episode/:episodeId/subtitles/import', (req: Request, res: Response) => {
+  const { mediaId, episodeId } = req.params;
+  const pair = findEpisode(mediaId, episodeId);
+  if (!pair) {
+    res.status(404).json({ error: 'Episódio não encontrado' });
+    return;
+  }
+
+  const fileName = typeof req.body?.fileName === 'string' ? req.body.fileName : '';
+  const contentBase64 = typeof req.body?.contentBase64 === 'string' ? req.body.contentBase64 : '';
+  const extension = path.extname(fileName).toLowerCase();
+  if (!fileName || !IMPORTED_SUBTITLE_EXTENSIONS.has(extension)) {
+    res.status(400).json({ error: 'Formato de legenda não suportado. Use .srt, .vtt, .ass ou .ssa.' });
+    return;
+  }
+  if (!contentBase64) {
+    res.status(400).json({ error: 'O arquivo de legenda está vazio.' });
+    return;
+  }
+
+  let content: Buffer;
+  try {
+    content = Buffer.from(contentBase64, 'base64');
+  } catch {
+    res.status(400).json({ error: 'Conteúdo de legenda inválido.' });
+    return;
+  }
+  if (content.length === 0 || content.length > MAX_IMPORTED_SUBTITLE_BYTES) {
+    res.status(400).json({ error: 'A legenda deve ter entre 1 byte e 10 MB.' });
+    return;
+  }
+
+  const subtitleDirectory = path.join(getDataDir(), 'subtitles', mediaId, episodeId);
+  const safeFileName = sanitizeSubtitleFileName(fileName, extension);
+  const targetPath = path.join(subtitleDirectory, safeFileName);
+  const normalizedTargetPath = path.resolve(targetPath);
+  const normalizedDirectory = path.resolve(subtitleDirectory);
+  if (!isPathInsideDirectory(normalizedTargetPath, normalizedDirectory)) {
+    res.status(400).json({ error: 'Nome de arquivo de legenda inválido.' });
+    return;
+  }
+
+  try {
+    fs.mkdirSync(subtitleDirectory, { recursive: true });
+    fs.writeFileSync(normalizedTargetPath, content);
+
+    const existingArrayIndex = pair.episode.subtitleTracks.findIndex(
+      (track) => track.isImported && track.filePath && path.resolve(track.filePath) === normalizedTargetPath
+    );
+    const existingTrack = existingArrayIndex >= 0 ? pair.episode.subtitleTracks[existingArrayIndex] : undefined;
+    const nextTrackIndex = existingTrack?.index ?? Math.max(99, ...pair.episode.subtitleTracks.map((track) => track.index)) + 1;
+    const importedTrack = {
+      index: nextTrackIndex,
+      streamIndex: -1,
+      codec: extension.slice(1),
+      language: typeof req.body?.language === 'string' && req.body.language.trim() ? req.body.language.trim() : 'pt',
+      title: `Legenda importada (${path.basename(safeFileName, extension)})`,
+      isExternal: true,
+      isImported: true,
+      filePath: normalizedTargetPath,
+    };
+
+    if (existingArrayIndex >= 0) {
+      pair.episode.subtitleTracks[existingArrayIndex] = importedTrack;
+    } else {
+      pair.episode.subtitleTracks.push(importedTrack);
+    }
+
+    writeLibrary(readLibrary(), true);
+    res.json({ success: true, track: importedTrack });
+  } catch (error: any) {
+    console.error('[Subtitles] Falha ao importar legenda:', error);
+    res.status(500).json({ error: error?.message || 'Não foi possível importar a legenda.' });
+  }
+});
+
+// 9.2 Remove only subtitles imported into data/subtitles
+apiRouter.delete('/media/:mediaId/episode/:episodeId/subtitles/:index', (req: Request, res: Response) => {
+  const { mediaId, episodeId } = req.params;
+  const trackIndex = Number.parseInt(req.params.index, 10);
+  const pair = findEpisode(mediaId, episodeId);
+  if (!pair) {
+    res.status(404).json({ error: 'Episódio não encontrado' });
+    return;
+  }
+
+  const arrayIndex = pair.episode.subtitleTracks.findIndex((track) => track.index === trackIndex);
+  const track = arrayIndex >= 0 ? pair.episode.subtitleTracks[arrayIndex] : undefined;
+  const importedDirectory = path.join(getDataDir(), 'subtitles', mediaId, episodeId);
+  if (!track?.isImported || !track.filePath || !isPathInsideDirectory(track.filePath, importedDirectory)) {
+    res.status(400).json({ error: 'Somente legendas importadas podem ser removidas.' });
+    return;
+  }
+
+  try {
+    if (fs.existsSync(track.filePath)) fs.rmSync(track.filePath, { force: true });
+    pair.episode.subtitleTracks.splice(arrayIndex, 1);
+    if (pair.episode.selectedSubtitleIndex !== undefined) {
+      if (pair.episode.selectedSubtitleIndex === arrayIndex) {
+        pair.episode.selectedSubtitleIndex = -1;
+      } else if (pair.episode.selectedSubtitleIndex > arrayIndex) {
+        pair.episode.selectedSubtitleIndex -= 1;
+      }
+    }
+    writeLibrary(readLibrary(), true);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error?.message || 'Não foi possível remover a legenda.' });
+  }
 });
 
 // 9.5 Update media banner image by URL

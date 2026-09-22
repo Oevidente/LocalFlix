@@ -31,7 +31,9 @@ async function startServer() {
   }
 
   // Middleware
-  app.use(express.json());
+  // Subtitle imports are sent as base64 text from the browser. Keep the
+  // request bounded while allowing normal subtitle files to be imported.
+  app.use(express.json({ limit: '20mb' }));
 
   // The Cast receiver may request local media cross-origin. Keep this limited
   // to media routes so normal application responses remain unchanged.

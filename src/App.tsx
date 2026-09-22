@@ -10,6 +10,16 @@ import { SystemModal } from './components/SystemModal';
 import { LibraryData, MediaItem, Episode } from './types';
 import { FolderPlus, Film, Tv, Play, HardDrive, RefreshCw } from 'lucide-react';
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return window.btoa(binary);
+}
+
 export default function App() {
   const [library, setLibrary] = useState<LibraryData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -97,6 +107,37 @@ export default function App() {
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.error || 'Erro ao re-escanear pasta');
+    }
+    await fetchLibrary();
+  };
+
+  const handleImportSubtitle = async (mediaId: string, episodeId: string, file: File) => {
+    const allowedExtensions = new Set(['.srt', '.vtt', '.ass', '.ssa']);
+    const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!allowedExtensions.has(extension)) {
+      throw new Error('Formato de legenda não suportado. Use .srt, .vtt, .ass ou .ssa.');
+    }
+
+    const contentBase64 = arrayBufferToBase64(await file.arrayBuffer());
+    const res = await fetch(`/api/media/${mediaId}/episode/${episodeId}/subtitles/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName: file.name, contentBase64 }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Não foi possível importar a legenda.');
+    }
+    await fetchLibrary();
+  };
+
+  const handleRemoveImportedSubtitle = async (mediaId: string, episodeId: string, trackIndex: number) => {
+    const res = await fetch(`/api/media/${mediaId}/episode/${episodeId}/subtitles/${trackIndex}`, {
+      method: 'DELETE',
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Não foi possível remover a legenda.');
     }
     await fetchLibrary();
   };
@@ -468,6 +509,8 @@ export default function App() {
           onOpenRelocate={(m) => setRelocateTarget(m)}
           onDeleteMedia={handleDeleteMedia}
           onUpdateBanner={handleUpdateBanner}
+          onImportSubtitle={handleImportSubtitle}
+          onRemoveImportedSubtitle={handleRemoveImportedSubtitle}
         />
       )}
 

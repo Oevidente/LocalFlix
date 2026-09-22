@@ -14,6 +14,7 @@ export interface SubtitleTrackInfo {
   language?: string;
   title?: string;
   isExternal?: boolean;
+  isImported?: boolean;
   filePath?: string;
 }
 

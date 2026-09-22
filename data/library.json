@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-22T21:02:54.330Z",
+  "updatedAt": "2026-09-22T23:05:00.398Z",
   "settings": {
     "preferredAudioLanguage": "por",
     "preferredSubtitleLanguage": "por",
@@ -2646,7 +2646,7 @@
               "filePath": "J:\\Batman Knightfall Part 1 Knightfall\\Batman Knightfall Part 1 Knightfall 2026 1080p MA WEB-DL DDP5 1 H 264-BYNDR.mkv",
               "extension": ".mkv",
               "sizeBytes": 5059293514,
-              "durationSeconds": 4717.084333333255,
+              "durationSeconds": 4719.153666666629,
               "videoCodec": "h264",
               "pixFmt": "yuv420p",
               "resolution": "1920x1080",
@@ -2758,9 +2758,9 @@
                   "isExternal": false
                 }
               ],
-              "watched": false,
-              "progressSeconds": 2143,
-              "lastWatchedAt": "2026-09-22T19:31:04.648Z",
+              "watched": true,
+              "progressSeconds": 4551,
+              "lastWatchedAt": "2026-09-22T22:34:59.314Z",
               "selectedAudioIndex": 0,
               "selectedSubtitleIndex": 10
             }
@@ -2768,9 +2768,9 @@
         }
       ],
       "createdAt": "2026-09-22T16:05:13.423Z",
-      "updatedAt": "2026-09-22T19:31:04.648Z",
+      "updatedAt": "2026-09-22T22:34:59.314Z",
       "lastWatchedEpisodeId": "ep_s1e1_15d5b7587483",
-      "lastWatchedAt": "2026-09-22T19:31:04.648Z"
+      "lastWatchedAt": "2026-09-22T22:34:59.314Z"
     },
     {
       "id": "media_91b5572d75c30790",
@@ -2893,6 +2893,155 @@
       "updatedAt": "2026-09-22T21:02:54.330Z",
       "lastWatchedEpisodeId": "ep_s1e1_fe1399a13c29",
       "lastWatchedAt": "2026-09-22T21:02:54.330Z"
+    },
+    {
+      "id": "media_a35e9ef1676c9578",
+      "title": "Resident Evil 2026",
+      "kind": "movie",
+      "folderPath": "J:\\www.UIndex.org    -    Resident.Evil.2026.1080p.TELESYNC.MULTi.x264-DKS",
+      "backdropPath": "https://upload.wikimedia.org/wikipedia/pt/3/3c/Resident_Evil_2026_film_poster.png?utm_source=pt.wikipedia.org&utm_campaign=index&utm_content=original",
+      "totalEpisodes": 1,
+      "totalSeasons": 1,
+      "seasons": [
+        {
+          "seasonNumber": 1,
+          "title": "Temporada 1",
+          "episodes": [
+            {
+              "id": "ep_s1e1_67e62a574442",
+              "seasonNumber": 1,
+              "episodeNumber": 1,
+              "title": "Resident Evil 2026   TELESYNC MULTi  -DKS",
+              "fileName": "Resident.Evil.2026.1080p.TELESYNC.MULTi.x264-DKS.mkv",
+              "filePath": "J:\\www.UIndex.org    -    Resident.Evil.2026.1080p.TELESYNC.MULTi.x264-DKS\\Resident.Evil.2026.1080p.TELESYNC.MULTi.x264-DKS.mkv",
+              "extension": ".mkv",
+              "sizeBytes": 5217714176,
+              "durationSeconds": 5189,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1920x1080",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "ac3",
+                  "language": "eng",
+                  "title": "(DKS) LINE (ENG)",
+                  "channels": 2
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "ac3",
+                  "language": "spa",
+                  "title": "(DKS) LINE (SPA)",
+                  "channels": 2
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 100,
+                  "streamIndex": -1,
+                  "codec": "srt",
+                  "language": "pt",
+                  "title": "Legenda importada (Resident.Evil.2026.1080p.TELESYNC.MULTi.x264-DKS)",
+                  "isExternal": true,
+                  "isImported": true,
+                  "filePath": "J:\\LocalFlix\\data\\subtitles\\media_a35e9ef1676c9578\\ep_s1e1_67e62a574442\\Resident.Evil.2026.1080p.TELESYNC.MULTi.x264-DKS.srt"
+                }
+              ],
+              "watched": false,
+              "progressSeconds": 95,
+              "selectedAudioIndex": 0,
+              "selectedSubtitleIndex": 0,
+              "lastWatchedAt": "2026-09-22T23:05:00.398Z"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-09-22T22:42:52.531Z",
+      "updatedAt": "2026-09-22T23:05:00.398Z",
+      "lastWatchedEpisodeId": "ep_s1e1_67e62a574442",
+      "lastWatchedAt": "2026-09-22T23:05:00.398Z"
+    },
+    {
+      "id": "media_b80327bde9b91970",
+      "title": "Devoradores de Estrelas 2026",
+      "kind": "movie",
+      "folderPath": "J:\\Devoradores de Estrelas 2026 WEB-DL 1080p x264 IMAX DUAL 5.1",
+      "backdropPath": "https://www.filmestorrentsmagnet.net/wp-content/uploads/2026/03/devoradores-de-estrelas.webp",
+      "totalEpisodes": 1,
+      "totalSeasons": 1,
+      "seasons": [
+        {
+          "seasonNumber": 1,
+          "title": "Temporada 1",
+          "episodes": [
+            {
+              "id": "ep_s1e1_41de0d14c00c",
+              "seasonNumber": 1,
+              "episodeNumber": 1,
+              "title": "Devoradores de Estrelas 2026       IMAX DUAL 5 1",
+              "fileName": "Devoradores de Estrelas 2026 WEB-DL 1080p x264 IMAX DUAL 5.1.mkv",
+              "filePath": "J:\\Devoradores de Estrelas 2026 WEB-DL 1080p x264 IMAX DUAL 5.1\\Devoradores de Estrelas 2026 WEB-DL 1080p x264 IMAX DUAL 5.1.mkv",
+              "extension": ".mkv",
+              "sizeBytes": 2442133504,
+              "durationSeconds": 9382,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1920x1080",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "por",
+                  "title": "Portuguese (Brazil) (POR)",
+                  "channels": 6
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "aac",
+                  "language": "eng",
+                  "title": "Faixa 2 (ENG)",
+                  "channels": 6
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 3,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "Portuguese (Brazil) (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 4,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "Portuguese (Brazil) [Forced] (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 2,
+                  "streamIndex": 5,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "English (ENG)",
+                  "isExternal": false
+                }
+              ],
+              "watched": false,
+              "progressSeconds": 0
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-09-22T22:51:15.392Z",
+      "updatedAt": "2026-09-22T22:51:19.403Z"
     }
   ]
 }
