@@ -179,12 +179,31 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           }
         });
 
-        hls.on(Hls.Events.ERROR, (_event, data) => {
+        let networkErrorCount = 0;
+        hls.on(Hls.Events.ERROR, async (_event, data) => {
           if (data.fatal) {
             console.warn('[HLS] Fatal error:', data);
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                hls.startLoad();
+                networkErrorCount++;
+                if (data.response?.code === 500 || networkErrorCount > 2) {
+                  hls.destroy();
+                  try {
+                    const res = await fetch('/api/system/status');
+                    const sys = await res.json();
+                    if (!sys.ffmpegFound) {
+                      setPlaybackError(
+                        'O FFmpeg não foi encontrado no seu computador. Para reproduzir arquivos .MKV ou com múltiplos áudios, coloque o arquivo "ffmpeg.exe" dentro da pasta "bin" do aplicativo ou instale o FFmpeg no Windows.'
+                      );
+                      return;
+                    }
+                  } catch {}
+                  setPlaybackError(
+                    'Não foi possível inicializar o motor de reprodução do vídeo. Verifique se o arquivo existe e se o FFmpeg está instalado.'
+                  );
+                } else {
+                  hls.startLoad();
+                }
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
                 hls.recoverMediaError();

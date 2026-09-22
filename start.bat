@@ -13,8 +13,10 @@ echo Iniciando servidor em http://localhost:%PORT% ...
 echo (Pressione Ctrl+C para encerrar)
 echo.
 
-:: Se houver pasta bin com ffmpeg, adiciona ao PATH
+:: Se houver pasta bin ou ffmpeg com os executaveis, adiciona ao PATH
 if exist "%~dp0bin" set "PATH=%~dp0bin;%PATH%"
+if exist "%~dp0ffmpeg\bin" set "PATH=%~dp0ffmpeg\bin;%PATH%"
+if exist "%~dp0ffmpeg" set "PATH=%~dp0ffmpeg;%PATH%"
 
 :: Abre o navegador automaticamente apos 3 segundos
 start "" cmd /c "timeout /t 3 >nul 2>&1 & start http://localhost:%PORT%"

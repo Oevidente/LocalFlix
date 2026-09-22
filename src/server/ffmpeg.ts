@@ -1,4 +1,4 @@
-import { spawn, execFile } from 'child_process';
+import { spawn, execFile, spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { AudioTrackInfo, SubtitleTrackInfo } from '../types';
@@ -13,46 +13,174 @@ export interface FFprobeData {
   subtitleTracks: SubtitleTrackInfo[];
 }
 
-// Find portable or system ffmpeg/ffprobe binary paths
+let cachedFfmpegPath: string | null | undefined = undefined;
+let cachedFfprobePath: string | null | undefined = undefined;
+
+// Test if an executable or command name actually exists and can be executed
+function testExecutable(binPath: string, arg: string = '-version'): boolean {
+  try {
+    const result = spawnSync(binPath, [arg], {
+      timeout: 3000,
+      windowsHide: true,
+      stdio: 'ignore',
+    });
+    return result.status === 0 || (result.error === undefined && result.status !== null);
+  } catch {
+    return false;
+  }
+}
+
+// Find portable or system ffmpeg/ffprobe binary paths safely
 export function getBinaries(): { ffmpeg: string | null; ffprobe: string | null } {
+  if (cachedFfmpegPath !== undefined && cachedFfprobePath !== undefined) {
+    return { ffmpeg: cachedFfmpegPath, ffprobe: cachedFfprobePath };
+  }
+
   const isWindows = process.platform === 'win32';
   const rootDir = process.cwd();
 
-  const ffmpegCandidates = [
+  // 1. Candidate paths for FFmpeg
+  const ffmpegCandidates: string[] = [];
+  if (process.env.FFMPEG_PATH) ffmpegCandidates.push(process.env.FFMPEG_PATH);
+
+  ffmpegCandidates.push(
     path.join(rootDir, 'bin', isWindows ? 'ffmpeg.exe' : 'ffmpeg'),
-    path.join(rootDir, isWindows ? 'ffmpeg.exe' : 'ffmpeg'),
-    isWindows ? 'ffmpeg.exe' : 'ffmpeg',
-  ];
+    path.join(rootDir, 'ffmpeg', 'bin', isWindows ? 'ffmpeg.exe' : 'ffmpeg'),
+    path.join(rootDir, 'ffmpeg', isWindows ? 'ffmpeg.exe' : 'ffmpeg'),
+    path.join(rootDir, isWindows ? 'ffmpeg.exe' : 'ffmpeg')
+  );
 
-  const ffprobeCandidates = [
+  if (isWindows) {
+    const localAppData = process.env.LOCALAPPDATA || '';
+    const userProfile = process.env.USERPROFILE || '';
+    const programData = process.env.ProgramData || 'C:\\ProgramData';
+    const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
+    const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+
+    // WinGet Links
+    if (localAppData) {
+      ffmpegCandidates.push(path.join(localAppData, 'Microsoft', 'WinGet', 'Links', 'ffmpeg.exe'));
+      // WinGet Packages folder scan
+      try {
+        const wingetPkgs = path.join(localAppData, 'Microsoft', 'WinGet', 'Packages');
+        if (fs.existsSync(wingetPkgs)) {
+          const dirs = fs.readdirSync(wingetPkgs);
+          for (const d of dirs) {
+            if (d.toLowerCase().includes('ffmpeg')) {
+              const fullPkgDir = path.join(wingetPkgs, d);
+              const subItems = fs.readdirSync(fullPkgDir);
+              for (const sub of subItems) {
+                ffmpegCandidates.push(path.join(fullPkgDir, sub, 'bin', 'ffmpeg.exe'));
+                ffmpegCandidates.push(path.join(fullPkgDir, sub, 'ffmpeg.exe'));
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // Scoop
+    if (userProfile) {
+      ffmpegCandidates.push(path.join(userProfile, 'scoop', 'shims', 'ffmpeg.exe'));
+      ffmpegCandidates.push(path.join(userProfile, 'scoop', 'apps', 'ffmpeg', 'current', 'bin', 'ffmpeg.exe'));
+    }
+
+    // Chocolatey
+    ffmpegCandidates.push(
+      path.join(programData, 'chocolatey', 'bin', 'ffmpeg.exe'),
+      path.join(programData, 'chocolatey', 'lib', 'ffmpeg', 'tools', 'ffmpeg', 'bin', 'ffmpeg.exe')
+    );
+
+    // Standard root folders
+    ffmpegCandidates.push(
+      'C:\\ffmpeg\\bin\\ffmpeg.exe',
+      'C:\\ffmpeg\\ffmpeg.exe',
+      path.join(programFiles, 'ffmpeg', 'bin', 'ffmpeg.exe'),
+      path.join(programFilesX86, 'ffmpeg', 'bin', 'ffmpeg.exe')
+    );
+  }
+
+  // 2. Candidate paths for FFprobe
+  const ffprobeCandidates: string[] = [];
+  if (process.env.FFPROBE_PATH) ffprobeCandidates.push(process.env.FFPROBE_PATH);
+
+  ffprobeCandidates.push(
     path.join(rootDir, 'bin', isWindows ? 'ffprobe.exe' : 'ffprobe'),
-    path.join(rootDir, isWindows ? 'ffprobe.exe' : 'ffprobe'),
-    isWindows ? 'ffprobe.exe' : 'ffprobe',
-  ];
+    path.join(rootDir, 'ffmpeg', 'bin', isWindows ? 'ffprobe.exe' : 'ffprobe'),
+    path.join(rootDir, 'ffmpeg', isWindows ? 'ffprobe.exe' : 'ffprobe'),
+    path.join(rootDir, isWindows ? 'ffprobe.exe' : 'ffprobe')
+  );
 
+  if (isWindows) {
+    const localAppData = process.env.LOCALAPPDATA || '';
+    const userProfile = process.env.USERPROFILE || '';
+    const programData = process.env.ProgramData || 'C:\\ProgramData';
+    const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
+    const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+
+    if (localAppData) {
+      ffprobeCandidates.push(path.join(localAppData, 'Microsoft', 'WinGet', 'Links', 'ffprobe.exe'));
+    }
+    if (userProfile) {
+      ffprobeCandidates.push(path.join(userProfile, 'scoop', 'shims', 'ffprobe.exe'));
+      ffprobeCandidates.push(path.join(userProfile, 'scoop', 'apps', 'ffmpeg', 'current', 'bin', 'ffprobe.exe'));
+    }
+    ffprobeCandidates.push(
+      path.join(programData, 'chocolatey', 'bin', 'ffprobe.exe'),
+      path.join(programData, 'chocolatey', 'lib', 'ffmpeg', 'tools', 'ffmpeg', 'bin', 'ffprobe.exe')
+    );
+    ffprobeCandidates.push(
+      'C:\\ffmpeg\\bin\\ffprobe.exe',
+      'C:\\ffmpeg\\ffprobe.exe',
+      path.join(programFiles, 'ffmpeg', 'bin', 'ffprobe.exe'),
+      path.join(programFilesX86, 'ffmpeg', 'bin', 'ffprobe.exe')
+    );
+  }
+
+  // Check explicit file candidates on disk first
   let resolvedFfmpeg: string | null = null;
   for (const cand of ffmpegCandidates) {
-    if (path.isAbsolute(cand) && fs.existsSync(cand)) {
-      resolvedFfmpeg = cand;
-      break;
-    }
+    try {
+      if (cand && fs.existsSync(cand) && fs.statSync(cand).isFile()) {
+        resolvedFfmpeg = path.resolve(cand);
+        break;
+      }
+    } catch {}
   }
+
+  // If not found in explicit paths, test system PATH
   if (!resolvedFfmpeg) {
-    resolvedFfmpeg = 'ffmpeg';
+    if (testExecutable('ffmpeg')) {
+      resolvedFfmpeg = 'ffmpeg';
+    }
   }
 
   let resolvedFfprobe: string | null = null;
   for (const cand of ffprobeCandidates) {
-    if (path.isAbsolute(cand) && fs.existsSync(cand)) {
-      resolvedFfprobe = cand;
-      break;
-    }
-  }
-  if (!resolvedFfprobe) {
-    resolvedFfprobe = 'ffprobe';
+    try {
+      if (cand && fs.existsSync(cand) && fs.statSync(cand).isFile()) {
+        resolvedFfprobe = path.resolve(cand);
+        break;
+      }
+    } catch {}
   }
 
+  if (!resolvedFfprobe) {
+    if (testExecutable('ffprobe')) {
+      resolvedFfprobe = 'ffprobe';
+    }
+  }
+
+  cachedFfmpegPath = resolvedFfmpeg;
+  cachedFfprobePath = resolvedFfprobe;
+
   return { ffmpeg: resolvedFfmpeg, ffprobe: resolvedFfprobe };
+}
+
+// Clear binary cache if user adds binaries at runtime
+export function invalidateBinariesCache() {
+  cachedFfmpegPath = undefined;
+  cachedFfprobePath = undefined;
 }
 
 // Probe a media file with ffprobe

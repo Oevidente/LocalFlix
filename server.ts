@@ -3,6 +3,15 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { apiRouter } from './src/server/routes';
 
+// Global error handlers to ensure child process or async errors never crash the Node server
+process.on('uncaughtException', (err: any) => {
+  console.error('[CineLocal Server] Erro não tratado interceptado (uncaughtException):', err?.message || err);
+});
+
+process.on('unhandledRejection', (reason: any) => {
+  console.error('[CineLocal Server] Rejeição de Promise interceptada (unhandledRejection):', reason?.message || reason);
+});
+
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;

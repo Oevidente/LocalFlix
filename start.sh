@@ -13,9 +13,15 @@ echo "======================================================"
 echo "[INFO] Porta configurada: $PORT"
 echo ""
 
-# Adiciona pasta bin local ao PATH se existir
+# Adiciona pastas bin e ffmpeg locais ao PATH se existirem
 if [ -d "$DIR/bin" ]; then
   export PATH="$DIR/bin:$PATH"
+fi
+if [ -d "$DIR/ffmpeg/bin" ]; then
+  export PATH="$DIR/ffmpeg/bin:$PATH"
+fi
+if [ -d "$DIR/ffmpeg" ]; then
+  export PATH="$DIR/ffmpeg:$PATH"
 fi
 
 # Verifica Node.js
