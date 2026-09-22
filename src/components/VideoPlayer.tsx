@@ -410,6 +410,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     [duration, saveProgress]
   );
 
+  const waitForCastMediaSession = useCallback(
+    async (session: any): Promise<any | null> => {
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        const remoteMedia = session?.getMediaSession?.();
+        if (remoteMedia) {
+          registerCastMedia(session);
+          return remoteMedia;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      return null;
+    },
+    [registerCastMedia]
+  );
+
   const restoreLocalAfterCast = useCallback(() => {
     const position = castCurrentTimeRef.current;
     const video = videoRef.current;
@@ -864,9 +879,26 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               loadRequest.activeTrackIds = [mediaInfo.tracks[targetSubtitleIndex].trackId];
             }
           }
-          loadRequest.autoplay = wasPlaying;
+          // Start paused while the sender waits for the receiver media session.
+          // We seek first and only then play, preventing the Chromecast from
+          // briefly starting at 00:00 and ignoring the requested position.
+          loadRequest.autoplay = false;
           loadRequest.currentTime = position;
           await session.loadMedia(loadRequest);
+
+          const remoteMedia = await waitForCastMediaSession(session);
+          if (!remoteMedia) {
+            throw new Error('O Chromecast carregou a mídia, mas a sessão de controle ainda não está disponível.');
+          }
+
+          if (position > 0 && mediaApi.SeekRequest && typeof remoteMedia.seek === 'function') {
+            const seekRequest = new mediaApi.SeekRequest();
+            seekRequest.currentTime = position;
+            await new Promise<void>((resolve) => {
+              remoteMedia.seek(seekRequest, () => resolve(), () => resolve());
+            });
+          }
+
           loaded = true;
           break;
         } catch (error) {
@@ -886,6 +918,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setCastDeviceName(device?.friendlyName || device?.getFriendlyName?.() || null);
       setIsCasting(true);
       registerCastMedia(session);
+
+      if (wasPlaying && typeof castMediaRef.current?.play === 'function') {
+        const playRequest = mediaApi.PlayRequest ? new mediaApi.PlayRequest() : undefined;
+        await new Promise<void>((resolve) => {
+          castMediaRef.current.play(playRequest, () => resolve(), () => resolve());
+        });
+      }
 
       // Let the receiver become the only playback source.
       if (video && !video.paused) video.pause();
@@ -1715,9 +1754,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
 
         {/* Buttons Row */}
-        <div className="flex items-center justify-between text-white">
-          {/* Left Controls */}
-          <div className="flex items-center space-x-3 sm:space-x-4">
+          <div className="flex items-center justify-between text-white min-w-0">
+            {/* Left Controls */}
+          <div className="flex min-w-0 flex-1 items-center space-x-2 sm:space-x-4 overflow-x-auto no-scrollbar pr-2">
             {/* Previous Episode Button (shown when not the first episode) */}
             {prevEpisode && onPlayPrevEpisode && (
               <button
@@ -1813,7 +1852,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
 
           {/* Right Controls */}
-          <div className="flex items-center space-x-3 sm:space-x-4">
+          <div className="ml-2 flex shrink-0 items-center space-x-2 sm:space-x-4">
             {showCastButton && (
               <button
                 id="player-cast-btn"
@@ -1846,8 +1885,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <button
               id="player-fullscreen-btn"
               onClick={toggleFullscreen}
-              className="p-1 text-neutral-300 hover:text-white transition-colors"
+              className="shrink-0 p-1 text-neutral-300 hover:text-white transition-colors touch-manipulation"
               title="Tela Cheia (F)"
+              aria-label="Tela cheia"
             >
               {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
             </button>
