@@ -1,20 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { X, HardDrive, CheckCircle, AlertTriangle, Sparkles, Terminal, FileJson, Loader2 } from 'lucide-react';
+import { X, HardDrive, CheckCircle, AlertTriangle, Terminal, FileJson } from 'lucide-react';
 import { SystemStatus } from '../types';
 
 interface SystemModalProps {
   onClose: () => void;
-  onGenerateDemo: () => Promise<void>;
 }
 
 export const SystemModal: React.FC<SystemModalProps> = ({
   onClose,
-  onGenerateDemo,
 }) => {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/system/status')
@@ -23,19 +19,6 @@ export const SystemModal: React.FC<SystemModalProps> = ({
       .catch((err) => console.error('Error fetching system status:', err))
       .finally(() => setLoading(false));
   }, []);
-
-  const handleDemo = async () => {
-    setIsGenerating(true);
-    setMessage(null);
-    try {
-      await onGenerateDemo();
-      setMessage('Mídia de teste gerada e escaneada com sucesso!');
-    } catch (err: any) {
-      setMessage(`Erro: ${err.message}`);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   return (
     <div
@@ -66,12 +49,6 @@ export const SystemModal: React.FC<SystemModalProps> = ({
             <p className="text-xs text-neutral-400">Ambiente 100% offline, local e portátil</p>
           </div>
         </div>
-
-        {message && (
-          <div className="mb-4 p-3 rounded-lg bg-emerald-950/50 border border-emerald-800/60 text-xs text-emerald-300">
-            {message}
-          </div>
-        )}
 
         {loading ? (
           <div className="py-8 text-center text-sm text-neutral-400">Consultando sistema...</div>
@@ -152,26 +129,12 @@ export const SystemModal: React.FC<SystemModalProps> = ({
               </p>
             </div>
 
-            {/* Quick Demo button */}
-            <div className="pt-1 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={handleDemo}
-                disabled={isGenerating}
-                className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-amber-300 font-semibold transition-colors border border-amber-500/30 disabled:opacity-50"
-              >
-                {isGenerating ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-                <span>{isGenerating ? 'Gerando Cosmos...' : 'Gerar Mídia Exemplo (Cosmos MP4 + MKV)'}</span>
-              </button>
-
+            {/* Close button */}
+            <div className="pt-2 flex items-center justify-end">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-lg bg-[#E50914] hover:bg-red-700 text-white font-bold transition-colors"
+                className="px-5 py-2 rounded-lg bg-[#E50914] hover:bg-red-700 text-white font-bold transition-colors shadow-lg active:scale-95"
               >
                 Fechar
               </button>

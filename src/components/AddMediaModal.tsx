@@ -1,23 +1,20 @@
 import React, { useState } from 'react';
-import { X, FolderPlus, Sparkles, FolderSearch, AlertCircle, Loader2 } from 'lucide-react';
+import { X, FolderPlus, FolderSearch, AlertCircle, Loader2 } from 'lucide-react';
 import { FolderBrowser } from './FolderBrowser';
 
 interface AddMediaModalProps {
   onClose: () => void;
   onAddFolder: (folderPath: string, title?: string) => Promise<void>;
-  onGenerateDemo: () => Promise<void>;
 }
 
 export const AddMediaModal: React.FC<AddMediaModalProps> = ({
   onClose,
   onAddFolder,
-  onGenerateDemo,
 }) => {
   const [folderPath, setFolderPath] = useState('');
   const [title, setTitle] = useState('');
   const [showBrowser, setShowBrowser] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
-  const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,19 +33,6 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
       setError(err.message || 'Erro ao escanear pasta');
     } finally {
       setIsScanning(false);
-    }
-  };
-
-  const handleDemo = async () => {
-    setError(null);
-    setIsGeneratingDemo(true);
-    try {
-      await onGenerateDemo();
-      onClose();
-    } catch (err: any) {
-      setError(err.message || 'Erro ao gerar mídia de demonstração');
-    } finally {
-      setIsGeneratingDemo(false);
     }
   };
 
@@ -142,25 +126,18 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
           </div>
 
           {/* Buttons */}
-          <div className="pt-2 flex items-center justify-between gap-3">
+          <div className="pt-2 flex items-center justify-end gap-3">
             <button
               type="button"
-              onClick={handleDemo}
-              disabled={isGeneratingDemo || isScanning}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-amber-300 text-xs font-medium transition-colors border border-amber-500/20 disabled:opacity-50"
-              title="Cria automaticamente 2 episódios reais de teste com áudio e vídeo"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs sm:text-sm font-semibold transition-colors"
             >
-              {isGeneratingDemo ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5" />
-              )}
-              <span>{isGeneratingDemo ? 'Gerando Cosmos...' : 'Gerar Mídia Exemplo (Cosmos)'}</span>
+              Cancelar
             </button>
 
             <button
               type="submit"
-              disabled={isScanning || isGeneratingDemo}
+              disabled={isScanning}
               className="flex items-center space-x-2 px-5 py-2 rounded-lg bg-[#E50914] hover:bg-red-700 text-white text-xs sm:text-sm font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50"
             >
               {isScanning ? (

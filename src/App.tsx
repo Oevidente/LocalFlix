@@ -8,7 +8,7 @@ import { AddMediaModal } from './components/AddMediaModal';
 import { RelocateModal } from './components/RelocateModal';
 import { SystemModal } from './components/SystemModal';
 import { LibraryData, MediaItem, Episode } from './types';
-import { FolderPlus, Sparkles, Film, Tv, Play, HardDrive, RefreshCw } from 'lucide-react';
+import { FolderPlus, Film, Tv, Play, HardDrive, RefreshCw } from 'lucide-react';
 
 export default function App() {
   const [library, setLibrary] = useState<LibraryData | null>(null);
@@ -59,21 +59,6 @@ export default function App() {
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.error || 'Erro ao adicionar pasta');
-    }
-    await fetchLibrary();
-    if (data.item) {
-      setActiveMediaDetail(data.item);
-    }
-  };
-
-  // Generate demo media (Cosmos)
-  const handleGenerateDemo = async () => {
-    const res = await fetch('/api/system/generate-demo', {
-      method: 'POST',
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Erro ao gerar mídia de demonstração');
     }
     await fetchLibrary();
     if (data.item) {
@@ -297,19 +282,10 @@ export default function App() {
             <button
               id="empty-add-folder-btn"
               onClick={() => setShowAddModal(true)}
-              className="w-full flex items-center justify-center space-x-2 px-6 py-3 rounded-lg bg-[#E50914] hover:bg-red-700 text-white font-bold transition-all shadow-xl active:scale-95 text-sm"
+              className="w-full flex items-center justify-center space-x-2 px-6 py-3.5 rounded-lg bg-[#E50914] hover:bg-red-700 text-white font-bold transition-all shadow-xl active:scale-95 text-sm"
             >
               <FolderPlus className="w-5 h-5" />
               <span>Adicionar Pasta do PC</span>
-            </button>
-
-            <button
-              id="empty-demo-btn"
-              onClick={handleGenerateDemo}
-              className="w-full flex items-center justify-center space-x-2 px-6 py-3 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-amber-300 font-semibold transition-all border border-amber-500/20 shadow-lg active:scale-95 text-sm"
-            >
-              <Sparkles className="w-5 h-5 text-amber-400" />
-              <span>Gerar Amostra (Cosmos)</span>
             </button>
           </div>
 
@@ -337,7 +313,7 @@ export default function App() {
           )}
 
           {/* Rows Container */}
-          <main className={`relative z-20 ${heroMedia && !searchQuery ? '-mt-16 sm:-mt-24' : 'pt-24'}`}>
+          <main className={`relative z-20 ${heroMedia && !searchQuery ? '-mt-12 sm:-mt-16 lg:-mt-20' : 'pt-24'}`}>
             {/* 1. Continuar Assistindo Row (Backdrop card variant with progress bar) */}
             {continueWatchingItems.length > 0 && activeTab !== 'series' && activeTab !== 'movie' && (
               <MediaRow
@@ -436,7 +412,6 @@ export default function App() {
         <AddMediaModal
           onClose={() => setShowAddModal(false)}
           onAddFolder={handleAddFolder}
-          onGenerateDemo={handleGenerateDemo}
         />
       )}
 
@@ -453,7 +428,6 @@ export default function App() {
       {showSystemModal && (
         <SystemModal
           onClose={() => setShowSystemModal(false)}
-          onGenerateDemo={handleGenerateDemo}
         />
       )}
     </div>

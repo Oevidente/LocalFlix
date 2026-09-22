@@ -33,7 +33,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   const isContinue = targetEpisode && targetEpisode.progressSeconds > 10 && !targetEpisode.watched;
 
   return (
-    <div className="relative w-full h-[65vh] min-h-[440px] max-h-[700px] overflow-hidden bg-black select-none">
+    <div className="relative w-full h-[68vh] min-h-[480px] max-h-[720px] overflow-hidden bg-black select-none">
       {/* Background Image / Backdrop */}
       <div className="absolute inset-0">
         <img
@@ -51,7 +51,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
       </div>
 
       {/* Hero Content */}
-      <div className="relative max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-14 z-10">
+      <div className="relative max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-28 sm:pb-36 lg:pb-40 z-10">
         {/* Badges */}
         <div className="flex items-center space-x-2 text-xs font-semibold uppercase tracking-wider text-neutral-300 mb-2">
           <span className="bg-[#E50914] text-white px-2 py-0.5 rounded font-black text-[11px] tracking-tight">
@@ -83,7 +83,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
         {/* Episode context if continue watching */}
         {targetEpisode && media.kind === 'series' && (
-          <div className="text-sm sm:text-base text-neutral-300 font-medium mb-3 flex items-center space-x-2">
+          <div className="text-sm sm:text-base text-neutral-300 font-medium mb-3 flex flex-wrap items-center gap-2">
             <span className="text-red-400 font-semibold">
               T{targetEpisode.seasonNumber}:E{targetEpisode.episodeNumber}
             </span>
@@ -115,9 +115,9 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
             <button
               id="hero-play-button"
               onClick={() => onPlayEpisode(media, targetEpisode!)}
-              className="flex items-center space-x-2 px-6 py-2.5 sm:px-7 sm:py-3 rounded bg-white text-black font-bold hover:bg-neutral-200 transition-all shadow-xl active:scale-95"
+              className="flex items-center space-x-2 px-6 py-2.5 sm:px-7 sm:py-3 rounded bg-white text-black font-bold hover:bg-neutral-200 transition-all shadow-xl active:scale-95 shrink-0 whitespace-nowrap cursor-pointer z-10"
             >
-              <Play className="w-5 h-5 fill-black" />
+              <Play className="w-5 h-5 fill-black shrink-0" />
               <span>{isContinue ? 'Continuar Assistindo' : 'Assistir'}</span>
             </button>
           )}
@@ -125,9 +125,9 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
           <button
             id="hero-info-button"
             onClick={() => onOpenDetails(media)}
-            className="flex items-center space-x-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded bg-neutral-700/80 hover:bg-neutral-600/80 text-white font-semibold backdrop-blur-sm transition-all shadow-lg active:scale-95"
+            className="flex items-center space-x-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded bg-neutral-700/80 hover:bg-neutral-600/80 text-white font-semibold backdrop-blur-sm transition-all shadow-lg active:scale-95 shrink-0 whitespace-nowrap cursor-pointer z-10"
           >
-            <Info className="w-5 h-5" />
+            <Info className="w-5 h-5 shrink-0" />
             <span>Mais Informações</span>
           </button>
         </div>
