@@ -6,6 +6,8 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$DIR"
 
 export PORT="${PORT:-3050}"
+export HLS_CACHE_DIR="${HLS_CACHE_DIR:-$DIR/.cache/hls}"
+export HLS_CACHE_MAX_MB="${HLS_CACHE_MAX_MB:-4096}"
 
 echo "======================================================"
 echo "   CineLocal - Biblioteca de Mídia 100% Offline"

@@ -22,23 +22,113 @@ interface HlsSession {
 const activeSessions = new Map<string, HlsSession>();
 const inFlightSessions = new Map<string, Promise<{ sessionId: string; manifestPath: string; sessionDir: string }>>();
 
-// Root directory for HLS temporary streams
-const HLS_BASE_DIR = path.join(os.tmpdir(), 'cinelocal_hls');
-if (!fs.existsSync(HLS_BASE_DIR)) {
+// Keep HLS data beside the portable app by default instead of using the
+// Windows system temp folder (usually on C:). HLS_CACHE_DIR can point to a
+// dedicated disk when the library is large.
+function resolveHlsBaseDir(): string {
+  const configuredDirectory = process.env.HLS_CACHE_DIR?.trim();
+  const preferredDirectory = configuredDirectory
+    ? path.resolve(configuredDirectory)
+    : path.join(process.cwd(), '.cache', 'hls');
+
   try {
-    fs.mkdirSync(HLS_BASE_DIR, { recursive: true });
-  } catch {}
+    fs.mkdirSync(preferredDirectory, { recursive: true });
+    return preferredDirectory;
+  } catch (error: any) {
+    const fallbackDirectory = path.join(os.tmpdir(), 'cinelocal_hls');
+    try {
+      fs.mkdirSync(fallbackDirectory, { recursive: true });
+      console.warn(
+        `[HLS] Não foi possível usar o cache configurado em ${preferredDirectory}. ` +
+        `Usando o temporário do sistema: ${fallbackDirectory}. ${error?.message || ''}`
+      );
+    } catch {}
+    return fallbackDirectory;
+  }
 }
 
-// Cleanup inactive sessions every 5 minutes
+const HLS_BASE_DIR = resolveHlsBaseDir();
+const HLS_SESSION_IDLE_MS = 15 * 60 * 1000;
+const configuredCacheLimitMb = Number(process.env.HLS_CACHE_MAX_MB);
+const HLS_CACHE_LIMIT_BYTES = Number.isFinite(configuredCacheLimitMb) && configuredCacheLimitMb > 0
+  ? configuredCacheLimitMb * 1024 * 1024
+  : 4 * 1024 * 1024 * 1024;
+
+function getDirectorySize(directory: string): number {
+  let total = 0;
+  try {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        total += getDirectorySize(entryPath);
+      } else if (entry.isFile()) {
+        total += fs.statSync(entryPath).size;
+      }
+    }
+  } catch {}
+  return total;
+}
+
+function removeOrphanedCacheSessions() {
+  try {
+    for (const entry of fs.readdirSync(HLS_BASE_DIR, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      fs.rmSync(path.join(HLS_BASE_DIR, entry.name), { recursive: true, force: true });
+    }
+  } catch (error: any) {
+    console.warn(`[HLS] Não foi possível limpar sessões antigas: ${error?.message || error}`);
+  }
+}
+
+function enforceCacheLimit() {
+  let entries: Array<{ directory: string; size: number; modifiedAt: number }> = [];
+  try {
+    entries = fs.readdirSync(HLS_BASE_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => {
+        const directory = path.join(HLS_BASE_DIR, entry.name);
+        let modifiedAt = 0;
+        try {
+          modifiedAt = fs.statSync(directory).mtimeMs;
+        } catch {}
+        return { directory, size: getDirectorySize(directory), modifiedAt };
+      })
+      .sort((a, b) => a.modifiedAt - b.modifiedAt);
+  } catch {
+    return;
+  }
+
+  let totalSize = entries.reduce((total, entry) => total + entry.size, 0);
+  if (totalSize <= HLS_CACHE_LIMIT_BYTES) return;
+
+  const activeDirectories = new Set(
+    Array.from(activeSessions.values()).map((session) => path.resolve(session.sessionDir))
+  );
+
+  for (const entry of entries) {
+    if (totalSize <= HLS_CACHE_LIMIT_BYTES) break;
+    if (activeDirectories.has(path.resolve(entry.directory))) continue;
+
+    try {
+      fs.rmSync(entry.directory, { recursive: true, force: true });
+      totalSize -= entry.size;
+    } catch {}
+  }
+}
+
+// A crashed/restarted server leaves no in-memory session registry. Remove
+// only children of the dedicated HLS cache directory at startup.
+removeOrphanedCacheSessions();
+
+// Cleanup inactive sessions and enforce a bounded cache every 5 minutes.
 setInterval(() => {
   const now = Date.now();
   for (const [id, session] of activeSessions.entries()) {
-    // 15 minutes of inactivity
-    if (now - session.lastAccess > 15 * 60 * 1000) {
+    if (now - session.lastAccess > HLS_SESSION_IDLE_MS) {
       cleanupSession(id);
     }
   }
+  enforceCacheLimit();
 }, 5 * 60 * 1000);
 
 export function cleanupSession(sessionId: string) {

@@ -82,6 +82,116 @@ function parseWebVtt(text: string): SubtitleCue[] {
     .sort((a, b) => a.start - b.start);
 }
 
+type SubtitleSize = 'small' | 'medium' | 'large';
+
+const SUBTITLE_SIZE_STORAGE_KEY = 'cinelocal-subtitle-size';
+const SUBTITLE_SIZE_EVENT = 'cinelocal-subtitle-size-change';
+const SUBTITLE_SIZE_LABELS: Record<SubtitleSize, string> = {
+  small: 'Pequena',
+  medium: 'Média',
+  large: 'Grande',
+};
+const SUBTITLE_SIZE_FONT_SIZES: Record<SubtitleSize, string> = {
+  // Use viewport-relative sizing so a 4K TV does not receive the same tiny
+  // 20px subtitle that a laptop does. The limits keep it readable on both.
+  small: 'clamp(1.5rem, 1.5vw, 3rem)',
+  medium: 'clamp(1.75rem, 2vw, 4rem)',
+  large: 'clamp(2rem, 2.5vw, 5rem)',
+};
+
+function isSubtitleSize(value: unknown): value is SubtitleSize {
+  return value === 'small' || value === 'medium' || value === 'large';
+}
+
+function getSavedSubtitleSize(): SubtitleSize {
+  if (typeof window === 'undefined') return 'medium';
+
+  try {
+    const savedSize = window.localStorage.getItem(SUBTITLE_SIZE_STORAGE_KEY);
+    return isSubtitleSize(savedSize) ? savedSize : 'medium';
+  } catch {
+    return 'medium';
+  }
+}
+
+function saveSubtitleSize(size: SubtitleSize) {
+  try {
+    window.localStorage.setItem(SUBTITLE_SIZE_STORAGE_KEY, size);
+  } catch {
+    // Keep the current-page setting usable when storage is blocked.
+  }
+  window.dispatchEvent(new CustomEvent<SubtitleSize>(SUBTITLE_SIZE_EVENT, { detail: size }));
+}
+
+const SubtitleOverlay: React.FC<{ text: string; isCasting: boolean }> = ({ text, isCasting }) => {
+  const [subtitleSize, setSubtitleSize] = useState<SubtitleSize>(getSavedSubtitleSize);
+
+  useEffect(() => {
+    const handleSubtitleSizeChange = (event: Event) => {
+      const nextSize = (event as CustomEvent<SubtitleSize>).detail;
+      if (isSubtitleSize(nextSize)) setSubtitleSize(nextSize);
+    };
+
+    window.addEventListener(SUBTITLE_SIZE_EVENT, handleSubtitleSizeChange);
+    return () => window.removeEventListener(SUBTITLE_SIZE_EVENT, handleSubtitleSizeChange);
+  }, []);
+
+  if (!text || isCasting) return null;
+
+  return (
+    <div
+      id="player-subtitle-overlay"
+      className="absolute left-1/2 bottom-20 sm:bottom-24 z-30 w-[min(92vw,90rem)] -translate-x-1/2 text-center text-white font-semibold leading-tight drop-shadow-[0_2px_2px_rgba(0,0,0,0.95)] pointer-events-none"
+      style={{ fontSize: SUBTITLE_SIZE_FONT_SIZES[subtitleSize] }}
+      aria-live="polite"
+    >
+      {text.split('\n').map((line, index) => (
+        <div key={`subtitle-line-${index}`}>{line}</div>
+      ))}
+    </div>
+  );
+};
+
+const SubtitleSizeSettings: React.FC = () => {
+  const [subtitleSize, setSubtitleSize] = useState<SubtitleSize>(getSavedSubtitleSize);
+
+  useEffect(() => {
+    const handleSubtitleSizeChange = (event: Event) => {
+      const nextSize = (event as CustomEvent<SubtitleSize>).detail;
+      if (isSubtitleSize(nextSize)) setSubtitleSize(nextSize);
+    };
+
+    window.addEventListener(SUBTITLE_SIZE_EVENT, handleSubtitleSizeChange);
+    return () => window.removeEventListener(SUBTITLE_SIZE_EVENT, handleSubtitleSizeChange);
+  }, []);
+
+  return (
+    <div className="mt-4 border-t border-neutral-700 pt-3">
+      <h4 className="font-bold text-white text-xs uppercase tracking-wider mb-2">
+        Tamanho da legenda
+      </h4>
+      <div className="grid grid-cols-3 gap-1">
+        {(Object.keys(SUBTITLE_SIZE_LABELS) as SubtitleSize[]).map((size) => (
+          <button
+            key={size}
+            onClick={() => {
+              setSubtitleSize(size);
+              saveSubtitleSize(size);
+            }}
+            className={`px-2 py-1.5 rounded text-xs transition-colors ${
+              subtitleSize === size
+                ? 'bg-[#E50914] text-white font-semibold'
+                : 'hover:bg-neutral-700 text-neutral-300'
+            }`}
+          >
+            {SUBTITLE_SIZE_LABELS[size]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   media,
   episode,
@@ -1197,17 +1307,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         playsInline
       />
 
-      {activeSubtitleText && !isCasting && (
-        <div
-          id="player-subtitle-overlay"
-          className="absolute left-1/2 bottom-20 sm:bottom-24 z-30 w-[min(92vw,56rem)] -translate-x-1/2 text-center text-white text-base sm:text-xl font-semibold leading-snug drop-shadow-[0_2px_2px_rgba(0,0,0,0.95)] pointer-events-none"
-          aria-live="polite"
-        >
-          {activeSubtitleText.split('\n').map((line, index) => (
-            <div key={`subtitle-line-${index}`}>{line}</div>
-          ))}
-        </div>
-      )}
+      <SubtitleOverlay text={activeSubtitleText} isCasting={isCasting} />
 
       {isCasting && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center pointer-events-none">
@@ -1484,6 +1584,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </div>
             </div>
           </div>
+
+          <SubtitleSizeSettings />
 
         </div>
       )}

@@ -61,6 +61,10 @@ async function startServer() {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
+        // The app already owns the HTTP server. Do not open Vite's separate
+        // HMR WebSocket (which defaults to port 24678).
+        hmr: false,
+        ws: false,
         watch: {
           ignored: ['**/data/**', '**/data/library.json', '**/.git/**', '**/cinelocal_hls/**', '**/tmp/**', '**/*.ts', '**/*.m3u8'],
         },

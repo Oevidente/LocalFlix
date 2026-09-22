@@ -59,5 +59,6 @@ Se você plugar o pendrive em outro computador e a letra do drive mudar:
 - Para o Chromecast acessar os vídeos, permita o Node.js/CineLocal na rede **Privada** do Firewall do Windows.
 - O Chromecast recebe o fluxo diretamente do computador; não é necessário enviar os arquivos para a nuvem.
 - O `start.bat` cria o certificado HTTPS local e abre o site em `https://localhost:3050`.
+- O cache temporário HLS fica em `.cache/hls` no mesmo disco do CineLocal, com limite padrão de 4 GB e limpeza automática de sessões antigas. Para usar outro disco, altere `HLS_CACHE_DIR` no `start.bat`.
 - Para acessar pelo Android, abra `https://IP_DO_PC:3050` e instale manualmente `certs/cinelocal.crt` como certificado CA no celular. O Chrome no iPhone/iPad não oferece transmissão web para Chromecast.
 - O Chromecast usa uma porta HTTP auxiliar para receber os segmentos HLS; MKV é convertido pelo FFmpeg para H.264/AAC em HLS MPEG-TS antes da transmissão.

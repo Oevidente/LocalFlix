@@ -14,7 +14,10 @@ export default defineConfig(() => {
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
+      // CineLocal embeds Vite inside Express. Disable the standalone HMR
+      // WebSocket so it cannot collide with another React app's port 24678.
+      hmr: false,
+      ws: false as const,
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {
         ignored: ['**/data/**', '**/data/library.json', '**/.git/**'],

@@ -8,6 +8,10 @@ set /a CAST_MEDIA_PORT=%PORT%+1
 set "HTTPS=true"
 set "HTTPS_CERT_DIR=%~dp0certs"
 set "HTTPS_PFX_PASSPHRASE=CineLocal-HTTPS-Local"
+:: Cache HLS no mesmo disco da instalação, evitando ocupar a unidade C:
+:: Para usar outro disco, troque por exemplo por: set "HLS_CACHE_DIR=D:\CineLocalCache\hls"
+set "HLS_CACHE_DIR=%~dp0.cache\hls"
+set "HLS_CACHE_MAX_MB=4096"
 
 echo ======================================================
 echo    CineLocal - Servidor Offline (Porta %PORT%)
