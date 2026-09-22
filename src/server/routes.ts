@@ -15,7 +15,7 @@ import {
 } from './storage';
 import { scanMediaFolder } from './scanner';
 import { getBinaries, generateThumbnail, isBrowserNativeDirectPlayable, streamSubtitlesToVtt } from './ffmpeg';
-import { getOrCreateHlsSession } from './hls';
+import { getOrCreateHlsSession, findActiveSession } from './hls';
 import { BrowseItem, SystemStatus } from '../types';
 
 export const apiRouter = Router();
@@ -402,20 +402,32 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
   const canDirectCopyVideo = Boolean(!forceTranscode && isH264 && !is10BitOrHighColor);
 
   try {
-    const { sessionDir, manifestPath } = await getOrCreateHlsSession(
-      mediaId,
-      episodeId,
-      filePath,
-      audioStreamIndex,
-      audioTrackIndex,
-      canDirectCopyVideo
-    );
+    let sessionDir: string;
+    let manifestPath: string;
+
+    const existingSession = findActiveSession(mediaId, episodeId, audioTrackParam !== undefined ? audioTrackIndex : undefined);
+
+    if (existingSession && file !== 'master.m3u8') {
+      sessionDir = existingSession.sessionDir;
+      manifestPath = existingSession.manifestPath;
+    } else {
+      const created = await getOrCreateHlsSession(
+        mediaId,
+        episodeId,
+        filePath,
+        audioStreamIndex,
+        audioTrackIndex,
+        canDirectCopyVideo
+      );
+      sessionDir = created.sessionDir;
+      manifestPath = created.manifestPath;
+    }
 
     const targetFile = file === 'master.m3u8' ? manifestPath : path.join(sessionDir, file);
 
     if (!fs.existsSync(targetFile)) {
       const startWait = Date.now();
-      while (Date.now() - startWait < 3000 && !fs.existsSync(targetFile)) {
+      while (Date.now() - startWait < 4000 && !fs.existsSync(targetFile)) {
         await new Promise((r) => setTimeout(r, 100));
       }
     }
