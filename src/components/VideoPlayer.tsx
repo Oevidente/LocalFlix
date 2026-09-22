@@ -123,7 +123,11 @@ function saveSubtitleSize(size: SubtitleSize) {
   window.dispatchEvent(new CustomEvent<SubtitleSize>(SUBTITLE_SIZE_EVENT, { detail: size }));
 }
 
-const SubtitleOverlay: React.FC<{ text: string; isCasting: boolean }> = ({ text, isCasting }) => {
+const SubtitleOverlay: React.FC<{
+  text: string;
+  isCasting: boolean;
+  controlsVisible: boolean;
+}> = ({ text, isCasting, controlsVisible }) => {
   const [subtitleSize, setSubtitleSize] = useState<SubtitleSize>(getSavedSubtitleSize);
 
   useEffect(() => {
@@ -141,7 +145,9 @@ const SubtitleOverlay: React.FC<{ text: string; isCasting: boolean }> = ({ text,
   return (
     <div
       id="player-subtitle-overlay"
-      className="absolute left-1/2 bottom-20 sm:bottom-24 z-30 w-[min(92vw,90rem)] -translate-x-1/2 text-center text-white font-semibold leading-tight drop-shadow-[0_2px_2px_rgba(0,0,0,0.95)] pointer-events-none"
+      className={`absolute left-1/2 z-30 w-[min(92vw,90rem)] -translate-x-1/2 text-center text-white font-semibold leading-tight drop-shadow-[0_2px_2px_rgba(0,0,0,0.95)] pointer-events-none transition-[bottom] duration-300 ${
+        controlsVisible ? 'bottom-20 sm:bottom-24' : 'bottom-6 sm:bottom-8'
+      }`}
       style={{ fontSize: SUBTITLE_SIZE_FONT_SIZES[subtitleSize] }}
       aria-live="polite"
     >
@@ -152,7 +158,15 @@ const SubtitleOverlay: React.FC<{ text: string; isCasting: boolean }> = ({ text,
   );
 };
 
-const SubtitleSizeSettings: React.FC = () => {
+interface SubtitleSizeSettingsProps {
+  subtitleOffsetSeconds: number;
+  onSubtitleOffsetChange: (offset: number) => void;
+}
+
+const SubtitleSizeSettings: React.FC<SubtitleSizeSettingsProps> = ({
+  subtitleOffsetSeconds,
+  onSubtitleOffsetChange,
+}) => {
   const [subtitleSize, setSubtitleSize] = useState<SubtitleSize>(getSavedSubtitleSize);
 
   useEffect(() => {
@@ -187,6 +201,41 @@ const SubtitleSizeSettings: React.FC = () => {
             {SUBTITLE_SIZE_LABELS[size]}
           </button>
         ))}
+      </div>
+
+      <div className="mt-3">
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="font-bold text-white text-xs uppercase tracking-wider">
+            Sincronização
+          </h4>
+          <span className="text-[11px] text-neutral-400">
+            {subtitleOffsetSeconds > 0 ? '+' : ''}{subtitleOffsetSeconds}s
+          </span>
+        </div>
+        <div className="grid grid-cols-5 gap-1">
+          {[-5, -1, 1, 5].map((adjustment) => (
+            <button
+              key={adjustment}
+              type="button"
+              onClick={() => onSubtitleOffsetChange(subtitleOffsetSeconds + adjustment)}
+              className="px-1 py-1.5 rounded text-xs text-neutral-300 hover:bg-neutral-700 transition-colors"
+              title={`${adjustment > 0 ? 'Atrasar' : 'Adiantar'} legenda em ${Math.abs(adjustment)}s`}
+            >
+              {adjustment > 0 ? '+' : ''}{adjustment}s
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => onSubtitleOffsetChange(0)}
+            className={`px-1 py-1.5 rounded text-xs transition-colors ${
+              subtitleOffsetSeconds === 0
+                ? 'bg-neutral-700 text-white font-semibold'
+                : 'text-neutral-300 hover:bg-neutral-700'
+            }`}
+          >
+            Resetar
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -234,6 +283,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   );
   const [subtitleCues, setSubtitleCues] = useState<SubtitleCue[]>([]);
   const [activeSubtitleText, setActiveSubtitleText] = useState<string>('');
+  const [subtitleOffsetSeconds, setSubtitleOffsetSeconds] = useState<number>(0);
   const [showAudioSubModal, setShowAudioSubModal] = useState<boolean>(false);
 
   // Next Episode Auto-Countdown
@@ -363,16 +413,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const restoreLocalAfterCast = useCallback(() => {
     const position = castCurrentTimeRef.current;
     const video = videoRef.current;
+    const shouldResumeLocalPlayback = castWasPlayingRef.current;
 
     if (video && Number.isFinite(position) && position > 0) {
       try {
         video.currentTime = Math.max(0, position - hlsStreamOffsetRef.current);
         setCurrentTime(position);
       } catch {}
-    }
-
-    if (video && castWasPlayingRef.current) {
-      video.play().catch(() => {});
     }
 
     if (castMediaRef.current && castMediaListenerRef.current) {
@@ -385,6 +432,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     castLastLoadedEpisodeIdRef.current = null;
     setIsCasting(false);
     setCastDeviceName(null);
+
+    if (video && shouldResumeLocalPlayback) {
+      video.play().catch(() => {});
+    }
   }, []);
 
   // Initialize the Google Cast sender framework when the SDK becomes ready.
@@ -450,11 +501,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setSelectedAudioIndex(nextAudioIndex);
     selectedAudioIndexRef.current = nextAudioIndex;
     setSelectedSubtitleIndex(episode.selectedSubtitleIndex ?? -1);
+    setSubtitleOffsetSeconds(0);
     setDuration(episode.durationSeconds || 0);
     setCurrentTime(episode.progressSeconds > 10 && !episode.watched ? episode.progressSeconds : 0);
     pendingReloadPositionRef.current = null;
     hlsStreamOffsetRef.current = 0;
   }, [media.id, episode.id]);
+
+  // The sender UI remains mounted while casting, but the local video must not
+  // be allowed to continue playing underneath the receiver session.
+  useEffect(() => {
+    if (!isCasting) return;
+    const video = videoRef.current;
+    if (video && !video.paused) video.pause();
+  }, [isCasting]);
 
   // Auto-hide controls
   const handleUserActivity = useCallback(() => {
@@ -529,7 +589,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               console.warn('[CineLocal] Falha ao aplicar seek inicial:', err);
             }
           }
-          if (resumePlayback && !isCasting) {
+          if (resumePlayback && !castActiveRef.current) {
             video.play().catch(() => {});
           }
         });
@@ -607,7 +667,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           if (!hlsStartOffset && initialSeek >= 0 && (initialSeek > 0 || requestedSeek !== null)) {
             video.currentTime = initialSeek;
           }
-          if (resumePlayback && !isCasting) {
+          if (resumePlayback && !castActiveRef.current) {
             video.play().catch(() => {});
           }
         };
@@ -624,7 +684,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         if (initialSeek > 0) {
           video.currentTime = initialSeek;
         }
-        if (!isCasting) video.play().catch(() => {});
+        if (!castActiveRef.current) video.play().catch(() => {});
       };
       video.addEventListener('loadedmetadata', onLoaded, { once: true });
     }
@@ -635,7 +695,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         hlsRef.current = null;
       }
     };
-  }, [media.id, episode.id, isDirectMP4, isForceTranscode, selectedAudioIndex, hlsReloadVersion, isCasting]);
+  }, [media.id, episode.id, isDirectMP4, isForceTranscode, selectedAudioIndex, hlsReloadVersion]);
 
   // Periodic progress saving (every 5 seconds)
   useEffect(() => {
@@ -697,9 +757,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [media.id, episode.id, episode.subtitleTracks, selectedSubtitleIndex]);
 
   useEffect(() => {
-    const cue = subtitleCues.find((item) => currentTime >= item.start && currentTime < item.end);
+    const cue = subtitleCues.find(
+      (item) => currentTime >= item.start + subtitleOffsetSeconds && currentTime < item.end + subtitleOffsetSeconds
+    );
     setActiveSubtitleText(cue?.text || '');
-  }, [currentTime, subtitleCues]);
+  }, [currentTime, subtitleCues, subtitleOffsetSeconds]);
 
   const handleCast = async (
     targetMedia: MediaItem = media,
@@ -872,7 +934,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const togglePlayback = () => {
-    if (isCasting && castMediaRef.current) {
+    if (isCasting) {
+      if (!castMediaRef.current) return;
       const mediaApi = (window as any).chrome?.cast?.media;
       const request = isPlaying
         ? mediaApi?.PauseRequest ? new mediaApi.PauseRequest() : undefined
@@ -899,7 +962,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       return;
     }
 
-    if (isCasting && castSessionRef.current) {
+    if (isCasting) {
+      if (!castSessionRef.current) return;
       const position = castCurrentTimeRef.current;
       setSelectedAudioIndex(index);
       selectedAudioIndexRef.current = index;
@@ -937,9 +1001,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const handleSelectSubtitle = (index: number) => {
     setSelectedSubtitleIndex(index);
+    setSubtitleOffsetSeconds(0);
     setShowAudioSubModal(false);
 
-    if (isCasting && castMediaRef.current) {
+    if (isCasting) {
+      if (!castMediaRef.current) return;
       const mediaApi = (window as any).chrome?.cast?.media;
       const trackId = index >= 0 ? (episode.subtitleTracks[index]?.index ?? index) + 1 : undefined;
       const request = mediaApi?.EditTracksInfoRequest
@@ -966,7 +1032,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     isSeekingRef.current = true;
     const clampedSec = Math.max(0, Math.min(targetSec, duration > 0 ? duration : targetSec));
 
-    if (isCasting && castMediaRef.current) {
+    if (isCasting) {
+      if (!castMediaRef.current) {
+        isSeekingRef.current = false;
+        return;
+      }
       const mediaApi = (window as any).chrome?.cast?.media;
       const request = mediaApi?.SeekRequest ? new mediaApi.SeekRequest() : undefined;
       if (request) request.currentTime = clampedSec;
@@ -1275,10 +1345,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }`}
         onTimeUpdate={handleTimeUpdate}
         onPlay={() => {
+          if (castActiveRef.current) {
+            videoRef.current?.pause();
+            return;
+          }
           setIsPlaying(true);
           isSeekingRef.current = false;
         }}
         onPlaying={() => {
+          if (castActiveRef.current) {
+            videoRef.current?.pause();
+            return;
+          }
           setIsPlaying(true);
         }}
         onSeeking={() => {
@@ -1290,6 +1368,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           }, 400);
         }}
         onPause={() => {
+          if (castActiveRef.current) return;
           setIsPlaying(false);
           saveProgress(getLocalPlaybackTime(), duration, false, true);
         }}
@@ -1298,6 +1377,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onClick={(e) => {
           e.stopPropagation();
           handleUserActivity();
+          if (castActiveRef.current || isCasting) return;
           if (videoRef.current?.paused) {
             videoRef.current.play().catch(() => {});
           } else {
@@ -1307,7 +1387,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         playsInline
       />
 
-      <SubtitleOverlay text={activeSubtitleText} isCasting={isCasting} />
+      <SubtitleOverlay
+        text={activeSubtitleText}
+        isCasting={isCasting}
+        controlsVisible={controlsVisible}
+      />
 
       {isCasting && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center pointer-events-none">
@@ -1585,7 +1669,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
           </div>
 
-          <SubtitleSizeSettings />
+          <SubtitleSizeSettings
+            subtitleOffsetSeconds={subtitleOffsetSeconds}
+            onSubtitleOffsetChange={setSubtitleOffsetSeconds}
+          />
 
         </div>
       )}

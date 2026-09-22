@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-22T19:47:51.117Z",
+  "updatedAt": "2026-09-22T20:02:53.159Z",
   "settings": {
     "preferredAudioLanguage": "por",
     "preferredSubtitleLanguage": "por",
@@ -2881,18 +2881,18 @@
                 }
               ],
               "watched": false,
-              "progressSeconds": 9,
+              "progressSeconds": 1450,
               "selectedAudioIndex": 0,
-              "selectedSubtitleIndex": 1,
-              "lastWatchedAt": "2026-09-22T19:47:51.117Z"
+              "selectedSubtitleIndex": 0,
+              "lastWatchedAt": "2026-09-22T20:02:53.159Z"
             }
           ]
         }
       ],
       "createdAt": "2026-09-22T16:05:21.314Z",
-      "updatedAt": "2026-09-22T19:47:51.117Z",
+      "updatedAt": "2026-09-22T20:02:53.159Z",
       "lastWatchedEpisodeId": "ep_s1e1_fe1399a13c29",
-      "lastWatchedAt": "2026-09-22T19:47:51.117Z"
+      "lastWatchedAt": "2026-09-22T20:02:53.159Z"
     }
   ]
 }
