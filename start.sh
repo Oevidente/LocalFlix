@@ -25,10 +25,13 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
-# Instala dependências se necessário
-if [ ! -d "$DIR/node_modules" ]; then
-  echo "[INFO] Instalando dependências (npm install)..."
+# Instala ou atualiza dependências se necessário
+if [ ! -d "$DIR/node_modules" ] || [ ! -d "$DIR/node_modules/hls.js" ] || [ ! -d "$DIR/node_modules/tsx" ]; then
+  echo "[INFO] Instalando/atualizando dependências necessárias (npm install)..."
   npm install
+  echo "[OK] Dependências instaladas com sucesso!"
+else
+  echo "[OK] Dependências verificadas e prontas."
 fi
 
 # Abre o navegador padrão após 3 segundos
