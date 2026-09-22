@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "updatedAt": "2026-09-21T16:27:12.789Z",
+  "settings": {
+    "preferredAudioLanguage": "por",
+    "preferredSubtitleLanguage": "por",
+    "autoPlayNext": true
+  },
+  "items": [
+    {
+      "id": "media_L2FwcC9hcHBsZXQvZGVtb19t",
+      "title": "Cosmos: O Infinito",
+      "kind": "series",
+      "folderPath": "/app/applet/demo_media/Cosmos - O Infinito",
+      "posterPath": "/app/applet/demo_media/Cosmos - O Infinito/folder.jpg",
+      "totalEpisodes": 2,
+      "totalSeasons": 1,
+      "seasons": [
+        {
+          "seasonNumber": 1,
+          "title": "Temporada 1",
+          "episodes": [
+            {
+              "id": "ep_L2FwcC9hcHBsZXQvZGVtb19t",
+              "seasonNumber": 1,
+              "episodeNumber": 1,
+              "title": "A Grande Jornada",
+              "fileName": "Cosmos.S01E01.A.Grande.Jornada.mp4",
+              "filePath": "/app/applet/demo_media/Cosmos - O Infinito/Cosmos.S01E01.A.Grande.Jornada.mp4",
+              "extension": ".mp4",
+              "sizeBytes": 514696,
+              "durationSeconds": 20,
+              "videoCodec": "h264",
+              "resolution": "1280x720",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "por",
+                  "title": "SoundHandler (POR)",
+                  "channels": 1
+                }
+              ],
+              "subtitleTracks": [],
+              "watched": false,
+              "progressSeconds": 0
+            },
+            {
+              "id": "ep_L2FwcC9hcHBsZXQvZGVtb19t",
+              "seasonNumber": 1,
+              "episodeNumber": 2,
+              "title": "As Estrelas",
+              "fileName": "Cosmos.S01E02.As.Estrelas.mkv",
+              "filePath": "/app/applet/demo_media/Cosmos - O Infinito/Cosmos.S01E02.As.Estrelas.mkv",
+              "extension": ".mkv",
+              "sizeBytes": 497398,
+              "durationSeconds": 25,
+              "videoCodec": "h264",
+              "resolution": "1280x720",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "por",
+                  "title": "Português (Dublado) (POR)",
+                  "channels": 1
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "aac",
+                  "language": "eng",
+                  "title": "Inglês (Original) (ENG)",
+                  "channels": 1
+                }
+              ],
+              "subtitleTracks": [],
+              "watched": false,
+              "progressSeconds": 0
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-09-21T16:27:01.385Z",
+      "updatedAt": "2026-09-21T16:27:01.385Z"
+    },
+    {
+      "id": "media_27998a00306c8ec3",
+      "title": "Cosmos: O Infinito",
+      "kind": "series",
+      "folderPath": "/app/applet/demo_media/Cosmos - O Infinito",
+      "posterPath": "/app/applet/demo_media/Cosmos - O Infinito/folder.jpg",
+      "totalEpisodes": 2,
+      "totalSeasons": 1,
+      "seasons": [
+        {
+          "seasonNumber": 1,
+          "title": "Temporada 1",
+          "episodes": [
+            {
+              "id": "ep_s1e1_5d6e78df06ec",
+              "seasonNumber": 1,
+              "episodeNumber": 1,
+              "title": "A Grande Jornada",
+              "fileName": "Cosmos.S01E01.A.Grande.Jornada.mp4",
+              "filePath": "/app/applet/demo_media/Cosmos - O Infinito/Cosmos.S01E01.A.Grande.Jornada.mp4",
+              "extension": ".mp4",
+              "sizeBytes": 514696,
+              "durationSeconds": 20,
+              "videoCodec": "h264",
+              "resolution": "1280x720",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "por",
+                  "title": "SoundHandler (POR)",
+                  "channels": 1
+                }
+              ],
+              "subtitleTracks": [],
+              "watched": false,
+              "progressSeconds": 12,
+              "lastWatchedAt": "2026-09-21T16:27:12.789Z"
+            },
+            {
+              "id": "ep_s1e2_69ff2fdd11b9",
+              "seasonNumber": 1,
+              "episodeNumber": 2,
+              "title": "As Estrelas",
+              "fileName": "Cosmos.S01E02.As.Estrelas.mkv",
+              "filePath": "/app/applet/demo_media/Cosmos - O Infinito/Cosmos.S01E02.As.Estrelas.mkv",
+              "extension": ".mkv",
+              "sizeBytes": 497398,
+              "durationSeconds": 25,
+              "videoCodec": "h264",
+              "resolution": "1280x720",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "por",
+                  "title": "Português (Dublado) (POR)",
+                  "channels": 1
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "aac",
+                  "language": "eng",
+                  "title": "Inglês (Original) (ENG)",
+                  "channels": 1
+                }
+              ],
+              "subtitleTracks": [],
+              "watched": false,
+              "progressSeconds": 0
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-09-21T16:27:08.904Z",
+      "updatedAt": "2026-09-21T16:27:12.789Z",
+      "lastWatchedEpisodeId": "ep_s1e1_5d6e78df06ec",
+      "lastWatchedAt": "2026-09-21T16:27:12.789Z"
+    }
+  ]
+}

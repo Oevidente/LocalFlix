@@ -1,0 +1,7 @@
+{
+  "name": "CineLocal - Biblioteca Offline",
+  "description": "Biblioteca de mídia local estilo Netflix, 100% offline para rodar do PC ou pendrive com reprodução MP4 e MKV via ffmpeg.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
