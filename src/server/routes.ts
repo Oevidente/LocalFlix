@@ -387,11 +387,9 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
   const audioTrackIndex = audioTrackParam !== undefined ? parseInt(audioTrackParam, 10) : 0;
   const forceTranscode = req.query.transcode === 'true' || req.query.transcode === '1';
 
-  console.log(`[HLS Route] Received request for file="${file}", mediaId=${mediaId}, epId=${episodeId}, audioTrack=${audioTrackIndex}, forceTranscode=${forceTranscode}`);
-
   const pair = findEpisode(mediaId, episodeId);
   if (!pair) {
-    console.warn(`[HLS Route] Episode not found for mediaId=${mediaId}, epId=${episodeId}`);
+    console.warn(`[HLS Route] Episódio não encontrado para mediaId=${mediaId}, epId=${episodeId}`);
     res.status(404).send('Episódio não encontrado');
     return;
   }
@@ -399,7 +397,7 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
   const { episode } = pair;
   const filePath = episode.filePath;
   if (!fs.existsSync(filePath)) {
-    console.warn(`[HLS Route] File does not exist on disk: ${filePath}`);
+    console.warn(`[HLS Route] Arquivo não existe no disco: ${filePath}`);
     res.status(404).send(`Arquivo não encontrado: ${filePath}`);
     return;
   }
@@ -421,9 +419,7 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
       existingSession.lastAccess = Date.now();
       sessionDir = existingSession.sessionDir;
       manifestPath = existingSession.manifestPath;
-      console.log(`[HLS Route] Reusing active session: ${existingSession.sessionId} (complete: ${existingSession.isComplete})`);
     } else {
-      console.log(`[HLS Route] Initializing new session for ${mediaId}_${episodeId}...`);
       const created = await getOrCreateHlsSession(
         mediaId,
         episodeId,
@@ -441,15 +437,12 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
     // If requesting a segment that FFmpeg is still generating, wait up to 25 seconds
     if (!fs.existsSync(targetFile)) {
       const startWait = Date.now();
-      console.log(`[HLS Route] Waiting for segment ${file} in ${sessionDir}...`);
       while (Date.now() - startWait < 25000 && !fs.existsSync(targetFile)) {
         await new Promise((r) => setTimeout(r, 100));
       }
-      if (fs.existsSync(targetFile)) {
-        console.log(`[HLS Route] Segment ${file} is now available after ${Date.now() - startWait}ms`);
-      } else {
+      if (!fs.existsSync(targetFile)) {
         const availableFiles = fs.existsSync(sessionDir) ? fs.readdirSync(sessionDir).join(', ') : 'dir_not_found';
-        console.error(`[HLS Route ERROR] Segment ${file} was NOT generated in 25s! Available files: [${availableFiles}]`);
+        console.error(`[HLS Route ERROR] Segmento ${file} não foi gerado em 25s. Arquivos: [${availableFiles}]`);
       }
     }
 

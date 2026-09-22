@@ -141,7 +141,6 @@ function spawnFfmpegHls(
   );
 
   const proc = spawn(ffmpegBin, args, { stdio: ['ignore', 'ignore', 'pipe'] });
-  console.log(`[HLS Server] Spawned FFmpeg (PID ${proc.pid}) with command:\n${ffmpegBin} ${args.join(' ')}`);
 
   // Attach immediate error handler on ChildProcess to prevent unhandled 'error' event crash
   proc.on('error', (err) => {
@@ -215,19 +214,13 @@ export async function getOrCreateHlsSession(
     proc.stderr?.on('data', (chunk) => {
       const text = chunk.toString();
       stderrTail = (stderrTail + text).slice(-2000);
-      // Log relevant FFmpeg progress and warnings to console
-      const lastLine = text.trim().split('\n').pop() || '';
-      if (lastLine.includes('Opening') || lastLine.includes('Error') || lastLine.includes('corrupt') || lastLine.includes('fps=')) {
-        console.log(`[FFmpeg-HLS ${sessionId}] ${lastLine}`);
-      }
     });
 
     proc.on('close', (code) => {
       hasExited = true;
       exitCode = code;
-      console.log(`[HLS Server] FFmpeg process for ${sessionId} closed with exitCode=${code}`);
       if (code !== 0 && code !== null && !proc.killed) {
-        console.warn(`[HLS Server Warning] FFmpeg exited with non-zero code ${code}. Stderr:\n${stderrTail.trim()}`);
+        console.warn(`[HLS Server Warning] FFmpeg finalizou com código ${code}. Stderr:\n${stderrTail.trim()}`);
       }
     });
 
