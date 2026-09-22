@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-22T15:59:04.097Z",
+  "updatedAt": "2026-09-22T16:08:17.199Z",
   "settings": {
     "preferredAudioLanguage": "por",
     "preferredSubtitleLanguage": "por",
@@ -12,6 +12,7 @@
       "title": "As Amigas do Clube 1ª Temporada Dub (2026)",
       "kind": "series",
       "folderPath": "J:\\As Amigas do Clube 1ª Temporada Dub (2026)",
+      "backdropPath": "https://m.media-amazon.com/images/M/MV5BYzZkNzcyODktZTE5Yy00ZGEzLWE1OWUtNzVkZjI5NzNlODgzXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg",
       "totalEpisodes": 7,
       "totalSeasons": 1,
       "seasons": [
@@ -29,13 +30,25 @@
               "extension": ".mp4",
               "sizeBytes": 539352517,
               "durationSeconds": 2982.464,
-              "audioTracks": [],
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1280x720",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "und",
+                  "title": "SoundHandler (UND)",
+                  "channels": 2
+                }
+              ],
               "subtitleTracks": [],
               "watched": false,
-              "progressSeconds": 1,
+              "progressSeconds": 15,
+              "lastWatchedAt": "2026-09-22T16:07:45.564Z",
               "selectedAudioIndex": 0,
-              "selectedSubtitleIndex": -1,
-              "lastWatchedAt": "2026-09-22T14:52:53.578Z"
+              "selectedSubtitleIndex": -1
             },
             {
               "id": "ep_s1e2_c7c7fc6511c8",
@@ -46,13 +59,23 @@
               "filePath": "J:\\As Amigas do Clube 1ª Temporada Dub (2026)\\as-amigas-do-clube-S1EP02-dub.mp4",
               "extension": ".mp4",
               "sizeBytes": 512575997,
-              "durationSeconds": 2843.84,
-              "audioTracks": [],
+              "durationSeconds": 2843,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1280x720",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "und",
+                  "title": "SoundHandler (UND)",
+                  "channels": 2
+                }
+              ],
               "subtitleTracks": [],
               "watched": false,
               "progressSeconds": 1,
-              "selectedAudioIndex": 0,
-              "selectedSubtitleIndex": -1,
               "lastWatchedAt": "2026-09-22T14:15:38.342Z"
             },
             {
@@ -64,8 +87,20 @@
               "filePath": "J:\\As Amigas do Clube 1ª Temporada Dub (2026)\\as-amigas-do-clube-S1EP03-dub.mp4",
               "extension": ".mp4",
               "sizeBytes": 549546250,
-              "durationSeconds": 0,
-              "audioTracks": [],
+              "durationSeconds": 3034,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1280x720",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "und",
+                  "title": "SoundHandler (UND)",
+                  "channels": 2
+                }
+              ],
               "subtitleTracks": [],
               "watched": false,
               "progressSeconds": 0
@@ -79,8 +114,20 @@
               "filePath": "J:\\As Amigas do Clube 1ª Temporada Dub (2026)\\as-amigas-do-clube-S1EP04-dub.mp4",
               "extension": ".mp4",
               "sizeBytes": 573859482,
-              "durationSeconds": 0,
-              "audioTracks": [],
+              "durationSeconds": 3172,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1280x720",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "und",
+                  "title": "SoundHandler (UND)",
+                  "channels": 2
+                }
+              ],
               "subtitleTracks": [],
               "watched": false,
               "progressSeconds": 0
@@ -94,8 +141,20 @@
               "filePath": "J:\\As Amigas do Clube 1ª Temporada Dub (2026)\\as-amigas-do-clube-S1EP05-dub.mp4",
               "extension": ".mp4",
               "sizeBytes": 544507262,
-              "durationSeconds": 0,
-              "audioTracks": [],
+              "durationSeconds": 3008,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1280x720",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "und",
+                  "title": "SoundHandler (UND)",
+                  "channels": 2
+                }
+              ],
               "subtitleTracks": [],
               "watched": false,
               "progressSeconds": 0
@@ -109,8 +168,20 @@
               "filePath": "J:\\As Amigas do Clube 1ª Temporada Dub (2026)\\as-amigas-do-clube-S1EP06-dub.mp4",
               "extension": ".mp4",
               "sizeBytes": 570285531,
-              "durationSeconds": 0,
-              "audioTracks": [],
+              "durationSeconds": 3151,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1280x720",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "und",
+                  "title": "SoundHandler (UND)",
+                  "channels": 2
+                }
+              ],
               "subtitleTracks": [],
               "watched": false,
               "progressSeconds": 0
@@ -124,8 +195,20 @@
               "filePath": "J:\\As Amigas do Clube 1ª Temporada Dub (2026)\\as-amigas-do-clube-S1EP07-dub.mp4",
               "extension": ".mp4",
               "sizeBytes": 686159846,
-              "durationSeconds": 0,
-              "audioTracks": [],
+              "durationSeconds": 3759,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1280x720",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "und",
+                  "title": "SoundHandler (UND)",
+                  "channels": 2
+                }
+              ],
               "subtitleTracks": [],
               "watched": false,
               "progressSeconds": 0
@@ -133,17 +216,17 @@
           ]
         }
       ],
-      "createdAt": "2026-09-22T13:37:42.093Z",
-      "updatedAt": "2026-09-22T14:52:53.578Z",
+      "createdAt": "2026-09-22T16:07:28.903Z",
+      "updatedAt": "2026-09-22T16:07:45.564Z",
       "lastWatchedEpisodeId": "ep_s1e1_864ab1bceee4",
-      "lastWatchedAt": "2026-09-22T14:52:53.578Z",
-      "backdropPath": "https://m.media-amazon.com/images/M/MV5BYzZkNzcyODktZTE5Yy00ZGEzLWE1OWUtNzVkZjI5NzNlODgzXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg"
+      "lastWatchedAt": "2026-09-22T16:07:45.564Z"
     },
     {
       "id": "media_85dc7677874fba01",
       "title": "Ruptura",
       "kind": "series",
       "folderPath": "J:\\Ruptura",
+      "backdropPath": "https://m.media-amazon.com/images/M/MV5BZDI5YzJhODQtMzQyNy00YWNmLWIxMjUtNDBjNjA5YWRjMzExXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg",
       "totalEpisodes": 10,
       "totalSeasons": 1,
       "seasons": [
@@ -160,14 +243,427 @@
               "filePath": "J:\\Ruptura\\Ruptura S02E01 WEB-DL 1080p x264 DUAL 5.1.mkv",
               "extension": ".mkv",
               "sizeBytes": 1409717595,
-              "durationSeconds": 5.034666666666666,
-              "audioTracks": [],
-              "subtitleTracks": [],
+              "durationSeconds": 2933,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1918x802",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "por",
+                  "title": "PT-BR 5.1 (POR)",
+                  "channels": 6
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "aac",
+                  "language": "eng",
+                  "title": "Inglês 5.1 (ENG)",
+                  "channels": 6
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 3,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR FULL (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 4,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR FORCED (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 2,
+                  "streamIndex": 5,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "Legenda 3 (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 3,
+                  "streamIndex": 6,
+                  "codec": "subrip",
+                  "language": "ara",
+                  "title": "Legenda 4 (ARA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 4,
+                  "streamIndex": 7,
+                  "codec": "subrip",
+                  "language": "bul",
+                  "title": "Legenda 5 (BUL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 5,
+                  "streamIndex": 8,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Simplified (CHI)",
+                  "isExternal": false
+                },
+                {
+                  "index": 6,
+                  "streamIndex": 9,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Traditional (CHI)",
+                  "isExternal": false
+                },
+                {
+                  "index": 7,
+                  "streamIndex": 10,
+                  "codec": "subrip",
+                  "language": "cze",
+                  "title": "Legenda 8 (CZE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 8,
+                  "streamIndex": 11,
+                  "codec": "subrip",
+                  "language": "dan",
+                  "title": "Legenda 9 (DAN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 9,
+                  "streamIndex": 12,
+                  "codec": "subrip",
+                  "language": "ger",
+                  "title": "Forced (GER)",
+                  "isExternal": false
+                },
+                {
+                  "index": 10,
+                  "streamIndex": 13,
+                  "codec": "subrip",
+                  "language": "ger",
+                  "title": "Legenda 11 (GER)",
+                  "isExternal": false
+                },
+                {
+                  "index": 11,
+                  "streamIndex": 14,
+                  "codec": "subrip",
+                  "language": "gre",
+                  "title": "Legenda 12 (GRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 12,
+                  "streamIndex": 15,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "Legenda 13 (ENG)",
+                  "isExternal": false
+                },
+                {
+                  "index": 13,
+                  "streamIndex": 16,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "Latin American (Forced) (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 14,
+                  "streamIndex": 17,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "Latin American (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 15,
+                  "streamIndex": 18,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "European (Forced) (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 16,
+                  "streamIndex": 19,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "European (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 17,
+                  "streamIndex": 20,
+                  "codec": "subrip",
+                  "language": "est",
+                  "title": "Legenda 18 (EST)",
+                  "isExternal": false
+                },
+                {
+                  "index": 18,
+                  "streamIndex": 21,
+                  "codec": "subrip",
+                  "language": "fin",
+                  "title": "Legenda 19 (FIN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 19,
+                  "streamIndex": 22,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "Canadian (Forced) (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 20,
+                  "streamIndex": 23,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "Canadian (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 21,
+                  "streamIndex": 24,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "European (Forced) (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 22,
+                  "streamIndex": 25,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "European (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 23,
+                  "streamIndex": 26,
+                  "codec": "subrip",
+                  "language": "heb",
+                  "title": "Legenda 24 (HEB)",
+                  "isExternal": false
+                },
+                {
+                  "index": 24,
+                  "streamIndex": 27,
+                  "codec": "subrip",
+                  "language": "hin",
+                  "title": "Legenda 25 (HIN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 25,
+                  "streamIndex": 28,
+                  "codec": "subrip",
+                  "language": "hun",
+                  "title": "Legenda 26 (HUN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 26,
+                  "streamIndex": 29,
+                  "codec": "subrip",
+                  "language": "ind",
+                  "title": "Legenda 27 (IND)",
+                  "isExternal": false
+                },
+                {
+                  "index": 27,
+                  "streamIndex": 30,
+                  "codec": "subrip",
+                  "language": "ita",
+                  "title": "Forced (ITA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 28,
+                  "streamIndex": 31,
+                  "codec": "subrip",
+                  "language": "ita",
+                  "title": "Legenda 29 (ITA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 29,
+                  "streamIndex": 32,
+                  "codec": "subrip",
+                  "language": "jpn",
+                  "title": "Forced (JPN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 30,
+                  "streamIndex": 33,
+                  "codec": "subrip",
+                  "language": "jpn",
+                  "title": "Legenda 31 (JPN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 31,
+                  "streamIndex": 34,
+                  "codec": "subrip",
+                  "language": "kor",
+                  "title": "Legenda 32 (KOR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 32,
+                  "streamIndex": 35,
+                  "codec": "subrip",
+                  "language": "lit",
+                  "title": "Legenda 33 (LIT)",
+                  "isExternal": false
+                },
+                {
+                  "index": 33,
+                  "streamIndex": 36,
+                  "codec": "subrip",
+                  "language": "lav",
+                  "title": "Legenda 34 (LAV)",
+                  "isExternal": false
+                },
+                {
+                  "index": 34,
+                  "streamIndex": 37,
+                  "codec": "subrip",
+                  "language": "may",
+                  "title": "Legenda 35 (MAY)",
+                  "isExternal": false
+                },
+                {
+                  "index": 35,
+                  "streamIndex": 38,
+                  "codec": "subrip",
+                  "language": "dut",
+                  "title": "Legenda 36 (DUT)",
+                  "isExternal": false
+                },
+                {
+                  "index": 36,
+                  "streamIndex": 39,
+                  "codec": "subrip",
+                  "language": "nor",
+                  "title": "Legenda 37 (NOR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 37,
+                  "streamIndex": 40,
+                  "codec": "subrip",
+                  "language": "pol",
+                  "title": "Legenda 38 (POL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 38,
+                  "streamIndex": 41,
+                  "codec": "subrip",
+                  "language": "rus",
+                  "title": "Legenda 39 (RUS)",
+                  "isExternal": false
+                },
+                {
+                  "index": 39,
+                  "streamIndex": 42,
+                  "codec": "subrip",
+                  "language": "slo",
+                  "title": "Legenda 40 (SLO)",
+                  "isExternal": false
+                },
+                {
+                  "index": 40,
+                  "streamIndex": 43,
+                  "codec": "subrip",
+                  "language": "slv",
+                  "title": "Legenda 41 (SLV)",
+                  "isExternal": false
+                },
+                {
+                  "index": 41,
+                  "streamIndex": 44,
+                  "codec": "subrip",
+                  "language": "swe",
+                  "title": "Legenda 42 (SWE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 42,
+                  "streamIndex": 45,
+                  "codec": "subrip",
+                  "language": "tam",
+                  "title": "Legenda 43 (TAM)",
+                  "isExternal": false
+                },
+                {
+                  "index": 43,
+                  "streamIndex": 46,
+                  "codec": "subrip",
+                  "language": "tel",
+                  "title": "Legenda 44 (TEL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 44,
+                  "streamIndex": 47,
+                  "codec": "subrip",
+                  "language": "tha",
+                  "title": "Legenda 45 (THA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 45,
+                  "streamIndex": 48,
+                  "codec": "subrip",
+                  "language": "tur",
+                  "title": "Legenda 46 (TUR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 46,
+                  "streamIndex": 49,
+                  "codec": "subrip",
+                  "language": "ukr",
+                  "title": "Legenda 47 (UKR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 47,
+                  "streamIndex": 50,
+                  "codec": "subrip",
+                  "language": "vie",
+                  "title": "Legenda 48 (VIE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 48,
+                  "streamIndex": 51,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Traditional (CHI)",
+                  "isExternal": false
+                }
+              ],
               "watched": false,
-              "progressSeconds": 4,
+              "progressSeconds": 3,
+              "lastWatchedAt": "2026-09-22T16:08:17.199Z",
               "selectedAudioIndex": 0,
-              "selectedSubtitleIndex": -1,
-              "lastWatchedAt": "2026-09-22T15:58:39.279Z"
+              "selectedSubtitleIndex": -1
             },
             {
               "id": "ep_s2e2_f6bfa907a3a6",
@@ -178,13 +674,384 @@
               "filePath": "J:\\Ruptura\\Ruptura S02E02 WEB-DL 1080p x264 DUAL 5.1.mkv",
               "extension": ".mkv",
               "sizeBytes": 1319376531,
-              "durationSeconds": 5.005,
-              "audioTracks": [],
-              "subtitleTracks": [],
+              "durationSeconds": 2780,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1918x802",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "por",
+                  "title": "PT-BR 5.1 (POR)",
+                  "channels": 6
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "aac",
+                  "language": "eng",
+                  "title": "Inglês 5.1 (ENG)",
+                  "channels": 6
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 3,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR FULL (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 4,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR SDH (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 2,
+                  "streamIndex": 5,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR FORCED (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 3,
+                  "streamIndex": 6,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "Legenda 4 (ENG)",
+                  "isExternal": false
+                },
+                {
+                  "index": 4,
+                  "streamIndex": 7,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "SDH (ENG)",
+                  "isExternal": false
+                },
+                {
+                  "index": 5,
+                  "streamIndex": 8,
+                  "codec": "subrip",
+                  "language": "ara",
+                  "title": "Legenda 6 (ARA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 6,
+                  "streamIndex": 9,
+                  "codec": "subrip",
+                  "language": "bul",
+                  "title": "Legenda 7 (BUL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 7,
+                  "streamIndex": 10,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Simplified (CHI)",
+                  "isExternal": false
+                },
+                {
+                  "index": 8,
+                  "streamIndex": 11,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Traditional (CHI)",
+                  "isExternal": false
+                },
+                {
+                  "index": 9,
+                  "streamIndex": 12,
+                  "codec": "subrip",
+                  "language": "cze",
+                  "title": "Legenda 10 (CZE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 10,
+                  "streamIndex": 13,
+                  "codec": "subrip",
+                  "language": "dan",
+                  "title": "Legenda 11 (DAN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 11,
+                  "streamIndex": 14,
+                  "codec": "subrip",
+                  "language": "ger",
+                  "title": "Legenda 12 (GER)",
+                  "isExternal": false
+                },
+                {
+                  "index": 12,
+                  "streamIndex": 15,
+                  "codec": "subrip",
+                  "language": "gre",
+                  "title": "Legenda 13 (GRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 13,
+                  "streamIndex": 16,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "Latin American (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 14,
+                  "streamIndex": 17,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "European (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 15,
+                  "streamIndex": 18,
+                  "codec": "subrip",
+                  "language": "est",
+                  "title": "Legenda 16 (EST)",
+                  "isExternal": false
+                },
+                {
+                  "index": 16,
+                  "streamIndex": 19,
+                  "codec": "subrip",
+                  "language": "fin",
+                  "title": "Legenda 17 (FIN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 17,
+                  "streamIndex": 20,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "Canadian (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 18,
+                  "streamIndex": 21,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "European (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 19,
+                  "streamIndex": 22,
+                  "codec": "subrip",
+                  "language": "heb",
+                  "title": "Legenda 20 (HEB)",
+                  "isExternal": false
+                },
+                {
+                  "index": 20,
+                  "streamIndex": 23,
+                  "codec": "subrip",
+                  "language": "hin",
+                  "title": "Legenda 21 (HIN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 21,
+                  "streamIndex": 24,
+                  "codec": "subrip",
+                  "language": "hun",
+                  "title": "Legenda 22 (HUN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 22,
+                  "streamIndex": 25,
+                  "codec": "subrip",
+                  "language": "ind",
+                  "title": "Legenda 23 (IND)",
+                  "isExternal": false
+                },
+                {
+                  "index": 23,
+                  "streamIndex": 26,
+                  "codec": "subrip",
+                  "language": "ita",
+                  "title": "Legenda 24 (ITA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 24,
+                  "streamIndex": 27,
+                  "codec": "subrip",
+                  "language": "jpn",
+                  "title": "Legenda 25 (JPN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 25,
+                  "streamIndex": 28,
+                  "codec": "subrip",
+                  "language": "kor",
+                  "title": "Legenda 26 (KOR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 26,
+                  "streamIndex": 29,
+                  "codec": "subrip",
+                  "language": "lit",
+                  "title": "Legenda 27 (LIT)",
+                  "isExternal": false
+                },
+                {
+                  "index": 27,
+                  "streamIndex": 30,
+                  "codec": "subrip",
+                  "language": "lav",
+                  "title": "Legenda 28 (LAV)",
+                  "isExternal": false
+                },
+                {
+                  "index": 28,
+                  "streamIndex": 31,
+                  "codec": "subrip",
+                  "language": "may",
+                  "title": "Legenda 29 (MAY)",
+                  "isExternal": false
+                },
+                {
+                  "index": 29,
+                  "streamIndex": 32,
+                  "codec": "subrip",
+                  "language": "dut",
+                  "title": "Legenda 30 (DUT)",
+                  "isExternal": false
+                },
+                {
+                  "index": 30,
+                  "streamIndex": 33,
+                  "codec": "subrip",
+                  "language": "nor",
+                  "title": "Legenda 31 (NOR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 31,
+                  "streamIndex": 34,
+                  "codec": "subrip",
+                  "language": "pol",
+                  "title": "Legenda 32 (POL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 32,
+                  "streamIndex": 35,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "Legenda 33 (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 33,
+                  "streamIndex": 36,
+                  "codec": "subrip",
+                  "language": "rus",
+                  "title": "Legenda 34 (RUS)",
+                  "isExternal": false
+                },
+                {
+                  "index": 34,
+                  "streamIndex": 37,
+                  "codec": "subrip",
+                  "language": "slo",
+                  "title": "Legenda 35 (SLO)",
+                  "isExternal": false
+                },
+                {
+                  "index": 35,
+                  "streamIndex": 38,
+                  "codec": "subrip",
+                  "language": "slv",
+                  "title": "Legenda 36 (SLV)",
+                  "isExternal": false
+                },
+                {
+                  "index": 36,
+                  "streamIndex": 39,
+                  "codec": "subrip",
+                  "language": "swe",
+                  "title": "Legenda 37 (SWE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 37,
+                  "streamIndex": 40,
+                  "codec": "subrip",
+                  "language": "tam",
+                  "title": "Legenda 38 (TAM)",
+                  "isExternal": false
+                },
+                {
+                  "index": 38,
+                  "streamIndex": 41,
+                  "codec": "subrip",
+                  "language": "tel",
+                  "title": "Legenda 39 (TEL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 39,
+                  "streamIndex": 42,
+                  "codec": "subrip",
+                  "language": "tha",
+                  "title": "Legenda 40 (THA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 40,
+                  "streamIndex": 43,
+                  "codec": "subrip",
+                  "language": "tur",
+                  "title": "Legenda 41 (TUR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 41,
+                  "streamIndex": 44,
+                  "codec": "subrip",
+                  "language": "ukr",
+                  "title": "Legenda 42 (UKR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 42,
+                  "streamIndex": 45,
+                  "codec": "subrip",
+                  "language": "vie",
+                  "title": "Legenda 43 (VIE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 43,
+                  "streamIndex": 46,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Traditional (CHI)",
+                  "isExternal": false
+                }
+              ],
               "watched": false,
               "progressSeconds": 0,
-              "selectedAudioIndex": 0,
-              "selectedSubtitleIndex": -1,
               "lastWatchedAt": "2026-09-22T15:56:35.566Z"
             },
             {
@@ -196,9 +1063,54 @@
               "filePath": "J:\\Ruptura\\Ruptura S02E03 WEB-DL 1080p x264 DUAL 5.1.mkv",
               "extension": ".mkv",
               "sizeBytes": 1510124281,
-              "durationSeconds": 0,
-              "audioTracks": [],
-              "subtitleTracks": [],
+              "durationSeconds": 3230,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1918x802",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "eac3",
+                  "language": "por",
+                  "title": "PT-BR 5.1 (POR)",
+                  "channels": 6
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "eac3",
+                  "language": "eng",
+                  "title": "INGLÊS  5.1 (ENG)",
+                  "channels": 6
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 3,
+                  "codec": "ass",
+                  "language": "por",
+                  "title": "FORÇADA PT-BR (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 4,
+                  "codec": "ass",
+                  "language": "por",
+                  "title": "COMPLETA PT-BR (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 2,
+                  "streamIndex": 5,
+                  "codec": "ass",
+                  "language": "por",
+                  "title": "Brazilian (POR)",
+                  "isExternal": false
+                }
+              ],
               "watched": false,
               "progressSeconds": 0
             },
@@ -211,9 +1123,54 @@
               "filePath": "J:\\Ruptura\\Ruptura S02E04 WEB-DL 1080p x264 DUAL 5.1.mkv",
               "extension": ".mkv",
               "sizeBytes": 4410573002,
-              "durationSeconds": 0,
-              "audioTracks": [],
-              "subtitleTracks": [],
+              "durationSeconds": 3056,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1918x802",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "eac3",
+                  "language": "por",
+                  "title": "PT-BR 5.1 (POR)",
+                  "channels": 6
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "eac3",
+                  "language": "eng",
+                  "title": "INGLLÊS 5.1 (ENG)",
+                  "channels": 6
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 3,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "FORÇADA PT-BR (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 4,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "COMPLETA PT-BR (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 2,
+                  "streamIndex": 5,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR (POR)",
+                  "isExternal": false
+                }
+              ],
               "watched": false,
               "progressSeconds": 0
             },
@@ -226,9 +1183,422 @@
               "filePath": "J:\\Ruptura\\Ruptura S02E05 WEB-DL 1080p x264 DUAL 5.1.mkv",
               "extension": ".mkv",
               "sizeBytes": 1342127223,
-              "durationSeconds": 0,
-              "audioTracks": [],
-              "subtitleTracks": [],
+              "durationSeconds": 2812,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1918x802",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "por",
+                  "title": "PT-BR 5.1 (POR)",
+                  "channels": 6
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "aac",
+                  "language": "eng",
+                  "title": "Inglês 5.1 (ENG)",
+                  "channels": 6
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 3,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR FULL (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 4,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR FORCED (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 2,
+                  "streamIndex": 5,
+                  "codec": "subrip",
+                  "language": "ara",
+                  "title": "Legenda 3 (ARA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 3,
+                  "streamIndex": 6,
+                  "codec": "subrip",
+                  "language": "bul",
+                  "title": "Legenda 4 (BUL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 4,
+                  "streamIndex": 7,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Simplified (CHI)",
+                  "isExternal": false
+                },
+                {
+                  "index": 5,
+                  "streamIndex": 8,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Traditional (CHI)",
+                  "isExternal": false
+                },
+                {
+                  "index": 6,
+                  "streamIndex": 9,
+                  "codec": "subrip",
+                  "language": "cze",
+                  "title": "Legenda 7 (CZE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 7,
+                  "streamIndex": 10,
+                  "codec": "subrip",
+                  "language": "dan",
+                  "title": "Legenda 8 (DAN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 8,
+                  "streamIndex": 11,
+                  "codec": "subrip",
+                  "language": "ger",
+                  "title": "Forced (GER)",
+                  "isExternal": false
+                },
+                {
+                  "index": 9,
+                  "streamIndex": 12,
+                  "codec": "subrip",
+                  "language": "ger",
+                  "title": "Legenda 10 (GER)",
+                  "isExternal": false
+                },
+                {
+                  "index": 10,
+                  "streamIndex": 13,
+                  "codec": "subrip",
+                  "language": "gre",
+                  "title": "Legenda 11 (GRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 11,
+                  "streamIndex": 14,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "Legenda 12 (ENG)",
+                  "isExternal": false
+                },
+                {
+                  "index": 12,
+                  "streamIndex": 15,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "Latin American (Forced) (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 13,
+                  "streamIndex": 16,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "Latin American (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 14,
+                  "streamIndex": 17,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "European (Forced) (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 15,
+                  "streamIndex": 18,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "European (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 16,
+                  "streamIndex": 19,
+                  "codec": "subrip",
+                  "language": "est",
+                  "title": "Legenda 17 (EST)",
+                  "isExternal": false
+                },
+                {
+                  "index": 17,
+                  "streamIndex": 20,
+                  "codec": "subrip",
+                  "language": "fin",
+                  "title": "Legenda 18 (FIN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 18,
+                  "streamIndex": 21,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "Canadian (Forced) (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 19,
+                  "streamIndex": 22,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "Canadian (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 20,
+                  "streamIndex": 23,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "European (Forced) (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 21,
+                  "streamIndex": 24,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "European (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 22,
+                  "streamIndex": 25,
+                  "codec": "subrip",
+                  "language": "heb",
+                  "title": "Legenda 23 (HEB)",
+                  "isExternal": false
+                },
+                {
+                  "index": 23,
+                  "streamIndex": 26,
+                  "codec": "subrip",
+                  "language": "hin",
+                  "title": "Legenda 24 (HIN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 24,
+                  "streamIndex": 27,
+                  "codec": "subrip",
+                  "language": "hun",
+                  "title": "Legenda 25 (HUN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 25,
+                  "streamIndex": 28,
+                  "codec": "subrip",
+                  "language": "ind",
+                  "title": "Legenda 26 (IND)",
+                  "isExternal": false
+                },
+                {
+                  "index": 26,
+                  "streamIndex": 29,
+                  "codec": "subrip",
+                  "language": "ita",
+                  "title": "Forced (ITA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 27,
+                  "streamIndex": 30,
+                  "codec": "subrip",
+                  "language": "ita",
+                  "title": "Legenda 28 (ITA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 28,
+                  "streamIndex": 31,
+                  "codec": "subrip",
+                  "language": "jpn",
+                  "title": "Forced (JPN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 29,
+                  "streamIndex": 32,
+                  "codec": "subrip",
+                  "language": "jpn",
+                  "title": "Legenda 30 (JPN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 30,
+                  "streamIndex": 33,
+                  "codec": "subrip",
+                  "language": "kor",
+                  "title": "Legenda 31 (KOR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 31,
+                  "streamIndex": 34,
+                  "codec": "subrip",
+                  "language": "lit",
+                  "title": "Legenda 32 (LIT)",
+                  "isExternal": false
+                },
+                {
+                  "index": 32,
+                  "streamIndex": 35,
+                  "codec": "subrip",
+                  "language": "lav",
+                  "title": "Legenda 33 (LAV)",
+                  "isExternal": false
+                },
+                {
+                  "index": 33,
+                  "streamIndex": 36,
+                  "codec": "subrip",
+                  "language": "may",
+                  "title": "Legenda 34 (MAY)",
+                  "isExternal": false
+                },
+                {
+                  "index": 34,
+                  "streamIndex": 37,
+                  "codec": "subrip",
+                  "language": "dut",
+                  "title": "Legenda 35 (DUT)",
+                  "isExternal": false
+                },
+                {
+                  "index": 35,
+                  "streamIndex": 38,
+                  "codec": "subrip",
+                  "language": "nor",
+                  "title": "Legenda 36 (NOR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 36,
+                  "streamIndex": 39,
+                  "codec": "subrip",
+                  "language": "pol",
+                  "title": "Legenda 37 (POL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 37,
+                  "streamIndex": 40,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "European (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 38,
+                  "streamIndex": 41,
+                  "codec": "subrip",
+                  "language": "rus",
+                  "title": "Legenda 39 (RUS)",
+                  "isExternal": false
+                },
+                {
+                  "index": 39,
+                  "streamIndex": 42,
+                  "codec": "subrip",
+                  "language": "slo",
+                  "title": "Legenda 40 (SLO)",
+                  "isExternal": false
+                },
+                {
+                  "index": 40,
+                  "streamIndex": 43,
+                  "codec": "subrip",
+                  "language": "slv",
+                  "title": "Legenda 41 (SLV)",
+                  "isExternal": false
+                },
+                {
+                  "index": 41,
+                  "streamIndex": 44,
+                  "codec": "subrip",
+                  "language": "swe",
+                  "title": "Legenda 42 (SWE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 42,
+                  "streamIndex": 45,
+                  "codec": "subrip",
+                  "language": "tam",
+                  "title": "Legenda 43 (TAM)",
+                  "isExternal": false
+                },
+                {
+                  "index": 43,
+                  "streamIndex": 46,
+                  "codec": "subrip",
+                  "language": "tel",
+                  "title": "Legenda 44 (TEL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 44,
+                  "streamIndex": 47,
+                  "codec": "subrip",
+                  "language": "tha",
+                  "title": "Legenda 45 (THA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 45,
+                  "streamIndex": 48,
+                  "codec": "subrip",
+                  "language": "tur",
+                  "title": "Legenda 46 (TUR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 46,
+                  "streamIndex": 49,
+                  "codec": "subrip",
+                  "language": "ukr",
+                  "title": "Legenda 47 (UKR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 47,
+                  "streamIndex": 50,
+                  "codec": "subrip",
+                  "language": "vie",
+                  "title": "Legenda 48 (VIE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 48,
+                  "streamIndex": 51,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Traditional (CHI)",
+                  "isExternal": false
+                }
+              ],
               "watched": false,
               "progressSeconds": 0
             },
@@ -241,9 +1611,54 @@
               "filePath": "J:\\Ruptura\\Ruptura S02E06 WEB-DL 1080p x264 DUAL 5.1.mkv",
               "extension": ".mkv",
               "sizeBytes": 4229817340,
-              "durationSeconds": 0,
-              "audioTracks": [],
-              "subtitleTracks": [],
+              "durationSeconds": 2900,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1918x802",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "eac3",
+                  "language": "por",
+                  "title": "PT-BR 5.1 (POR)",
+                  "channels": 6
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "eac3",
+                  "language": "eng",
+                  "title": "INGLÊS 5.1 (ENG)",
+                  "channels": 6
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 3,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "FORÇADA PT-BR (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 4,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "COMPLETA PT-BR (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 2,
+                  "streamIndex": 5,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "Brazilian (POR)",
+                  "isExternal": false
+                }
+              ],
               "watched": false,
               "progressSeconds": 0
             },
@@ -256,9 +1671,422 @@
               "filePath": "J:\\Ruptura\\Ruptura S02E07 WEB-DL 1080p x264 DUAL 5.1.mkv",
               "extension": ".mkv",
               "sizeBytes": 1437385623,
-              "durationSeconds": 0,
-              "audioTracks": [],
-              "subtitleTracks": [],
+              "durationSeconds": 3000,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1918x802",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "por",
+                  "title": "PT-BR 5.1 (POR)",
+                  "channels": 6
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "aac",
+                  "language": "eng",
+                  "title": "Inglês 5.1 (ENG)",
+                  "channels": 6
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 3,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR FULL (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 4,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR FORCED (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 2,
+                  "streamIndex": 5,
+                  "codec": "subrip",
+                  "language": "ara",
+                  "title": "Legenda 3 (ARA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 3,
+                  "streamIndex": 6,
+                  "codec": "subrip",
+                  "language": "bul",
+                  "title": "Legenda 4 (BUL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 4,
+                  "streamIndex": 7,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Simplified (CHI)",
+                  "isExternal": false
+                },
+                {
+                  "index": 5,
+                  "streamIndex": 8,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Traditional (CHI)",
+                  "isExternal": false
+                },
+                {
+                  "index": 6,
+                  "streamIndex": 9,
+                  "codec": "subrip",
+                  "language": "cze",
+                  "title": "Legenda 7 (CZE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 7,
+                  "streamIndex": 10,
+                  "codec": "subrip",
+                  "language": "dan",
+                  "title": "Legenda 8 (DAN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 8,
+                  "streamIndex": 11,
+                  "codec": "subrip",
+                  "language": "ger",
+                  "title": "Forced (GER)",
+                  "isExternal": false
+                },
+                {
+                  "index": 9,
+                  "streamIndex": 12,
+                  "codec": "subrip",
+                  "language": "ger",
+                  "title": "Legenda 10 (GER)",
+                  "isExternal": false
+                },
+                {
+                  "index": 10,
+                  "streamIndex": 13,
+                  "codec": "subrip",
+                  "language": "gre",
+                  "title": "Legenda 11 (GRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 11,
+                  "streamIndex": 14,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "Legenda 12 (ENG)",
+                  "isExternal": false
+                },
+                {
+                  "index": 12,
+                  "streamIndex": 15,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "Latin American (Forced) (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 13,
+                  "streamIndex": 16,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "Latin American (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 14,
+                  "streamIndex": 17,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "European (Forced) (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 15,
+                  "streamIndex": 18,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "European (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 16,
+                  "streamIndex": 19,
+                  "codec": "subrip",
+                  "language": "est",
+                  "title": "Legenda 17 (EST)",
+                  "isExternal": false
+                },
+                {
+                  "index": 17,
+                  "streamIndex": 20,
+                  "codec": "subrip",
+                  "language": "fin",
+                  "title": "Legenda 18 (FIN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 18,
+                  "streamIndex": 21,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "Canadian (Forced) (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 19,
+                  "streamIndex": 22,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "Canadian (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 20,
+                  "streamIndex": 23,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "European (Forced) (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 21,
+                  "streamIndex": 24,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "European (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 22,
+                  "streamIndex": 25,
+                  "codec": "subrip",
+                  "language": "heb",
+                  "title": "Legenda 23 (HEB)",
+                  "isExternal": false
+                },
+                {
+                  "index": 23,
+                  "streamIndex": 26,
+                  "codec": "subrip",
+                  "language": "hin",
+                  "title": "Legenda 24 (HIN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 24,
+                  "streamIndex": 27,
+                  "codec": "subrip",
+                  "language": "hun",
+                  "title": "Legenda 25 (HUN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 25,
+                  "streamIndex": 28,
+                  "codec": "subrip",
+                  "language": "ind",
+                  "title": "Legenda 26 (IND)",
+                  "isExternal": false
+                },
+                {
+                  "index": 26,
+                  "streamIndex": 29,
+                  "codec": "subrip",
+                  "language": "ita",
+                  "title": "Forced (ITA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 27,
+                  "streamIndex": 30,
+                  "codec": "subrip",
+                  "language": "ita",
+                  "title": "Legenda 28 (ITA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 28,
+                  "streamIndex": 31,
+                  "codec": "subrip",
+                  "language": "jpn",
+                  "title": "Forced (JPN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 29,
+                  "streamIndex": 32,
+                  "codec": "subrip",
+                  "language": "jpn",
+                  "title": "Legenda 30 (JPN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 30,
+                  "streamIndex": 33,
+                  "codec": "subrip",
+                  "language": "kor",
+                  "title": "Legenda 31 (KOR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 31,
+                  "streamIndex": 34,
+                  "codec": "subrip",
+                  "language": "lit",
+                  "title": "Legenda 32 (LIT)",
+                  "isExternal": false
+                },
+                {
+                  "index": 32,
+                  "streamIndex": 35,
+                  "codec": "subrip",
+                  "language": "lav",
+                  "title": "Legenda 33 (LAV)",
+                  "isExternal": false
+                },
+                {
+                  "index": 33,
+                  "streamIndex": 36,
+                  "codec": "subrip",
+                  "language": "may",
+                  "title": "Legenda 34 (MAY)",
+                  "isExternal": false
+                },
+                {
+                  "index": 34,
+                  "streamIndex": 37,
+                  "codec": "subrip",
+                  "language": "dut",
+                  "title": "Legenda 35 (DUT)",
+                  "isExternal": false
+                },
+                {
+                  "index": 35,
+                  "streamIndex": 38,
+                  "codec": "subrip",
+                  "language": "nor",
+                  "title": "Legenda 36 (NOR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 36,
+                  "streamIndex": 39,
+                  "codec": "subrip",
+                  "language": "pol",
+                  "title": "Legenda 37 (POL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 37,
+                  "streamIndex": 40,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "European (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 38,
+                  "streamIndex": 41,
+                  "codec": "subrip",
+                  "language": "rus",
+                  "title": "Legenda 39 (RUS)",
+                  "isExternal": false
+                },
+                {
+                  "index": 39,
+                  "streamIndex": 42,
+                  "codec": "subrip",
+                  "language": "slo",
+                  "title": "Legenda 40 (SLO)",
+                  "isExternal": false
+                },
+                {
+                  "index": 40,
+                  "streamIndex": 43,
+                  "codec": "subrip",
+                  "language": "slv",
+                  "title": "Legenda 41 (SLV)",
+                  "isExternal": false
+                },
+                {
+                  "index": 41,
+                  "streamIndex": 44,
+                  "codec": "subrip",
+                  "language": "swe",
+                  "title": "Legenda 42 (SWE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 42,
+                  "streamIndex": 45,
+                  "codec": "subrip",
+                  "language": "tam",
+                  "title": "Legenda 43 (TAM)",
+                  "isExternal": false
+                },
+                {
+                  "index": 43,
+                  "streamIndex": 46,
+                  "codec": "subrip",
+                  "language": "tel",
+                  "title": "Legenda 44 (TEL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 44,
+                  "streamIndex": 47,
+                  "codec": "subrip",
+                  "language": "tha",
+                  "title": "Legenda 45 (THA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 45,
+                  "streamIndex": 48,
+                  "codec": "subrip",
+                  "language": "tur",
+                  "title": "Legenda 46 (TUR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 46,
+                  "streamIndex": 49,
+                  "codec": "subrip",
+                  "language": "ukr",
+                  "title": "Legenda 47 (UKR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 47,
+                  "streamIndex": 50,
+                  "codec": "subrip",
+                  "language": "vie",
+                  "title": "Legenda 48 (VIE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 48,
+                  "streamIndex": 51,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Traditional (CHI)",
+                  "isExternal": false
+                }
+              ],
               "watched": false,
               "progressSeconds": 0
             },
@@ -271,9 +2099,382 @@
               "filePath": "J:\\Ruptura\\Ruptura S02E08 WEB-DL 1080p x264 DUAL 5.1.mkv",
               "extension": ".mkv",
               "sizeBytes": 1063444552,
-              "durationSeconds": 0,
-              "audioTracks": [],
-              "subtitleTracks": [],
+              "durationSeconds": 2246,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1918x802",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "aac",
+                  "language": "por",
+                  "title": "PT-BR 5.1 (POR)",
+                  "channels": 6
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "aac",
+                  "language": "eng",
+                  "title": "Inglês 5.1 (ENG)",
+                  "channels": 6
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 3,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR FULL (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 4,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR SDH (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 2,
+                  "streamIndex": 5,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR FORCED (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 3,
+                  "streamIndex": 6,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "Legenda 4 (ENG)",
+                  "isExternal": false
+                },
+                {
+                  "index": 4,
+                  "streamIndex": 7,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "SDH (ENG)",
+                  "isExternal": false
+                },
+                {
+                  "index": 5,
+                  "streamIndex": 8,
+                  "codec": "subrip",
+                  "language": "ara",
+                  "title": "Legenda 6 (ARA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 6,
+                  "streamIndex": 9,
+                  "codec": "subrip",
+                  "language": "bul",
+                  "title": "Legenda 7 (BUL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 7,
+                  "streamIndex": 10,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Simplified (CHI)",
+                  "isExternal": false
+                },
+                {
+                  "index": 8,
+                  "streamIndex": 11,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Traditional (CHI)",
+                  "isExternal": false
+                },
+                {
+                  "index": 9,
+                  "streamIndex": 12,
+                  "codec": "subrip",
+                  "language": "cze",
+                  "title": "Legenda 10 (CZE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 10,
+                  "streamIndex": 13,
+                  "codec": "subrip",
+                  "language": "dan",
+                  "title": "Legenda 11 (DAN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 11,
+                  "streamIndex": 14,
+                  "codec": "subrip",
+                  "language": "ger",
+                  "title": "Legenda 12 (GER)",
+                  "isExternal": false
+                },
+                {
+                  "index": 12,
+                  "streamIndex": 15,
+                  "codec": "subrip",
+                  "language": "gre",
+                  "title": "Legenda 13 (GRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 13,
+                  "streamIndex": 16,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "Latin American (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 14,
+                  "streamIndex": 17,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "European (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 15,
+                  "streamIndex": 18,
+                  "codec": "subrip",
+                  "language": "est",
+                  "title": "Legenda 16 (EST)",
+                  "isExternal": false
+                },
+                {
+                  "index": 16,
+                  "streamIndex": 19,
+                  "codec": "subrip",
+                  "language": "fin",
+                  "title": "Legenda 17 (FIN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 17,
+                  "streamIndex": 20,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "Canadian (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 18,
+                  "streamIndex": 21,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "European (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 19,
+                  "streamIndex": 22,
+                  "codec": "subrip",
+                  "language": "heb",
+                  "title": "Legenda 20 (HEB)",
+                  "isExternal": false
+                },
+                {
+                  "index": 20,
+                  "streamIndex": 23,
+                  "codec": "subrip",
+                  "language": "hin",
+                  "title": "Legenda 21 (HIN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 21,
+                  "streamIndex": 24,
+                  "codec": "subrip",
+                  "language": "hun",
+                  "title": "Legenda 22 (HUN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 22,
+                  "streamIndex": 25,
+                  "codec": "subrip",
+                  "language": "ind",
+                  "title": "Legenda 23 (IND)",
+                  "isExternal": false
+                },
+                {
+                  "index": 23,
+                  "streamIndex": 26,
+                  "codec": "subrip",
+                  "language": "ita",
+                  "title": "Legenda 24 (ITA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 24,
+                  "streamIndex": 27,
+                  "codec": "subrip",
+                  "language": "jpn",
+                  "title": "Legenda 25 (JPN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 25,
+                  "streamIndex": 28,
+                  "codec": "subrip",
+                  "language": "kor",
+                  "title": "Legenda 26 (KOR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 26,
+                  "streamIndex": 29,
+                  "codec": "subrip",
+                  "language": "lit",
+                  "title": "Legenda 27 (LIT)",
+                  "isExternal": false
+                },
+                {
+                  "index": 27,
+                  "streamIndex": 30,
+                  "codec": "subrip",
+                  "language": "lav",
+                  "title": "Legenda 28 (LAV)",
+                  "isExternal": false
+                },
+                {
+                  "index": 28,
+                  "streamIndex": 31,
+                  "codec": "subrip",
+                  "language": "may",
+                  "title": "Legenda 29 (MAY)",
+                  "isExternal": false
+                },
+                {
+                  "index": 29,
+                  "streamIndex": 32,
+                  "codec": "subrip",
+                  "language": "dut",
+                  "title": "Legenda 30 (DUT)",
+                  "isExternal": false
+                },
+                {
+                  "index": 30,
+                  "streamIndex": 33,
+                  "codec": "subrip",
+                  "language": "nor",
+                  "title": "Legenda 31 (NOR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 31,
+                  "streamIndex": 34,
+                  "codec": "subrip",
+                  "language": "pol",
+                  "title": "Legenda 32 (POL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 32,
+                  "streamIndex": 35,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "Legenda 33 (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 33,
+                  "streamIndex": 36,
+                  "codec": "subrip",
+                  "language": "rus",
+                  "title": "Legenda 34 (RUS)",
+                  "isExternal": false
+                },
+                {
+                  "index": 34,
+                  "streamIndex": 37,
+                  "codec": "subrip",
+                  "language": "slo",
+                  "title": "Legenda 35 (SLO)",
+                  "isExternal": false
+                },
+                {
+                  "index": 35,
+                  "streamIndex": 38,
+                  "codec": "subrip",
+                  "language": "slv",
+                  "title": "Legenda 36 (SLV)",
+                  "isExternal": false
+                },
+                {
+                  "index": 36,
+                  "streamIndex": 39,
+                  "codec": "subrip",
+                  "language": "swe",
+                  "title": "Legenda 37 (SWE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 37,
+                  "streamIndex": 40,
+                  "codec": "subrip",
+                  "language": "tam",
+                  "title": "Legenda 38 (TAM)",
+                  "isExternal": false
+                },
+                {
+                  "index": 38,
+                  "streamIndex": 41,
+                  "codec": "subrip",
+                  "language": "tel",
+                  "title": "Legenda 39 (TEL)",
+                  "isExternal": false
+                },
+                {
+                  "index": 39,
+                  "streamIndex": 42,
+                  "codec": "subrip",
+                  "language": "tha",
+                  "title": "Legenda 40 (THA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 40,
+                  "streamIndex": 43,
+                  "codec": "subrip",
+                  "language": "tur",
+                  "title": "Legenda 41 (TUR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 41,
+                  "streamIndex": 44,
+                  "codec": "subrip",
+                  "language": "ukr",
+                  "title": "Legenda 42 (UKR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 42,
+                  "streamIndex": 45,
+                  "codec": "subrip",
+                  "language": "vie",
+                  "title": "Legenda 43 (VIE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 43,
+                  "streamIndex": 46,
+                  "codec": "subrip",
+                  "language": "chi",
+                  "title": "Traditional (CHI)",
+                  "isExternal": false
+                }
+              ],
               "watched": false,
               "progressSeconds": 0
             },
@@ -286,9 +2487,62 @@
               "filePath": "J:\\Ruptura\\Ruptura S02E09 WEB-DL 1080p x264 DUAL 5.1.mkv",
               "extension": ".mkv",
               "sizeBytes": 3880663133,
-              "durationSeconds": 0,
-              "audioTracks": [],
-              "subtitleTracks": [],
+              "durationSeconds": 2695,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1918x802",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "eac3",
+                  "language": "por",
+                  "title": "PT-BR 5.1 (POR)",
+                  "channels": 6
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "eac3",
+                  "language": "eng",
+                  "title": "INGLÊS 5.1 (ENG)",
+                  "channels": 6
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 3,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 4,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "FORÇADA PT-BR (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 2,
+                  "streamIndex": 5,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "PT-BR COMPLETA (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 3,
+                  "streamIndex": 6,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "Legenda 4 (ENG)",
+                  "isExternal": false
+                }
+              ],
               "watched": false,
               "progressSeconds": 0
             },
@@ -301,20 +2555,72 @@
               "filePath": "J:\\Ruptura\\Ruptura S02E10 WEB-DL 1080p x264 DUAL 5.1.mkv",
               "extension": ".mkv",
               "sizeBytes": 6539203726,
-              "durationSeconds": 0,
-              "audioTracks": [],
-              "subtitleTracks": [],
+              "durationSeconds": 4551,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1918x802",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "eac3",
+                  "language": "por",
+                  "title": "PT-BR 5.1 (POR)",
+                  "channels": 6
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "eac3",
+                  "language": "eng",
+                  "title": "INGLÊS 5.1 (ENG)",
+                  "channels": 6
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 3,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "Legenda 1 (ENG)",
+                  "isExternal": false
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 4,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "Legenda 2 (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 2,
+                  "streamIndex": 5,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "Brazilian (Forced) (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 3,
+                  "streamIndex": 6,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "Brazilian (POR)",
+                  "isExternal": false
+                }
+              ],
               "watched": false,
               "progressSeconds": 0
             }
           ]
         }
       ],
-      "createdAt": "2026-09-22T14:19:26.439Z",
-      "updatedAt": "2026-09-22T15:58:39.279Z",
+      "createdAt": "2026-09-22T16:05:31.195Z",
+      "updatedAt": "2026-09-22T16:08:17.199Z",
       "lastWatchedEpisodeId": "ep_s2e1_cafe97ea8e64",
-      "lastWatchedAt": "2026-09-22T15:58:39.279Z",
-      "backdropPath": "https://m.media-amazon.com/images/M/MV5BZDI5YzJhODQtMzQyNy00YWNmLWIxMjUtNDBjNjA5YWRjMzExXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg"
+      "lastWatchedAt": "2026-09-22T16:08:17.199Z"
     },
     {
       "id": "media_983358608e93d241",
@@ -338,22 +2644,131 @@
               "filePath": "J:\\Batman Knightfall Part 1 Knightfall\\Batman Knightfall Part 1 Knightfall 2026 1080p MA WEB-DL DDP5 1 H 264-BYNDR.mkv",
               "extension": ".mkv",
               "sizeBytes": 5059293514,
-              "durationSeconds": 5.034666666666666,
-              "audioTracks": [],
-              "subtitleTracks": [],
+              "durationSeconds": 4717,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1920x1080",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "eac3",
+                  "language": "eng",
+                  "title": "Faixa 1 (ENG)",
+                  "channels": 6
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 2,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "Legenda 1 (ENG)",
+                  "isExternal": false
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 3,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "SDH (ENG)",
+                  "isExternal": false
+                },
+                {
+                  "index": 2,
+                  "streamIndex": 4,
+                  "codec": "subrip",
+                  "language": "dan",
+                  "title": "Legenda 3 (DAN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 3,
+                  "streamIndex": 5,
+                  "codec": "subrip",
+                  "language": "ger",
+                  "title": "Legenda 4 (GER)",
+                  "isExternal": false
+                },
+                {
+                  "index": 4,
+                  "streamIndex": 6,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "Latin American (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 5,
+                  "streamIndex": 7,
+                  "codec": "subrip",
+                  "language": "spa",
+                  "title": "European (SPA)",
+                  "isExternal": false
+                },
+                {
+                  "index": 6,
+                  "streamIndex": 8,
+                  "codec": "subrip",
+                  "language": "fin",
+                  "title": "Legenda 7 (FIN)",
+                  "isExternal": false
+                },
+                {
+                  "index": 7,
+                  "streamIndex": 9,
+                  "codec": "subrip",
+                  "language": "fre",
+                  "title": "European (FRE)",
+                  "isExternal": false
+                },
+                {
+                  "index": 8,
+                  "streamIndex": 10,
+                  "codec": "subrip",
+                  "language": "nob",
+                  "title": "Legenda 9 (NOB)",
+                  "isExternal": false
+                },
+                {
+                  "index": 9,
+                  "streamIndex": 11,
+                  "codec": "subrip",
+                  "language": "dut",
+                  "title": "Legenda 10 (DUT)",
+                  "isExternal": false
+                },
+                {
+                  "index": 10,
+                  "streamIndex": 12,
+                  "codec": "subrip",
+                  "language": "por",
+                  "title": "Brazilian (POR)",
+                  "isExternal": false
+                },
+                {
+                  "index": 11,
+                  "streamIndex": 13,
+                  "codec": "subrip",
+                  "language": "swe",
+                  "title": "Legenda 12 (SWE)",
+                  "isExternal": false
+                }
+              ],
               "watched": false,
-              "progressSeconds": 4,
+              "progressSeconds": 5,
+              "lastWatchedAt": "2026-09-22T16:07:04.199Z",
               "selectedAudioIndex": 0,
-              "selectedSubtitleIndex": -1,
-              "lastWatchedAt": "2026-09-22T15:59:04.097Z"
+              "selectedSubtitleIndex": -1
             }
           ]
         }
       ],
-      "createdAt": "2026-09-22T14:48:14.332Z",
-      "updatedAt": "2026-09-22T15:59:04.097Z",
+      "createdAt": "2026-09-22T16:05:13.423Z",
+      "updatedAt": "2026-09-22T16:07:04.199Z",
       "lastWatchedEpisodeId": "ep_s1e1_15d5b7587483",
-      "lastWatchedAt": "2026-09-22T15:59:04.097Z"
+      "lastWatchedAt": "2026-09-22T16:07:04.199Z"
     },
     {
       "id": "media_91b5572d75c30790",
@@ -377,8 +2792,28 @@
               "filePath": "J:\\Coyote vs Acme\\Coyote.vs.Acme.1080p.DCPRIP.Multi.x264-DKS.mkv",
               "extension": ".mkv",
               "sizeBytes": 7603877781,
-              "durationSeconds": 0,
-              "audioTracks": [],
+              "durationSeconds": 6166,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1920x804",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "pcm_s24le",
+                  "language": "eng",
+                  "title": "5.1 (ENG)",
+                  "channels": 6
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 2,
+                  "codec": "ac3",
+                  "language": "spa",
+                  "title": "Spanish Line (SPA)",
+                  "channels": 2
+                }
+              ],
               "subtitleTracks": [],
               "watched": false,
               "progressSeconds": 0
@@ -386,8 +2821,8 @@
           ]
         }
       ],
-      "createdAt": "2026-09-22T14:48:38.057Z",
-      "updatedAt": "2026-09-22T14:48:48.171Z"
+      "createdAt": "2026-09-22T16:05:17.926Z",
+      "updatedAt": "2026-09-22T16:05:17.926Z"
     },
     {
       "id": "media_2dc2a4e8bd384a85",
@@ -411,17 +2846,46 @@
               "filePath": "J:\\The Odyssey 2026\\The Odyssey 2026 1080p AMZN WEB-DL DDP5 1 H 264-Kitsune.mkv",
               "extension": ".mkv",
               "sizeBytes": 4673211458,
-              "durationSeconds": 0,
-              "audioTracks": [],
-              "subtitleTracks": [],
+              "durationSeconds": 5163,
+              "videoCodec": "h264",
+              "pixFmt": "yuv420p",
+              "resolution": "1920x800",
+              "audioTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 1,
+                  "codec": "eac3",
+                  "language": "eng",
+                  "title": "Faixa 1 (ENG)",
+                  "channels": 6
+                }
+              ],
+              "subtitleTracks": [
+                {
+                  "index": 0,
+                  "streamIndex": 2,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "Legenda 1 (ENG)",
+                  "isExternal": false
+                },
+                {
+                  "index": 1,
+                  "streamIndex": 3,
+                  "codec": "subrip",
+                  "language": "eng",
+                  "title": "SDH (ENG)",
+                  "isExternal": false
+                }
+              ],
               "watched": false,
               "progressSeconds": 0
             }
           ]
         }
       ],
-      "createdAt": "2026-09-22T14:49:02.113Z",
-      "updatedAt": "2026-09-22T14:49:19.026Z"
+      "createdAt": "2026-09-22T16:05:21.314Z",
+      "updatedAt": "2026-09-22T16:05:21.314Z"
     }
   ]
 }
