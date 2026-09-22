@@ -20,6 +20,7 @@ import {
   generateThumbnail,
   isBrowserNativeDirectPlayable,
   streamSubtitlesToVtt,
+  shiftWebVttTimestamps,
   downloadAndInstallFFmpeg,
 } from './ffmpeg';
 import { getOrCreateHlsSession, findActiveSession } from './hls';
@@ -518,6 +519,8 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
 // 9. Subtitles (Internal stream or External file converted to WebVTT)
 apiRouter.get('/media/:mediaId/episode/:episodeId/subtitles/:index', (req: Request, res: Response) => {
   const { mediaId, episodeId, index } = req.params;
+  const parsedOffset = Number(req.query.offset);
+  const offsetSeconds = Number.isFinite(parsedOffset) ? parsedOffset : 0;
   const pair = findEpisode(mediaId, episodeId);
   if (!pair) {
     res.status(404).send('Episódio não encontrado');
@@ -536,7 +539,12 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/subtitles/:index', (req: Reque
     const ext = path.extname(track.filePath).toLowerCase();
     if (ext === '.vtt') {
       res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
-      fs.createReadStream(track.filePath).pipe(res);
+      if (offsetSeconds === 0) {
+        fs.createReadStream(track.filePath).pipe(res);
+      } else {
+        const raw = fs.readFileSync(track.filePath, 'utf-8');
+        res.send(shiftWebVttTimestamps(raw, offsetSeconds));
+      }
       return;
     }
 
@@ -544,7 +552,10 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/subtitles/:index', (req: Reque
       try {
         const raw = fs.readFileSync(track.filePath, 'utf-8');
         // Convert SRT to WebVTT: replace timestamp comma with dot
-        const vttContent = 'WEBVTT\n\n' + raw.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+        const vttContent = shiftWebVttTimestamps(
+          'WEBVTT\n\n' + raw.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2'),
+          offsetSeconds
+        );
         res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
         res.send(vttContent);
         return;
@@ -556,7 +567,7 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/subtitles/:index', (req: Reque
 
   // Embedded subtitle stream or complex format via ffmpeg
   const streamIdx = track.streamIndex >= 0 ? track.streamIndex : 0;
-  streamSubtitlesToVtt(pair.episode.filePath, streamIdx, res);
+  streamSubtitlesToVtt(pair.episode.filePath, streamIdx, res, offsetSeconds);
 });
 
 // 9.5 Update media banner image by URL

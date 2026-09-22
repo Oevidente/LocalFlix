@@ -471,7 +471,34 @@ export function isBrowserNativeDirectPlayable(filePath: string, videoCodec?: str
 }
 
 // Stream subtitle as WebVTT (either from internal stream via ffmpeg or external file)
-export function streamSubtitlesToVtt(filePath: string, streamIndex: number, res: any): void {
+function parseWebVttTimestamp(value: string): number {
+  const [hours, minutes, seconds] = value.split(':').map(Number);
+  return (hours * 3600) + (minutes * 60) + seconds;
+}
+
+function formatWebVttTimestamp(totalSeconds: number): string {
+  const safeSeconds = Math.max(0, totalSeconds);
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${seconds.toFixed(3).padStart(6, '0')}`;
+}
+
+export function shiftWebVttTimestamps(content: string, offsetSeconds: number): string {
+  if (!Number.isFinite(offsetSeconds) || offsetSeconds === 0) return content;
+
+  return content.replace(
+    /(\d{2}:\d{2}:\d{2}\.\d{3})\s+-->\s+(\d{2}:\d{2}:\d{2}\.\d{3})/g,
+    (_match, start, end) => `${formatWebVttTimestamp(parseWebVttTimestamp(start) + offsetSeconds)} --> ${formatWebVttTimestamp(parseWebVttTimestamp(end) + offsetSeconds)}`
+  );
+}
+
+export function streamSubtitlesToVtt(
+  filePath: string,
+  streamIndex: number,
+  res: any,
+  offsetSeconds = 0
+): void {
   const { ffmpeg } = getBinaries();
   if (!ffmpeg || !fs.existsSync(filePath)) {
     res.status(404).send('Arquivo de vídeo ou ffmpeg não encontrado');
@@ -489,7 +516,17 @@ export function streamSubtitlesToVtt(filePath: string, streamIndex: number, res:
   ];
 
   const proc = spawn(ffmpeg, args);
-  proc.stdout.pipe(res);
+  if (!Number.isFinite(offsetSeconds) || offsetSeconds === 0) {
+    proc.stdout.pipe(res);
+  } else {
+    const chunks: Buffer[] = [];
+    proc.stdout.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+    proc.stdout.on('end', () => {
+      if (!res.writableEnded) {
+        res.send(shiftWebVttTimestamps(Buffer.concat(chunks).toString('utf8'), offsetSeconds));
+      }
+    });
+  }
 
   proc.stderr.on('data', () => {}); // silence or debug
   proc.on('error', (err) => {
