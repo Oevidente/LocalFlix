@@ -270,6 +270,30 @@ export function invalidateBinariesCache() {
   cachedFfprobePath = undefined;
 }
 
+// Helper to parse duration from string (e.g. seconds or HH:MM:SS.mmm format from MKV tags)
+export function parseDurationString(val: any): number {
+  if (!val) return 0;
+  if (typeof val === 'number') return Math.floor(val);
+  const str = String(val).trim();
+  if (!str || str === 'N/A') return 0;
+  if (str.includes(':')) {
+    const parts = str.split(':');
+    if (parts.length === 3) {
+      const hours = parseFloat(parts[0]) || 0;
+      const minutes = parseFloat(parts[1]) || 0;
+      const seconds = parseFloat(parts[2]) || 0;
+      return Math.floor(hours * 3600 + minutes * 60 + seconds);
+    }
+    if (parts.length === 2) {
+      const minutes = parseFloat(parts[0]) || 0;
+      const seconds = parseFloat(parts[1]) || 0;
+      return Math.floor(minutes * 60 + seconds);
+    }
+  }
+  const parsed = parseFloat(str);
+  return isNaN(parsed) ? 0 : Math.floor(parsed);
+}
+
 // Probe a media file with ffprobe
 export async function probeMedia(filePath: string): Promise<FFprobeData> {
   const { ffprobe } = getBinaries();
@@ -305,9 +329,14 @@ export async function probeMedia(filePath: string): Promise<FFprobeData> {
         const format = data.format || {};
         const streams = Array.isArray(data.streams) ? data.streams : [];
 
-        let durationSeconds = 0;
-        if (format.duration) {
-          durationSeconds = Math.floor(parseFloat(format.duration));
+        let durationSeconds = parseDurationString(format.duration);
+        if (!durationSeconds && format.tags) {
+          durationSeconds = parseDurationString(
+            format.tags.DURATION ||
+            format.tags.duration ||
+            format.tags['DURATION-por'] ||
+            format.tags['DURATION-eng']
+          );
         }
 
         let videoCodec: string | undefined;
@@ -327,12 +356,31 @@ export async function probeMedia(filePath: string): Promise<FFprobeData> {
               resolution = `${stream.width}x${stream.height}`;
             }
             if (!durationSeconds && stream.duration) {
-              durationSeconds = Math.floor(parseFloat(stream.duration));
+              durationSeconds = parseDurationString(stream.duration);
+            }
+            if (!durationSeconds && stream.tags) {
+              durationSeconds = parseDurationString(
+                stream.tags.DURATION ||
+                stream.tags.duration ||
+                stream.tags['DURATION-por'] ||
+                stream.tags['DURATION-eng']
+              );
             }
           } else if (stream.codec_type === 'audio') {
             const tags = stream.tags || {};
             const lang = tags.language || tags.LANGUAGE || 'und';
             const title = tags.title || tags.handler_name || `Faixa ${audioCounter + 1}`;
+            if (!durationSeconds && stream.duration) {
+              durationSeconds = parseDurationString(stream.duration);
+            }
+            if (!durationSeconds && tags) {
+              durationSeconds = parseDurationString(
+                tags.DURATION ||
+                tags.duration ||
+                tags['DURATION-por'] ||
+                tags['DURATION-eng']
+              );
+            }
             audioTracks.push({
               index: audioCounter++,
               streamIndex: stream.index,

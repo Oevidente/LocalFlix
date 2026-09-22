@@ -158,10 +158,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (Hls.isSupported()) {
         const hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: true,
-          maxBufferLength: 30,
-          maxMaxBufferLength: 60,
+          lowLatencyMode: false,
+          maxBufferLength: 60,
+          maxMaxBufferLength: 120,
           backBufferLength: 60,
+          manifestLoadingTimeOut: 15000,
+          levelLoadingTimeOut: 15000,
         });
         hlsRef.current = hls;
         hls.loadSource(hlsUrl);
@@ -178,7 +180,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         hls.on(Hls.Events.LEVEL_LOADED, (_event, data) => {
           if (data.details.totalduration && isFinite(data.details.totalduration)) {
-            setDuration(data.details.totalduration);
+            if (data.details.live) {
+              if (!episode.durationSeconds || episode.durationSeconds <= 0) {
+                setDuration((prev) => Math.max(prev, data.details.totalduration));
+              }
+            } else if (data.details.totalduration > 0) {
+              setDuration(data.details.totalduration);
+            }
           }
         });
 
@@ -460,12 +468,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const exact = video.currentTime;
     setCurrentTime(exact);
 
-    if (video.duration && !isNaN(video.duration) && isFinite(video.duration)) {
-      setDuration(video.duration);
+    if (video.duration && !isNaN(video.duration) && isFinite(video.duration) && video.duration > 0) {
+      if (!episode.durationSeconds || episode.durationSeconds <= 0) {
+        setDuration((prev) => Math.max(prev, video.duration));
+      }
     }
 
+    const totalDur = (episode.durationSeconds && episode.durationSeconds > 0) ? episode.durationSeconds : duration;
+
     // Reset countdown if user moved back before the final 15 seconds
-    if (showNextCountdown && duration > 30 && exact < duration - 15) {
+    if (showNextCountdown && totalDur > 30 && exact < totalDur - 15) {
       setShowNextCountdown(false);
       if (countdownInterval.current) {
         clearInterval(countdownInterval.current);
@@ -474,7 +486,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
 
     // Auto next episode countdown if within 15 seconds of completion
-    if (nextEpisode && duration > 30 && exact >= duration - 15 && !showNextCountdown) {
+    if (nextEpisode && totalDur > 30 && exact >= totalDur - 15 && !showNextCountdown) {
       setShowNextCountdown(true);
       setCountdownSeconds(10);
       if (countdownInterval.current) clearInterval(countdownInterval.current);
@@ -510,19 +522,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const handleEnded = () => {
     if (isSeekingRef.current) return;
-    setIsPlaying(false);
     const video = videoRef.current;
     const exact = video?.currentTime || currentTime;
+    const totalExpectedDuration = (episode.durationSeconds && episode.durationSeconds > 0) ? episode.durationSeconds : duration;
 
     const isActuallyFinished =
-      duration > 30 && isFinite(duration) ? exact >= Math.max(duration - 20, duration * 0.9) : false;
+      totalExpectedDuration > 30 && isFinite(totalExpectedDuration)
+        ? exact >= Math.max(totalExpectedDuration - 20, totalExpectedDuration * 0.9)
+        : false;
 
     if (isActuallyFinished) {
-      saveProgress(duration, duration, true, true);
+      setIsPlaying(false);
+      saveProgress(totalExpectedDuration, totalExpectedDuration, true, true);
       if (nextEpisode && onPlayNextEpisode) {
         onPlayNextEpisode();
       }
     } else {
+      console.warn('[VideoPlayer] Playback ended prematurely at', exact, 'of', totalExpectedDuration);
       handleStreamRecovery(true);
     }
   };

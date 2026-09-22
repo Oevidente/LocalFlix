@@ -86,10 +86,12 @@ function spawnFfmpegHls(
   canCopy: boolean
 ): ChildProcess {
   const args: string[] = [
-    '-fflags', '+genpts+discardcorrupt+igndts',
+    '-fflags', '+genpts+discardcorrupt+igndts+nobuffer',
     '-err_detect', 'ignore_err',
+    '-analyzeduration', '20M',
+    '-probesize', '20M',
     '-i', filePath,
-    '-map', '0:V:0?',
+    '-map', '0:v:0',
   ];
 
   if (audioStreamIndex !== undefined) {
@@ -99,10 +101,7 @@ function spawnFfmpegHls(
   }
 
   if (canCopy) {
-    args.push(
-      '-c:v', 'copy',
-      '-bsf:v', 'h264_mp4toannexb'
-    );
+    args.push('-c:v', 'copy');
   } else {
     args.push(
       '-c:v', 'libx264',
@@ -110,10 +109,12 @@ function spawnFfmpegHls(
       '-tune', 'zerolatency',
       '-profile:v', 'baseline',
       '-level', '3.1',
-      '-crf', '23',
+      '-crf', '22',
       '-pix_fmt', 'yuv420p',
       '-g', '60',
-      '-keyint_min', '30'
+      '-keyint_min', '30',
+      '-sc_threshold', '0',
+      '-threads', '0'
     );
   }
 
@@ -122,15 +123,18 @@ function spawnFfmpegHls(
     '-b:a', '192k',
     '-ac', '2',
     '-af', 'aresample=async=1000:min_hard_comp=0.100000:first_pts=0',
+    '-avoid_negative_ts', 'make_zero',
     '-f', 'hls',
-    '-hls_time', '3',
+    '-hls_time', '4',
     '-hls_list_size', '0',
+    '-hls_playlist_type', 'event',
+    '-hls_flags', 'append_list+omit_endlist+independent_segments',
     '-hls_segment_type', 'mpegts',
     '-hls_segment_filename', path.join(sessionDir, 'segment_%04d.ts'),
     manifestPath
   );
 
-  const proc = spawn(ffmpegBin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  const proc = spawn(ffmpegBin, args, { stdio: ['ignore', 'ignore', 'pipe'] });
   // Attach immediate error handler on ChildProcess to prevent unhandled 'error' event crash
   proc.on('error', (err) => {
     console.error(`[HLS] FFmpeg spawn error (${ffmpegBin}):`, err);
