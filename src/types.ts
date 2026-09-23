@@ -195,3 +195,32 @@ export interface TorrentHistoryItem {
   selectedFileIndex?: number;
   totalBytes?: number;
 }
+
+export interface IptvChannel {
+  id: string;
+  name: string;
+  logo?: string;
+  group: string;
+  country?: string;
+  language?: string;
+  url: string;
+  tvgId?: string;
+  resolution?: string;
+  httpUserAgent?: string;
+  httpReferrer?: string;
+}
+
+export interface IptvPreset {
+  name: string;
+  url: string;
+  description: string;
+}
+
+export interface IptvPlaylistSummary {
+  url: string;
+  totalChannels: number;
+  categories: string[];
+  countries: string[];
+  channels: IptvChannel[];
+  lastUpdated: string;
+}

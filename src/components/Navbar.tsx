@@ -3,8 +3,8 @@ import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio, Sparkles } from 'luc
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface NavbarProps {
-  activeTab: 'all' | 'series' | 'movie' | 'continue';
-  onTabChange: (tab: 'all' | 'series' | 'movie' | 'continue') => void;
+  activeTab: 'all' | 'series' | 'movie' | 'continue' | 'channels';
+  onTabChange: (tab: 'all' | 'series' | 'movie' | 'continue' | 'channels') => void;
   onOpenAddModal: () => void;
   onOpenSystemModal: () => void;
   onOpenTorrentModal: () => void;
@@ -99,6 +99,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               Continuar Assistindo
+            </button>
+            <button
+              id="nav-tab-channels"
+              onClick={() => onTabChange('channels')}
+              className={`transition-all flex items-center space-x-1.5 px-2.5 py-1 rounded-full ${
+                activeTab === 'channels'
+                  ? 'bg-red-600/30 text-red-400 border border-red-500/50 font-bold shadow-sm shadow-red-950/50'
+                  : 'text-neutral-400 hover:text-red-400 hover:bg-red-950/20'
+              }`}
+            >
+              <Radio className="w-3.5 h-3.5 text-red-500 animate-pulse" />
+              <span>Canais Ao Vivo</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
             </button>
           </nav>
         </div>

@@ -103,14 +103,10 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
   const [forceTranscode, setForceTranscode] = useState(false);
 
   // Subtitle state
-  const [subtitles, setSubtitles] = useState<
-    { name: string; cues: SubtitleCue[] }[]
-  >([]);
+  const [subtitles, setSubtitles] = useState<{ name: string; cues: SubtitleCue[] }[]>([]);
   const [selectedSubIdx, setSelectedSubIdx] = useState<number>(-1); // -1 = off
   const [subOffsetSeconds, setSubOffsetSeconds] = useState<number>(0);
-  const [subSize, setSubSize] = useState<'small' | 'medium' | 'large'>(
-    'medium',
-  );
+  const [subSize, setSubSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [currentSubText, setCurrentSubText] = useState<string>('');
 
   // Cast state
@@ -132,8 +128,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const videoFiles = status.files?.filter((f) => f.isVideo) || [];
-  const currentFile =
-    status.files?.find((f) => f.index === currentFileIdx) || videoFiles[0];
+  const currentFile = status.files?.find((f) => f.index === currentFileIdx) || videoFiles[0];
 
   // Poll torrent status for peers / download speed HUD
   useEffect(() => {
@@ -183,14 +178,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
         }).catch(() => {});
       } catch {}
     },
-    [
-      status.infoHash,
-      status.magnetUri,
-      status.name,
-      status.totalBytes,
-      duration,
-      currentFileIdx,
-    ],
+    [status.infoHash, status.magnetUri, status.name, status.totalBytes, duration, currentFileIdx]
   );
 
   // Periodic progress saving
@@ -295,19 +283,12 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
       const castBase = castUrls[0] || window.location.origin;
       const castMediaUrl = `${castBase}/api/torrent/stream/${status.infoHash}/${currentFileIdx}?cast=1`;
 
-      const mediaInfo = new (window as any).chrome.cast.media.MediaInfo(
-        castMediaUrl,
-        'video/mp4',
-      );
-      mediaInfo.metadata = new (
-        window as any
-      ).chrome.cast.media.GenericMediaMetadata();
+      const mediaInfo = new (window as any).chrome.cast.media.MediaInfo(castMediaUrl, 'video/mp4');
+      mediaInfo.metadata = new (window as any).chrome.cast.media.GenericMediaMetadata();
       mediaInfo.metadata.title = currentFile?.name || status.name;
       mediaInfo.metadata.subtitle = 'CineLocal Torrent Stream';
 
-      const request = new (window as any).chrome.cast.media.LoadRequest(
-        mediaInfo,
-      );
+      const request = new (window as any).chrome.cast.media.LoadRequest(mediaInfo);
       request.currentTime = pos;
       request.autoplay = true;
 
@@ -322,10 +303,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
             castCurrentTimeRef.current = estimated;
             setCurrentTime(estimated);
           }
-          if (
-            remoteMedia.playerState === 'PLAYING' ||
-            remoteMedia.playerState === 'BUFFERING'
-          ) {
+          if (remoteMedia.playerState === 'PLAYING' || remoteMedia.playerState === 'BUFFERING') {
             setIsPlaying(true);
           } else if (remoteMedia.playerState === 'PAUSED') {
             setIsPlaying(false);
@@ -354,8 +332,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
         return;
       }
       setCastAvailable(true);
-      const eventTypes =
-        (window as any).cast?.framework?.CastContextEventType || {};
+      const eventTypes = (window as any).cast?.framework?.CastContextEventType || {};
 
       const syncCast = () => {
         if (isDisconnectingCastRef.current) return;
@@ -383,10 +360,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
       context.addEventListener?.(eventTypes.SESSION_STATE_CHANGED, syncCast);
       context.addEventListener?.(eventTypes.CAST_STATE_CHANGED, syncCast);
       cleanupEvents = () => {
-        context.removeEventListener?.(
-          eventTypes.SESSION_STATE_CHANGED,
-          syncCast,
-        );
+        context.removeEventListener?.(eventTypes.SESSION_STATE_CHANGED, syncCast);
         context.removeEventListener?.(eventTypes.CAST_STATE_CHANGED, syncCast);
       };
       syncCast();
@@ -404,11 +378,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      )
-        return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       switch (e.key.toLowerCase()) {
         case ' ':
@@ -461,8 +431,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
       setIsFullscreen(!!document.fullscreenElement);
     };
     document.addEventListener('fullscreenchange', handleFsChange);
-    return () =>
-      document.removeEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
   const togglePlay = () => {
@@ -478,10 +447,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
   const seekBy = (seconds: number) => {
     const video = videoRef.current;
     if (!video) return;
-    const target = Math.max(
-      0,
-      Math.min(video.currentTime + seconds, duration || video.duration || 0),
-    );
+    const target = Math.max(0, Math.min(video.currentTime + seconds, duration || video.duration || 0));
     video.currentTime = target;
     setCurrentTime(target);
   };
@@ -535,7 +501,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
     const currentSub = subtitles[selectedSubIdx];
     const adjustedTime = currentTime - subOffsetSeconds;
     const activeCue = currentSub.cues.find(
-      (cue) => adjustedTime >= cue.start && adjustedTime <= cue.end,
+      (cue) => adjustedTime >= cue.start && adjustedTime <= cue.end
     );
 
     setCurrentSubText(activeCue ? activeCue.text : '');
@@ -585,9 +551,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
   };
 
   const handleNextVideo = () => {
-    const currentIdxInVideos = videoFiles.findIndex(
-      (f) => f.index === currentFileIdx,
-    );
+    const currentIdxInVideos = videoFiles.findIndex((f) => f.index === currentFileIdx);
     if (currentIdxInVideos >= 0 && currentIdxInVideos < videoFiles.length - 1) {
       const nextFile = videoFiles[currentIdxInVideos + 1];
       setCurrentFileIdx(nextFile.index);
@@ -596,12 +560,8 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
   };
 
   const hasNextVideo = () => {
-    const currentIdxInVideos = videoFiles.findIndex(
-      (f) => f.index === currentFileIdx,
-    );
-    return (
-      currentIdxInVideos >= 0 && currentIdxInVideos < videoFiles.length - 1
-    );
+    const currentIdxInVideos = videoFiles.findIndex((f) => f.index === currentFileIdx);
+    return currentIdxInVideos >= 0 && currentIdxInVideos < videoFiles.length - 1;
   };
 
   const subFontSize = {
@@ -641,9 +601,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
         onPlaying={() => setIsBuffering(false)}
         onCanPlay={() => setIsBuffering(false)}
         onError={() => {
-          console.warn(
-            '[TorrentPlayer] Erro no stream nativo. Ativando transcode...',
-          );
+          console.warn('[TorrentPlayer] Erro no stream nativo. Ativando transcode...');
           setForceTranscode(true);
         }}
         onClick={togglePlay}
@@ -661,8 +619,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
             style={{
               fontSize: subFontSize,
               lineHeight: 1.3,
-              textShadow:
-                '0 2px 8px rgba(0,0,0,0.9), 0 0 4px #000, 0 0 10px #000',
+              textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 4px #000, 0 0 10px #000',
             }}
             className="font-semibold text-amber-200 tracking-wide bg-black/40 px-3 py-1 rounded-lg backdrop-blur-[2px]"
           >
@@ -678,9 +635,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
             <Radio className="w-6 h-6 text-red-500 animate-pulse" />
           </div>
           <div className="text-center bg-black/70 px-4 py-2 rounded-xl backdrop-blur-md border border-zinc-800">
-            <p className="text-sm font-semibold text-white">
-              Carregando buffer do Torrent...
-            </p>
+            <p className="text-sm font-semibold text-white">Carregando buffer do Torrent...</p>
             <p className="text-xs text-zinc-400 mt-0.5">
               {status.peers} peers • {formatBytes(status.downloadSpeed)}/s
             </p>
@@ -710,9 +665,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white">
                   Torrent
                 </span>
-                <h1 className="text-base font-bold text-white line-clamp-1">
-                  {status.name}
-                </h1>
+                <h1 className="text-base font-bold text-white line-clamp-1">{status.name}</h1>
               </div>
               {currentFile && (
                 <p className="text-xs text-zinc-400 line-clamp-1 mt-0.5">
@@ -725,22 +678,14 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
           {/* Torrent Real-time HUD badge */}
           <div className="flex items-center gap-2.5">
             <div className="flex items-center gap-3 bg-zinc-900/90 border border-zinc-700/60 px-3.5 py-1.5 rounded-xl text-xs text-zinc-300 shadow-xl backdrop-blur-md">
-              <div
-                className="flex items-center gap-1.5"
-                title="Peers conectados"
-              >
+              <div className="flex items-center gap-1.5" title="Peers conectados">
                 <Users className="w-3.5 h-3.5 text-sky-400" />
                 <span className="font-medium">{status.peers}</span>
               </div>
               <div className="w-px h-3 bg-zinc-700" />
-              <div
-                className="flex items-center gap-1.5"
-                title="Velocidade de download"
-              >
+              <div className="flex items-center gap-1.5" title="Velocidade de download">
                 <Download className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="font-medium">
-                  {formatBytes(status.downloadSpeed)}/s
-                </span>
+                <span className="font-medium">{formatBytes(status.downloadSpeed)}/s</span>
               </div>
               <div className="w-px h-3 bg-zinc-700" />
               <div className="flex items-center gap-1.5" title="Baixado">
@@ -759,11 +704,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                     ? 'bg-amber-600 border-amber-500 text-white'
                     : 'bg-zinc-900/80 border-zinc-700 hover:bg-zinc-800 text-zinc-300'
                 }`}
-                title={
-                  isCasting
-                    ? `Transmitindo para ${castDeviceName || 'Chromecast'} (Clique para desconectar)`
-                    : 'Transmitir para Chromecast / Google Cast'
-                }
+                title={isCasting ? `Transmitindo para ${castDeviceName || 'Chromecast'} (Clique para desconectar)` : 'Transmitir para Chromecast / Google Cast'}
               >
                 {isCastLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
@@ -839,11 +780,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                 className="p-3 bg-white text-black hover:bg-zinc-200 rounded-full shadow-lg transition"
                 title="Reproduzir/Pausar (Espaço)"
               >
-                {isPlaying ? (
-                  <Pause className="w-5 h-5 fill-current" />
-                ) : (
-                  <Play className="w-5 h-5 fill-current ml-0.5" />
-                )}
+                {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
               </button>
 
               {/* Seek -10s */}
@@ -882,11 +819,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                   className="p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800/60 transition"
                   title="Silenciar (M)"
                 >
-                  {isMuted || volume === 0 ? (
-                    <VolumeX className="w-5 h-5 text-red-400" />
-                  ) : (
-                    <Volume2 className="w-5 h-5" />
-                  )}
+                  {isMuted || volume === 0 ? <VolumeX className="w-5 h-5 text-red-400" /> : <Volume2 className="w-5 h-5" />}
                 </button>
                 <input
                   type="range"
@@ -927,9 +860,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                 {showSubModal && (
                   <div className="absolute right-0 bottom-12 w-72 bg-zinc-950/95 border border-zinc-800 rounded-2xl p-4 shadow-2xl backdrop-blur-md space-y-4 animate-in fade-in zoom-in-95 duration-150">
                     <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                        Legendas
-                      </h4>
+                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Legendas</h4>
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         className="px-2 py-1 bg-red-600 hover:bg-red-700 text-[10px] font-semibold text-white rounded-lg flex items-center gap-1 transition"
@@ -957,9 +888,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                         }`}
                       >
                         <span>Desativada</span>
-                        {selectedSubIdx === -1 && (
-                          <Check className="w-3.5 h-3.5 text-red-500" />
-                        )}
+                        {selectedSubIdx === -1 && <Check className="w-3.5 h-3.5 text-red-500" />}
                       </button>
 
                       {subtitles.map((sub, idx) => (
@@ -973,9 +902,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                           }`}
                         >
                           <span className="truncate pr-2">{sub.name}</span>
-                          {selectedSubIdx === idx && (
-                            <Check className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
-                          )}
+                          {selectedSubIdx === idx && <Check className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />}
                         </button>
                       ))}
                     </div>
@@ -983,44 +910,32 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                     {/* Subtitle Size Adjuster */}
                     {selectedSubIdx >= 0 && (
                       <div className="pt-2 border-t border-zinc-800 space-y-2">
-                        <label className="text-[11px] text-zinc-400">
-                          Tamanho da Legenda:
-                        </label>
+                        <label className="text-[11px] text-zinc-400">Tamanho da Legenda:</label>
                         <div className="grid grid-cols-3 gap-1.5">
-                          {(['small', 'medium', 'large'] as const).map(
-                            (size) => (
-                              <button
-                                key={size}
-                                onClick={() => setSubSize(size)}
-                                className={`py-1 text-[10px] rounded-md font-medium capitalize transition ${
-                                  subSize === size
-                                    ? 'bg-red-600 text-white'
-                                    : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
-                                }`}
-                              >
-                                {size === 'small'
-                                  ? 'Pequena'
-                                  : size === 'medium'
-                                    ? 'Média'
-                                    : 'Grande'}
-                              </button>
-                            ),
-                          )}
+                          {(['small', 'medium', 'large'] as const).map((size) => (
+                            <button
+                              key={size}
+                              onClick={() => setSubSize(size)}
+                              className={`py-1 text-[10px] rounded-md font-medium capitalize transition ${
+                                subSize === size
+                                  ? 'bg-red-600 text-white'
+                                  : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+                              }`}
+                            >
+                              {size === 'small' ? 'Pequena' : size === 'medium' ? 'Média' : 'Grande'}
+                            </button>
+                          ))}
                         </div>
 
                         {/* Timing sync offset */}
                         <div className="pt-2 space-y-1">
                           <div className="flex justify-between text-[11px] text-zinc-400">
                             <span>Sincronia:</span>
-                            <span className="font-mono text-zinc-300">
-                              {subOffsetSeconds.toFixed(1)}s
-                            </span>
+                            <span className="font-mono text-zinc-300">{subOffsetSeconds.toFixed(1)}s</span>
                           </div>
                           <div className="flex gap-1.5">
                             <button
-                              onClick={() =>
-                                setSubOffsetSeconds((v) => v - 0.5)
-                              }
+                              onClick={() => setSubOffsetSeconds((v) => v - 0.5)}
                               className="flex-1 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs rounded"
                             >
                               -0.5s
@@ -1032,9 +947,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                               Reset
                             </button>
                             <button
-                              onClick={() =>
-                                setSubOffsetSeconds((v) => v + 0.5)
-                              }
+                              onClick={() => setSubOffsetSeconds((v) => v + 0.5)}
                               className="flex-1 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs rounded"
                             >
                               +0.5s
@@ -1053,11 +966,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                 className="p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800/60 transition"
                 title="Tela Cheia (F)"
               >
-                {isFullscreen ? (
-                  <Minimize className="w-5 h-5" />
-                ) : (
-                  <Maximize className="w-5 h-5" />
-                )}
+                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
               </button>
             </div>
           </div>
@@ -1096,9 +1005,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                   }`}
                 >
                   <span className="truncate pr-2">{file.name}</span>
-                  <span className="text-[10px] opacity-70 flex-shrink-0">
-                    {formatBytes(file.length)}
-                  </span>
+                  <span className="text-[10px] opacity-70 flex-shrink-0">{formatBytes(file.length)}</span>
                 </button>
               );
             })}

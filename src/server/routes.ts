@@ -53,6 +53,16 @@ import {
   parseInfoHash,
 } from './torrent';
 import { BrowseItem, SystemStatus, TorrentStatus } from '../types';
+import {
+  fetchIptvPlaylist,
+  parseM3U,
+  IPTV_PRESETS,
+  IptvChannel,
+  loadIptvCacheFromDisk,
+} from './iptv';
+
+// Load any cached IPTV playlists on server boot
+loadIptvCacheFromDisk();
 
 export const apiRouter = Router();
 
@@ -1638,4 +1648,238 @@ apiRouter.post('/torrent/stop', async (req: Request, res: Response) => {
   }
   const ok = await stopTorrent(infoHash, deleteCache === true);
   res.json({ success: ok });
+});
+
+// ==========================================
+// IPTV Live Channels Endpoints
+// ==========================================
+
+const IPTV_FAVORITES_FILE = path.join(getDataDir(), 'iptv_favorites.json');
+
+function getIptvFavorites(): string[] {
+  try {
+    if (fs.existsSync(IPTV_FAVORITES_FILE)) {
+      return JSON.parse(fs.readFileSync(IPTV_FAVORITES_FILE, 'utf-8'));
+    }
+  } catch {}
+  return [];
+}
+
+function saveIptvFavorites(favs: string[]) {
+  try {
+    fs.writeFileSync(IPTV_FAVORITES_FILE, JSON.stringify(favs, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Erro ao salvar favoritos IPTV:', err);
+  }
+}
+
+// 1. Get preset playlists
+apiRouter.get('/iptv/presets', (_req: Request, res: Response) => {
+  res.json(IPTV_PRESETS);
+});
+
+// 2. Fetch and parse playlist
+apiRouter.get('/iptv/playlist', async (req: Request, res: Response) => {
+  try {
+    const url = (req.query.url as string) || 'https://iptv-org.github.io/iptv/index.m3u';
+    const forceRefresh = req.query.refresh === 'true';
+    const summary = await fetchIptvPlaylist(url, forceRefresh);
+    res.json(summary);
+  } catch (error: any) {
+    console.error('Erro ao carregar playlist IPTV:', error);
+    res.status(500).json({ error: error.message || 'Falha ao carregar playlist IPTV' });
+  }
+});
+
+// 3. Parse custom uploaded M3U content
+apiRouter.post('/iptv/parse-custom', (req: Request, res: Response) => {
+  try {
+    const { content, name } = req.body;
+    if (!content || typeof content !== 'string') {
+      res.status(400).json({ error: 'Conteúdo M3U inválido' });
+      return;
+    }
+    const summary = parseM3U(content, name || 'Playlist Personalizada');
+    res.json(summary);
+  } catch (error: any) {
+    console.error('Erro ao processar M3U personalizado:', error);
+    res.status(500).json({ error: error.message || 'Erro ao processar M3U' });
+  }
+});
+
+// 4. Get favorite channel IDs
+apiRouter.get('/iptv/favorites', (_req: Request, res: Response) => {
+  res.json({ favorites: getIptvFavorites() });
+});
+
+// 5. Toggle or update favorites
+apiRouter.post('/iptv/favorites', (req: Request, res: Response) => {
+  const { channelId, isFavorite, favorites } = req.body;
+  let current = getIptvFavorites();
+
+  if (Array.isArray(favorites)) {
+    current = favorites;
+  } else if (channelId) {
+    if (isFavorite === true) {
+      if (!current.includes(channelId)) current.push(channelId);
+    } else if (isFavorite === false) {
+      current = current.filter((id) => id !== channelId);
+    } else {
+      // Toggle
+      if (current.includes(channelId)) {
+        current = current.filter((id) => id !== channelId);
+      } else {
+        current.push(channelId);
+      }
+    }
+  }
+
+  saveIptvFavorites(current);
+  res.json({ success: true, favorites: current });
+});
+
+// 6. IPTV Stream & M3U8 CORS Proxy
+apiRouter.get('/iptv/proxy', async (req: Request, res: Response) => {
+  const targetUrl = req.query.url as string;
+  if (!targetUrl) {
+    res.status(400).send('URL é obrigatória');
+    return;
+  }
+
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+
+  try {
+    const parsedTarget = new URL(targetUrl);
+    const userAgent =
+      (req.query.userAgent as string) ||
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+    const referrer = (req.query.referrer as string) || parsedTarget.origin;
+
+    const fetchHeaders: Record<string, string> = {
+      'User-Agent': userAgent,
+      Referer: referrer,
+      Origin: parsedTarget.origin,
+      Accept: '*/*',
+    };
+
+    if (req.headers.range) {
+      fetchHeaders['Range'] = req.headers.range;
+    }
+
+    const response = await fetch(targetUrl, {
+      headers: fetchHeaders,
+      redirect: 'follow',
+    });
+
+    if (!response.ok && response.status !== 206) {
+      res.status(response.status).send(`Erro do stream remoto: ${response.statusText}`);
+      return;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    const isM3U8 =
+      contentType.includes('mpegurl') ||
+      contentType.includes('application/vnd.apple.mpegurl') ||
+      contentType.includes('application/x-mpegurl') ||
+      targetUrl.includes('.m3u8') ||
+      targetUrl.includes('playlist') ||
+      targetUrl.includes('.m3u');
+
+    if (isM3U8) {
+      const text = await response.text();
+      // Check if it's really an M3U8 playlist
+      if (text.includes('#EXTM3U')) {
+        const lines = text.split(/\r?\n/);
+        const rewrittenLines: string[] = [];
+
+        for (let line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) {
+            rewrittenLines.push(line);
+            continue;
+          }
+
+          if (trimmed.startsWith('#EXT-X-KEY:') || trimmed.startsWith('#EXT-X-MAP:')) {
+            // Rewrite URI="..." inside tags
+            const rewrittenTag = trimmed.replace(/URI="([^"]+)"/g, (_, uri) => {
+              try {
+                const absUrl = new URL(uri, targetUrl).href;
+                const proxyUrl = `/api/iptv/proxy?url=${encodeURIComponent(absUrl)}`;
+                return `URI="${proxyUrl}"`;
+              } catch {
+                return `URI="${uri}"`;
+              }
+            });
+            rewrittenLines.push(rewrittenTag);
+          } else if (trimmed.startsWith('#')) {
+            rewrittenLines.push(line);
+          } else {
+            // It's a stream segment or variant playlist URI
+            try {
+              const absUrl = new URL(trimmed, targetUrl).href;
+              const proxyUrl = `/api/iptv/proxy?url=${encodeURIComponent(absUrl)}`;
+              rewrittenLines.push(proxyUrl);
+            } catch {
+              rewrittenLines.push(line);
+            }
+          }
+        }
+
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.send(rewrittenLines.join('\n'));
+        return;
+      }
+    }
+
+    // Binary / TS stream or direct media chunk
+    if (contentType) {
+      res.setHeader('Content-Type', contentType);
+    }
+    const contentLength = response.headers.get('content-length');
+    if (contentLength) {
+      res.setHeader('Content-Length', contentLength);
+    }
+    const acceptRanges = response.headers.get('accept-ranges');
+    if (acceptRanges) {
+      res.setHeader('Accept-Ranges', acceptRanges);
+    }
+    const contentRange = response.headers.get('content-range');
+    if (contentRange) {
+      res.setHeader('Content-Range', contentRange);
+    }
+
+    res.status(response.status);
+
+    if (response.body) {
+      // Stream chunks using standard web stream to node response
+      const reader = response.body.getReader();
+      const pump = async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (res.writableEnded || res.destroyed) {
+              reader.cancel();
+              break;
+            }
+            res.write(value);
+          }
+          res.end();
+        } catch (streamErr) {
+          if (!res.writableEnded) res.end();
+        }
+      };
+      pump();
+    } else {
+      res.end();
+    }
+  } catch (proxyError: any) {
+    console.error('Erro no proxy IPTV:', proxyError);
+    if (!res.headersSent) {
+      res.status(502).send(`Falha ao conectar com o stream: ${proxyError.message}`);
+    }
+  }
 });

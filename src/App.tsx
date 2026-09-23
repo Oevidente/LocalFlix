@@ -10,8 +10,10 @@ import { SystemModal } from './components/SystemModal';
 import { TmdbConfigModal } from './components/TmdbConfigModal';
 import { TorrentModal } from './components/TorrentModal';
 import { TorrentPlayer } from './components/TorrentPlayer';
-import { LibraryData, MediaItem, Episode, OnlineSubtitleOption, TorrentStatus } from './types';
-import { FolderPlus, Film, Tv, Play, HardDrive, RefreshCw } from 'lucide-react';
+import { ChannelsPage } from './components/ChannelsPage';
+import { IptvPlayerModal } from './components/IptvPlayerModal';
+import { LibraryData, MediaItem, Episode, OnlineSubtitleOption, TorrentStatus, IptvChannel } from './types';
+import { FolderPlus, Film, Tv, Play, HardDrive, RefreshCw, Radio } from 'lucide-react';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -26,7 +28,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 export default function App() {
   const [library, setLibrary] = useState<LibraryData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'all' | 'series' | 'movie' | 'continue'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'series' | 'movie' | 'continue' | 'channels'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Modals & Player State
@@ -40,6 +42,38 @@ export default function App() {
   const [relocateTarget, setRelocateTarget] = useState<MediaItem | null>(null);
   const [showTorrentModal, setShowTorrentModal] = useState<boolean>(false);
   const [playingTorrent, setPlayingTorrent] = useState<{ status: TorrentStatus; selectedFileIndex: number } | null>(null);
+
+  // IPTV Live Channels State
+  const [iptvPlaying, setIptvPlaying] = useState<{ channel: IptvChannel; allChannels: IptvChannel[] } | null>(null);
+  const [iptvFavorites, setIptvFavorites] = useState<string[]>([]);
+
+  // Fetch IPTV favorites
+  useEffect(() => {
+    fetch('/api/iptv/favorites')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.favorites)) {
+          setIptvFavorites(data.favorites);
+        }
+      })
+      .catch((err) => console.error('Erro ao carregar favoritos IPTV:', err));
+  }, []);
+
+  const handleToggleIptvFavorite = async (channelId: string) => {
+    const isFav = iptvFavorites.includes(channelId);
+    const updated = isFav ? iptvFavorites.filter((id) => id !== channelId) : [...iptvFavorites, channelId];
+    setIptvFavorites(updated);
+
+    try {
+      await fetch('/api/iptv/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelId, isFavorite: !isFav }),
+      });
+    } catch (err) {
+      console.error('Erro ao sincronizar favorito IPTV:', err);
+    }
+  };
 
   const handleOpenAddModal = async () => {
     setIsPickingFolder(true);
@@ -589,7 +623,13 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      {library && library.items.length === 0 ? (
+      {activeTab === 'channels' ? (
+        <ChannelsPage
+          onPlayChannel={(channel, allChannels) => setIptvPlaying({ channel, allChannels })}
+          favorites={iptvFavorites}
+          onToggleFavorite={handleToggleIptvFavorite}
+        />
+      ) : library && library.items.length === 0 ? (
         /* Empty State Screen */
         <div className="pt-32 pb-20 px-4 max-w-4xl mx-auto text-center flex flex-col items-center">
           <div className="w-20 h-20 rounded-2xl bg-[#E50914]/20 border border-[#E50914]/40 flex items-center justify-center text-[#E50914] mb-6 shadow-2xl shadow-red-950/50">
@@ -634,7 +674,18 @@ export default function App() {
             </button>
           </div>
 
-          <div className="mt-16 p-4 rounded-xl bg-neutral-900/60 border border-neutral-800 max-w-lg text-left text-xs text-neutral-400 space-y-2">
+          {/* Quick Channels button on empty library */}
+          <div className="mt-8">
+            <button
+              onClick={() => setActiveTab('channels')}
+              className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-full bg-red-600/20 border border-red-500/40 hover:bg-red-600/30 text-red-400 hover:text-white text-xs font-bold transition-all"
+            >
+              <Radio className="w-4 h-4 text-red-500 animate-pulse" />
+              <span>Ou assista canais de TV Ao Vivo via IPTV &rarr;</span>
+            </button>
+          </div>
+
+          <div className="mt-12 p-4 rounded-xl bg-neutral-900/60 border border-neutral-800 max-w-lg text-left text-xs text-neutral-400 space-y-2">
             <div className="flex items-center space-x-2 text-white font-semibold">
               <HardDrive className="w-4 h-4 text-emerald-400" />
               <span>Totalmente Portátil:</span>
@@ -828,6 +879,20 @@ export default function App() {
           onSelectFile={(fileIndex) => {
             setPlayingTorrent((prev) => (prev ? { ...prev, selectedFileIndex: fileIndex } : null));
           }}
+        />
+      )}
+
+      {/* IPTV Live Channel Player Modal */}
+      {iptvPlaying && (
+        <IptvPlayerModal
+          channel={iptvPlaying.channel}
+          allChannels={iptvPlaying.allChannels}
+          favorites={iptvFavorites}
+          onToggleFavorite={handleToggleIptvFavorite}
+          onSelectChannel={(newChannel) =>
+            setIptvPlaying((prev) => (prev ? { ...prev, channel: newChannel } : null))
+          }
+          onClose={() => setIptvPlaying(null)}
         />
       )}
     </div>
