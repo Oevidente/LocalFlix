@@ -17,12 +17,20 @@ import {
 import { scanMediaFolder } from './scanner';
 import { enrichMediaWithTmdb, isTmdbConfigured } from './tmdb';
 import {
+  downloadOnlineSubtitle,
+  isOpenSubtitlesConfigured,
+  searchOnlineSubtitles,
+} from './opensubtitles';
+import {
   getBinaries,
   generateThumbnail,
   isBrowserNativeDirectPlayable,
+  isBitmapSubtitleCodec,
   streamSubtitlesToVtt,
   shiftWebVttTimestamps,
   downloadAndInstallFFmpeg,
+  getHardwareAccelerationStatus,
+  getVideoEncodingPlan,
 } from './ffmpeg';
 import { getOrCreateHlsSession, findActiveSession } from './hls';
 import {
@@ -356,10 +364,14 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
   const audioStreamIndex = selectedAudio ? selectedAudio.streamIndex : undefined;
 
   const args: string[] = [];
+  const videoEncodingPlan = getVideoEncodingPlan(true);
 
   // Input flags: tolerate corrupt packets, missing PTS and discontinuous timestamps (common in spliced bumpers/vinhetas)
   args.push('-fflags', '+genpts+discardcorrupt+igndts');
   args.push('-err_detect', 'ignore_err');
+  if (videoEncodingPlan.hardware) {
+    args.push(...videoEncodingPlan.inputArgs);
+  }
 
   // Seek position before input for fast keyframe seek
   if (seekSeconds > 0) {
@@ -393,17 +405,7 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
       '-bsf:v', 'dump_extra'
     );
   } else {
-    args.push(
-      '-c:v', 'libx264',
-      '-preset', 'ultrafast',
-      '-tune', 'zerolatency',
-      '-profile:v', 'baseline',
-      '-level', '3.1',
-      '-crf', '23',
-      '-pix_fmt', 'yuv420p',
-      '-g', '30',
-      '-keyint_min', '30'
-    );
+    args.push(...videoEncodingPlan.outputArgs);
   }
 
   // Audio: always encode to AAC with async audio resampling so bumper/vinheta timestamp jumps don't desync or crash FFmpeg
@@ -594,7 +596,63 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
   }
 });
 
-// 9. Subtitles (Internal stream or External file converted to WebVTT)
+// 9.1 Search subtitles online before the generic /:index route below.
+apiRouter.get('/media/:mediaId/episode/:episodeId/subtitles/online', async (req: Request, res: Response) => {
+  const { mediaId, episodeId } = req.params;
+  if (!isOpenSubtitlesConfigured()) {
+    res.status(503).json({ error: 'OpenSubtitles não configurado. Defina OPENSUBTITLES_API_KEY.' });
+    return;
+  }
+
+  const pair = findEpisode(mediaId, episodeId);
+  if (!pair) {
+    res.status(404).json({ error: 'Episódio não encontrado' });
+    return;
+  }
+
+  try {
+    const language = typeof req.query.language === 'string' ? req.query.language : 'pt-br';
+    const items = await searchOnlineSubtitles(pair.media, pair.episode, language);
+    res.json({ items });
+  } catch (error: any) {
+    res.status(502).json({ error: error?.message || 'Não foi possível buscar legendas online.' });
+  }
+});
+
+// 9.2 Download and persist one OpenSubtitles result in the portable data folder.
+apiRouter.post('/media/:mediaId/episode/:episodeId/subtitles/online/download', async (req: Request, res: Response) => {
+  const { mediaId, episodeId } = req.params;
+  const pair = findEpisode(mediaId, episodeId);
+  if (!pair) {
+    res.status(404).json({ error: 'Episódio não encontrado' });
+    return;
+  }
+
+  const fileId = Number(req.body?.fileId);
+  if (!Number.isInteger(fileId) || fileId <= 0) {
+    res.status(400).json({ error: 'fileId de legenda inválido.' });
+    return;
+  }
+
+  try {
+    const option = {
+      id: String(req.body?.id || fileId),
+      fileId,
+      language: typeof req.body?.language === 'string' ? req.body.language : 'pt-br',
+      languageName: typeof req.body?.languageName === 'string' ? req.body.languageName : undefined,
+      release: typeof req.body?.release === 'string' ? req.body.release : undefined,
+      fileName: typeof req.body?.fileName === 'string' ? req.body.fileName : undefined,
+    };
+    const track = await downloadOnlineSubtitle(pair.media, pair.episode, option);
+    pair.episode.subtitleTracks.push(track);
+    writeLibrary(readLibrary(), true);
+    res.json({ success: true, track });
+  } catch (error: any) {
+    res.status(502).json({ error: error?.message || 'Não foi possível baixar a legenda online.' });
+  }
+});
+
+// 9.3 Subtitles (Internal stream or External file converted to WebVTT)
 apiRouter.get('/media/:mediaId/episode/:episodeId/subtitles/:index', (req: Request, res: Response) => {
   const { mediaId, episodeId, index } = req.params;
   const parsedOffset = Number(req.query.offset);
@@ -651,6 +709,15 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/subtitles/:index', (req: Reque
   }
 
   // Embedded subtitle stream or complex format via ffmpeg
+  if (!track.isExternal && isBitmapSubtitleCodec(track.codec)) {
+    res.status(415).json({
+      code: 'BITMAP_SUBTITLE_UNSUPPORTED',
+      error: 'Esta faixa usa legenda gráfica (PGS/VobSub) e não pode ser convertida diretamente para WebVTT.',
+      suggestion: 'Use "Buscar online" para baixar uma legenda textual compatível com Chromecast.',
+    });
+    return;
+  }
+
   const streamIdx = track.streamIndex >= 0 ? track.streamIndex : 0;
   streamSubtitlesToVtt(pair.episode.filePath, streamIdx, res, offsetSeconds);
 });
@@ -715,6 +782,7 @@ apiRouter.post('/media/:mediaId/episode/:episodeId/subtitles/import', (req: Requ
       title: `Legenda importada (${path.basename(safeFileName, extension)})`,
       isExternal: true,
       isImported: true,
+      source: 'local' as const,
       filePath: normalizedTargetPath,
     };
 
@@ -989,6 +1057,8 @@ apiRouter.get('/system/status', (req: Request, res: Response) => {
     totalItems: lib.items.length,
     platform: process.platform,
     tmdbConfigured: isTmdbConfigured(),
+    openSubtitlesConfigured: isOpenSubtitlesConfigured(),
+    hardwareAcceleration: getHardwareAccelerationStatus(),
   };
 
   res.json(status);

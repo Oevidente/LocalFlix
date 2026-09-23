@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { spawn, ChildProcess } from 'child_process';
-import { getBinaries } from './ffmpeg';
+import { getBinaries, getHardwareAccelerationStatus, getVideoEncodingPlan } from './ffmpeg';
 
 interface HlsSession {
   sessionId: string;
@@ -195,7 +195,8 @@ function spawnFfmpegHls(
   sessionDir: string,
   audioStreamIndex: number | undefined,
   canCopy: boolean,
-  startSeconds = 0
+  startSeconds = 0,
+  preferHardware = true
 ): ChildProcess {
   const args: string[] = [
     // This is a local file, not a live input. `nobuffer` disables the demuxer
@@ -209,6 +210,11 @@ function spawnFfmpegHls(
   if (startSeconds > 0) {
     // Seek at the input before FFmpeg starts producing HLS segments.
     args.push('-ss', startSeconds.toString());
+  }
+
+  const videoEncodingPlan = getVideoEncodingPlan(preferHardware);
+  if (!canCopy && videoEncodingPlan.hardware) {
+    args.push(...videoEncodingPlan.inputArgs);
   }
 
   args.push('-i', filePath, '-map', '0:V:0?');
@@ -225,19 +231,7 @@ function spawnFfmpegHls(
       '-bsf:v', 'h264_mp4toannexb'
     );
   } else {
-    args.push(
-      '-c:v', 'libx264',
-      '-preset', 'ultrafast',
-      '-tune', 'zerolatency',
-      '-profile:v', 'baseline',
-      '-level', '3.1',
-      '-crf', '22',
-      '-pix_fmt', 'yuv420p',
-      '-g', '60',
-      '-keyint_min', '30',
-      '-sc_threshold', '0',
-      '-threads', '0'
-    );
+    args.push(...videoEncodingPlan.outputArgs, '-g', '60', '-keyint_min', '30', '-sc_threshold', '0', '-threads', '0');
   }
 
   args.push(
@@ -323,9 +317,12 @@ export async function getOrCreateHlsSession(
     // requested, even if the source video could otherwise be copied.
     const copyVideo = canDirectCopyVideo && !forceTranscode;
 
-    // Try direct copy first if eligible, otherwise transcode
+    // Try direct copy first if eligible, otherwise transcode with hardware
+    // encoding when the installed FFmpeg exposes a compatible encoder.
     try {
-      proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, copyVideo, startSeconds);
+      const hardwareAttempt = !copyVideo && getHardwareAccelerationStatus().mode === 'auto' && !!getHardwareAccelerationStatus().encoder;
+      proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, copyVideo, startSeconds, hardwareAttempt);
+      (proc as any).__cinelocalHardwareAttempt = hardwareAttempt;
     } catch (err: any) {
       throw new Error(`Erro ao iniciar processo FFmpeg: ${err.message}`);
     }
@@ -372,9 +369,10 @@ export async function getOrCreateHlsSession(
       await new Promise((resolve) => setTimeout(resolve, 150));
     }
 
-    // If copy failed or crashed immediately, attempt fallback to ultrafast transcode
-    if ((!manifestReady || (hasExited && exitCode !== 0)) && copyVideo && !spawnError) {
-      console.warn(`[HLS] Remux copy failed, attempting transcode fallback...`);
+    // If copy or hardware encoding failed, retry once with software libx264.
+    const hardwareAttempt = Boolean((proc as any).__cinelocalHardwareAttempt);
+    if ((!manifestReady || (hasExited && exitCode !== 0)) && (copyVideo || hardwareAttempt)) {
+      console.warn(`[HLS] ${hardwareAttempt ? 'Hardware/transcode' : 'Remux'} failed, attempting software fallback...`);
       try {
         proc.kill('SIGKILL');
       } catch {}
@@ -382,9 +380,10 @@ export async function getOrCreateHlsSession(
       stderrTail = '';
       hasExited = false;
       exitCode = null;
+      spawnError = null;
 
       try {
-        proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, false, startSeconds);
+        proc = spawnFfmpegHls(ffmpeg, filePath, manifestPath, sessionDir, audioStreamIndex, false, startSeconds, false);
         proc.on('error', (err) => {
           spawnError = err;
           console.error(`[HLS Fallback] Process error for session ${sessionId}:`, err);

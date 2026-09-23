@@ -15,7 +15,27 @@ export interface SubtitleTrackInfo {
   title?: string;
   isExternal?: boolean;
   isImported?: boolean;
+  source?: 'local' | 'opensubtitles';
   filePath?: string;
+}
+
+export interface OnlineSubtitleOption {
+  id: string;
+  fileId: number;
+  language: string;
+  languageName?: string;
+  release?: string;
+  fileName?: string;
+  fps?: number;
+  hearingImpaired?: boolean;
+  downloadCount?: number;
+}
+
+export interface HardwareAccelerationStatus {
+  mode: 'auto' | 'off' | 'software';
+  encoder?: string;
+  hwaccel?: string;
+  availableEncoders: string[];
 }
 
 export interface CastMember {
@@ -113,6 +133,8 @@ export interface SystemStatus {
   totalItems: number;
   platform: string;
   tmdbConfigured?: boolean;
+  openSubtitlesConfigured?: boolean;
+  hardwareAcceleration?: HardwareAccelerationStatus;
 }
 
 export interface BrowseItem {

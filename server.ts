@@ -42,6 +42,7 @@ async function startServer() {
     if (req.path.startsWith('/api/media/')) {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
       res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
       if (req.method === 'OPTIONS') {
         res.sendStatus(204);

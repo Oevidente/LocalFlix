@@ -9,7 +9,7 @@ import { RelocateModal } from './components/RelocateModal';
 import { SystemModal } from './components/SystemModal';
 import { TorrentModal } from './components/TorrentModal';
 import { TorrentPlayer } from './components/TorrentPlayer';
-import { LibraryData, MediaItem, Episode, TorrentStatus } from './types';
+import { LibraryData, MediaItem, Episode, OnlineSubtitleOption, TorrentStatus } from './types';
 import { FolderPlus, Film, Tv, Play, HardDrive, RefreshCw } from 'lucide-react';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -143,6 +143,31 @@ export default function App() {
     if (!res.ok) {
       throw new Error(data.error || 'Não foi possível remover a legenda.');
     }
+    await fetchLibrary();
+  };
+
+  const handleSearchOnlineSubtitles = async (mediaId: string, episodeId: string): Promise<OnlineSubtitleOption[]> => {
+    const language = library?.settings.preferredSubtitleLanguage || 'pt-br';
+    const res = await fetch(
+      `/api/media/${mediaId}/episode/${episodeId}/subtitles/online?language=${encodeURIComponent(language)}`
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Não foi possível buscar legendas online.');
+    return Array.isArray(data.items) ? data.items : [];
+  };
+
+  const handleDownloadOnlineSubtitle = async (
+    mediaId: string,
+    episodeId: string,
+    option: OnlineSubtitleOption
+  ) => {
+    const res = await fetch(`/api/media/${mediaId}/episode/${episodeId}/subtitles/online/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(option),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Não foi possível baixar a legenda online.');
     await fetchLibrary();
   };
 
@@ -524,6 +549,8 @@ export default function App() {
           onUpdateBanner={handleUpdateBanner}
           onImportSubtitle={handleImportSubtitle}
           onRemoveImportedSubtitle={handleRemoveImportedSubtitle}
+          onSearchOnlineSubtitles={handleSearchOnlineSubtitles}
+          onDownloadOnlineSubtitle={handleDownloadOnlineSubtitle}
         />
       )}
 

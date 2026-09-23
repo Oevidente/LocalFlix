@@ -15,9 +15,11 @@ import {
   Check,
   Loader2,
   Upload,
+  Search,
+  Download,
   Star,
 } from 'lucide-react';
-import { MediaItem, Episode, Season } from '../types';
+import { MediaItem, Episode, OnlineSubtitleOption, Season } from '../types';
 import { formatTime, formatBytes } from '../utils';
 
 interface MediaDetailModalProps {
@@ -31,6 +33,8 @@ interface MediaDetailModalProps {
   onUpdateBanner?: (mediaId: string, bannerUrl: string) => Promise<boolean>;
   onImportSubtitle: (mediaId: string, episodeId: string, file: File) => Promise<void>;
   onRemoveImportedSubtitle: (mediaId: string, episodeId: string, trackIndex: number) => Promise<void>;
+  onSearchOnlineSubtitles: (mediaId: string, episodeId: string) => Promise<OnlineSubtitleOption[]>;
+  onDownloadOnlineSubtitle: (mediaId: string, episodeId: string, option: OnlineSubtitleOption) => Promise<void>;
 }
 
 export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
@@ -44,6 +48,8 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   onUpdateBanner,
   onImportSubtitle,
   onRemoveImportedSubtitle,
+  onSearchOnlineSubtitles,
+  onDownloadOnlineSubtitle,
 }) => {
   const [selectedSeasonNumber, setSelectedSeasonNumber] = useState<number>(
     media.seasons[0]?.seasonNumber || 1
@@ -57,6 +63,9 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const [importingSubtitleEpisodeId, setImportingSubtitleEpisodeId] = useState<string | null>(null);
   const [removingSubtitleKey, setRemovingSubtitleKey] = useState<string | null>(null);
   const [subtitleMessage, setSubtitleMessage] = useState<{ episodeId: string; text: string; error?: boolean } | null>(null);
+  const [onlineSubtitleOptions, setOnlineSubtitleOptions] = useState<Record<string, OnlineSubtitleOption[]>>({});
+  const [searchingOnlineEpisodeId, setSearchingOnlineEpisodeId] = useState<string | null>(null);
+  const [downloadingOnlineFileId, setDownloadingOnlineFileId] = useState<number | null>(null);
 
   const selectedSeason: Season | undefined =
     media.seasons.find((s) => s.seasonNumber === selectedSeasonNumber) || media.seasons[0];
@@ -103,6 +112,44 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
       });
     } finally {
       setRemovingSubtitleKey(null);
+    }
+  };
+
+  const handleSearchOnline = async (episodeId: string) => {
+    setSearchingOnlineEpisodeId(episodeId);
+    setSubtitleMessage(null);
+    try {
+      const options = await onSearchOnlineSubtitles(media.id, episodeId);
+      setOnlineSubtitleOptions((current) => ({ ...current, [episodeId]: options }));
+      if (options.length === 0) {
+        setSubtitleMessage({ episodeId, text: 'Nenhuma legenda encontrada para este episódio.', error: true });
+      }
+    } catch (error) {
+      setSubtitleMessage({
+        episodeId,
+        text: error instanceof Error ? error.message : 'Não foi possível buscar legendas online.',
+        error: true,
+      });
+    } finally {
+      setSearchingOnlineEpisodeId(null);
+    }
+  };
+
+  const handleDownloadOnline = async (episodeId: string, option: OnlineSubtitleOption) => {
+    setDownloadingOnlineFileId(option.fileId);
+    setSubtitleMessage(null);
+    try {
+      await onDownloadOnlineSubtitle(media.id, episodeId, option);
+      setSubtitleMessage({ episodeId, text: 'Legenda online baixada e adicionada.' });
+      setOnlineSubtitleOptions((current) => ({ ...current, [episodeId]: [] }));
+    } catch (error) {
+      setSubtitleMessage({
+        episodeId,
+        text: error instanceof Error ? error.message : 'Não foi possível baixar a legenda online.',
+        error: true,
+      });
+    } finally {
+      setDownloadingOnlineFileId(null);
     }
   };
 
@@ -562,11 +609,56 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                           {subtitleMessage.text}
                         </div>
                       )}
+                      {(onlineSubtitleOptions[ep.id] || []).length > 0 && (
+                        <div className="mt-2 flex max-w-xl flex-wrap gap-1.5">
+                          {(onlineSubtitleOptions[ep.id] || []).slice(0, 6).map((option) => (
+                            <button
+                              key={option.fileId}
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleDownloadOnline(ep.id, option);
+                              }}
+                              disabled={downloadingOnlineFileId === option.fileId}
+                              className="inline-flex max-w-[16rem] items-center gap-1 rounded bg-indigo-950/60 px-2 py-1 text-[10px] text-indigo-200 hover:bg-indigo-800/70 disabled:opacity-50"
+                              title={option.release || option.fileName || 'Baixar legenda'}
+                            >
+                              {downloadingOnlineFileId === option.fileId ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Download className="h-3 w-3" />
+                              )}
+                              <span className="truncate">
+                                {option.languageName || option.language} {option.release ? `· ${option.release}` : ''}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Right: Actions */}
                   <div className="flex items-center justify-end space-x-3 shrink-0 self-end sm:self-center">
+                    {/* Search online subtitle */}
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void handleSearchOnline(ep.id);
+                      }}
+                      disabled={searchingOnlineEpisodeId === ep.id}
+                      className="flex items-center space-x-1 rounded bg-indigo-950/60 px-2.5 py-1 text-xs text-indigo-200 transition-colors hover:bg-indigo-800/70 hover:text-white disabled:opacity-60"
+                      title="Buscar legendas no OpenSubtitles"
+                    >
+                      {searchingOnlineEpisodeId === ep.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Search className="h-3.5 w-3.5" />
+                      )}
+                      <span className="hidden sm:inline">Online</span>
+                    </button>
+
                     {/* Import subtitle */}
                     <label
                       htmlFor={`subtitle-import-${ep.id}`}

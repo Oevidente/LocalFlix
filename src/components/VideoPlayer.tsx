@@ -94,6 +94,23 @@ function getCastCustomData(media: any): Record<string, any> {
   return {};
 }
 
+function createCastTextTrackStyle(mediaApi: any): any | undefined {
+  if (typeof mediaApi?.TextTrackStyle !== 'function') return undefined;
+
+  const style = new mediaApi.TextTrackStyle();
+  // Explicitly set visible colors and an outline. Some Default Media Receiver
+  // versions expose CC controls but otherwise render the track transparent.
+  style.foregroundColor = '#FFFFFFFF';
+  style.backgroundColor = '#000000B3';
+  style.edgeType = mediaApi.TextTrackEdgeType?.OUTLINE || 'OUTLINE';
+  style.edgeColor = '#000000FF';
+  style.fontScale = 1.0;
+  style.fontGenericFamily = mediaApi.TextTrackFontGenericFamily?.SANS_SERIF || 'SANS_SERIF';
+  style.fontStyle = mediaApi.TextTrackFontStyle?.NORMAL || 'NORMAL';
+  style.windowType = mediaApi.TextTrackWindowType?.NONE || 'NONE';
+  return style;
+}
+
 type SubtitleSize = 'small' | 'medium' | 'large';
 
 const SUBTITLE_SIZE_STORAGE_KEY = 'cinelocal-subtitle-size';
@@ -908,8 +925,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       for (const baseUrl of baseUrls) {
         try {
-          const mediaInfo = new mediaApi.MediaInfo(`${baseUrl}${streamPath}`, contentType);
-          mediaInfo.streamType = mediaApi.StreamType.BUFFERED;
+           const mediaInfo = new mediaApi.MediaInfo(`${baseUrl}${streamPath}`, contentType);
+           mediaInfo.streamType = mediaApi.StreamType.BUFFERED;
+           const castTextTrackStyle = createCastTextTrackStyle(mediaApi);
+           if (castTextTrackStyle) {
+             mediaInfo.textTrackStyle = castTextTrackStyle;
+           }
 
           if (shouldUseHls) {
             if (mediaApi.HlsSegmentFormat?.TS) {
@@ -934,11 +955,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           };
 
           const loadRequest = new mediaApi.LoadRequest(mediaInfo);
-          const targetSubtitleIndex = targetEpisode.id === episode.id
-            ? selectedSubtitleIndex
-            : targetEpisode.selectedSubtitleIndex ?? -1;
-          const targetSubtitleOffset = (targetEpisode.id === episode.id ? subtitleOffsetSeconds : 0) - castStartOffset;
-          const textTrackType = mediaApi.TrackType?.TEXT || 'TEXT';
+       const targetSubtitleIndex = targetEpisode.id === episode.id
+         ? selectedSubtitleIndex
+         : targetEpisode.selectedSubtitleIndex ?? -1;
+       const targetSubtitleOffset = (targetEpisode.id === episode.id ? subtitleOffsetSeconds : 0) - castStartOffset;
+       const selectedTargetSubtitle = targetSubtitleIndex >= 0 ? targetEpisode.subtitleTracks[targetSubtitleIndex] : undefined;
+       if (selectedTargetSubtitle) {
+         // Warm the server-side WebVTT cache from the sender. This avoids
+         // making the receiver wait for FFmpeg extraction on its short track
+         // request timeout, especially when an MKV starts at a later offset.
+         try {
+           await fetch(
+             `/api/media/${targetMedia.id}/episode/${targetEpisode.id}/subtitles/${selectedTargetSubtitle.index}?offset=${encodeURIComponent(targetSubtitleOffset)}`
+           );
+         } catch {}
+       }
+       const textTrackType = mediaApi.TrackType?.TEXT || 'TEXT';
           if (targetEpisode.subtitleTracks.length > 0) {
             mediaInfo.tracks = targetEpisode.subtitleTracks.map((track) => {
               const castTrack = new mediaApi.Track(track.index + 1, textTrackType);
@@ -974,15 +1006,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           const activeCastTrackId = targetSubtitleIndex >= 0
             ? mediaInfo.tracks?.[targetSubtitleIndex]?.trackId
             : undefined;
-          if (
-            activeCastTrackId &&
-            mediaApi.EditTracksInfoRequest &&
-            typeof remoteMedia.editTracksInfo === 'function'
-          ) {
-            const editTracksRequest = new mediaApi.EditTracksInfoRequest([activeCastTrackId]);
-            await new Promise<void>((resolve) => {
-              remoteMedia.editTracksInfo(editTracksRequest, () => resolve(), () => resolve());
-            });
+           if (
+             mediaInfo.tracks?.length > 0 &&
+             mediaApi.EditTracksInfoRequest &&
+             typeof remoteMedia.editTracksInfo === 'function'
+           ) {
+             const editTracksRequest = new mediaApi.EditTracksInfoRequest(
+               activeCastTrackId ? [activeCastTrackId] : [],
+               castTextTrackStyle
+             );
+             await new Promise<void>((resolve) => {
+               remoteMedia.editTracksInfo(editTracksRequest, () => resolve(), () => resolve());
+             });
           }
 
           if (!shouldUseHls && position > 0 && mediaApi.SeekRequest && typeof remoteMedia.seek === 'function') {
@@ -1142,8 +1177,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (!castMediaRef.current) return;
       const mediaApi = (window as any).chrome?.cast?.media;
       const trackId = index >= 0 ? (episode.subtitleTracks[index]?.index ?? index) + 1 : undefined;
+      const castTextTrackStyle = createCastTextTrackStyle(mediaApi);
       const request = mediaApi?.EditTracksInfoRequest
-        ? new mediaApi.EditTracksInfoRequest(trackId ? [trackId] : [])
+        ? new mediaApi.EditTracksInfoRequest(trackId ? [trackId] : [], castTextTrackStyle)
         : undefined;
       sendCastMediaCommand('editTracksInfo', request);
       saveProgress(castCurrentTimeRef.current, duration, false, true, selectedAudioIndex, index);

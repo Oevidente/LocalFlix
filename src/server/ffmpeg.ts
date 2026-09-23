@@ -1,7 +1,8 @@
 import { spawn, execFile, spawnSync } from 'child_process';
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { AudioTrackInfo, SubtitleTrackInfo } from '../types';
+import { AudioTrackInfo, HardwareAccelerationStatus, SubtitleTrackInfo } from '../types';
 import { getThumbnailDir } from './storage';
 
 export interface FFprobeData {
@@ -15,6 +16,7 @@ export interface FFprobeData {
 
 let cachedFfmpegPath: string | null | undefined = undefined;
 let cachedFfprobePath: string | null | undefined = undefined;
+let cachedHardwareStatus: HardwareAccelerationStatus | undefined;
 
 // Test if an executable or command name actually exists and can be executed
 function testExecutable(binPath: string, arg: string = '-version'): boolean {
@@ -177,6 +179,103 @@ export function getBinaries(): { ffmpeg: string | null; ffprobe: string | null }
   return { ffmpeg: resolvedFfmpeg, ffprobe: resolvedFfprobe };
 }
 
+function readAvailableVideoEncoders(ffmpeg: string): string[] {
+  try {
+    const result = spawnSync(ffmpeg, ['-hide_banner', '-encoders'], {
+      timeout: 5000,
+      windowsHide: true,
+      encoding: 'utf8',
+    });
+    const output = `${result.stdout || ''}\n${result.stderr || ''}`;
+    return ['h264_nvenc', 'h264_qsv', 'h264_amf', 'h264_vaapi'].filter((encoder) => output.includes(encoder));
+  } catch {
+    return [];
+  }
+}
+
+export function getHardwareAccelerationStatus(): HardwareAccelerationStatus {
+  if (cachedHardwareStatus) return cachedHardwareStatus;
+
+  const configuredMode = process.env.FFMPEG_HW_ACCELERATION?.trim().toLowerCase();
+  const mode: HardwareAccelerationStatus['mode'] = configuredMode === 'off' || configuredMode === 'software'
+    ? configuredMode
+    : 'auto';
+  const { ffmpeg } = getBinaries();
+  const availableEncoders = ffmpeg ? readAvailableVideoEncoders(ffmpeg) : [];
+  const requestedEncoder = process.env.FFMPEG_VIDEO_ENCODER?.trim().toLowerCase();
+  const preferredOrder = requestedEncoder
+    ? [requestedEncoder]
+    : ['h264_nvenc', 'h264_qsv', 'h264_amf', 'h264_vaapi'];
+  const encoder = mode === 'auto'
+    ? preferredOrder.find((candidate) => availableEncoders.includes(candidate))
+    : undefined;
+
+  cachedHardwareStatus = { mode, encoder, availableEncoders };
+  return cachedHardwareStatus;
+}
+
+export interface VideoEncodingPlan {
+  inputArgs: string[];
+  outputArgs: string[];
+  encoder: string;
+  hardware: boolean;
+}
+
+export function getVideoEncodingPlan(preferHardware = true): VideoEncodingPlan {
+  const status = getHardwareAccelerationStatus();
+  const encoder = preferHardware && status.mode === 'auto' ? status.encoder : undefined;
+
+  if (encoder === 'h264_nvenc') {
+    return {
+      inputArgs: ['-hwaccel', 'auto'],
+      outputArgs: ['-c:v', 'h264_nvenc', '-preset', 'p4', '-rc', 'vbr', '-cq', '23', '-b:v', '0', '-profile:v', 'main', '-pix_fmt', 'yuv420p'],
+      encoder,
+      hardware: true,
+    };
+  }
+  if (encoder === 'h264_qsv') {
+    return {
+      inputArgs: ['-hwaccel', 'auto'],
+      outputArgs: ['-c:v', 'h264_qsv', '-preset', 'veryfast', '-global_quality', '23', '-profile:v', 'main', '-pix_fmt', 'yuv420p'],
+      encoder,
+      hardware: true,
+    };
+  }
+  if (encoder === 'h264_amf') {
+    return {
+      inputArgs: ['-hwaccel', 'auto'],
+      outputArgs: ['-c:v', 'h264_amf', '-quality', 'speed', '-rc', 'cqp', '-qp_i', '23', '-qp_p', '23', '-profile:v', 'main', '-pix_fmt', 'yuv420p'],
+      encoder,
+      hardware: true,
+    };
+  }
+  if (encoder === 'h264_vaapi') {
+    return {
+      inputArgs: [],
+      outputArgs: ['-c:v', 'h264_vaapi', '-qp', '23', '-profile:v', 'main'],
+      encoder,
+      hardware: true,
+    };
+  }
+
+  return {
+    inputArgs: [],
+    outputArgs: [
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-tune', 'zerolatency',
+      '-profile:v', 'baseline',
+      '-level', '3.1',
+      '-crf', '23',
+      '-pix_fmt', 'yuv420p',
+      '-g', '30',
+      '-keyint_min', '30',
+    ],
+    encoder: 'libx264',
+    hardware: false,
+  };
+}
+
 // Automatically download and install portable FFmpeg for Windows/Linux into ./bin/ folder
 export async function downloadAndInstallFFmpeg(): Promise<{ success: boolean; message: string; binaries: { ffmpeg: string | null; ffprobe: string | null } }> {
   const rootDir = process.cwd();
@@ -268,6 +367,7 @@ Write-Output 'DONE';
 export function invalidateBinariesCache() {
   cachedFfmpegPath = undefined;
   cachedFfprobePath = undefined;
+  cachedHardwareStatus = undefined;
 }
 
 // Helper to parse duration from string (e.g. seconds or HH:MM:SS.mmm format from MKV tags)
@@ -491,12 +591,66 @@ function formatWebVttTimestamp(totalSeconds: number): string {
 }
 
 export function shiftWebVttTimestamps(content: string, offsetSeconds: number): string {
-  if (!Number.isFinite(offsetSeconds) || offsetSeconds === 0) return content;
+  const safeOffset = Number.isFinite(offsetSeconds) ? offsetSeconds : 0;
+  const normalized = content.replace(/\r\n?/g, '\n').trimEnd();
+  if (!normalized) return 'WEBVTT\n\n';
 
-  return content.replace(
-    /(\d{1,3}:\d{2}(?::\d{2})?\.\d{3})\s+-->\s+(\d{1,3}:\d{2}(?::\d{2})?\.\d{3})/g,
-    (_match, start, end) => `${formatWebVttTimestamp(parseWebVttTimestamp(start) + offsetSeconds)} --> ${formatWebVttTimestamp(parseWebVttTimestamp(end) + offsetSeconds)}`
-  );
+  const blocks = normalized.split(/\n{2,}/);
+  const validBlocks: string[] = [];
+  const timingRegex = /^(\s*)(\d{1,3}:\d{2}(?::\d{2})?[\.,]\d{3})\s+-->\s+(\d{1,3}:\d{2}(?::\d{2})?[\.,]\d{3})(.*)$/;
+
+  for (const block of blocks) {
+    const lines = block.split('\n');
+    const timingIndex = lines.findIndex((line) => line.includes('-->'));
+    if (timingIndex < 0) {
+      validBlocks.push(block);
+      continue;
+    }
+
+    const match = lines[timingIndex].match(timingRegex);
+    if (!match) {
+      validBlocks.push(block);
+      continue;
+    }
+
+    const start = parseWebVttTimestamp(match[2].replace(',', '.')) + safeOffset;
+    const end = parseWebVttTimestamp(match[3].replace(',', '.')) + safeOffset;
+    const clampedStart = Math.max(0, start);
+    const clampedEnd = Math.max(0, end);
+
+    // Chromecast rejects zero-length and fully-negative cues. Dropping them
+    // is safer than collapsing both timestamps to 00:00:00.000.
+    if (clampedEnd <= 0 || clampedEnd <= clampedStart) continue;
+
+    lines[timingIndex] = `${match[1]}${formatWebVttTimestamp(clampedStart)} --> ${formatWebVttTimestamp(clampedEnd)}${match[4] || ''}`;
+    validBlocks.push(lines.join('\n'));
+  }
+
+  const header = validBlocks[0]?.trimStart().toUpperCase().startsWith('WEBVTT') ? validBlocks.shift() : 'WEBVTT';
+  return `${[header, ...validBlocks].filter(Boolean).join('\n\n')}\n\n`;
+}
+
+export function isBitmapSubtitleCodec(codec?: string): boolean {
+  return /pgs|dvd[_-]?subtitle|dvb[_-]?subtitle|vobsub|xsub|teletext/i.test(codec || '');
+}
+
+function getSubtitleCachePath(filePath: string, streamIndex: number, offsetSeconds: number): string {
+  const stat = fs.statSync(filePath);
+  const key = crypto.createHash('sha1')
+    .update(`${path.resolve(filePath)}:${stat.size}:${stat.mtimeMs}:${streamIndex}:${offsetSeconds.toFixed(3)}`)
+    .digest('hex');
+  return path.join(process.cwd(), '.cache', 'subtitles', `${key}.vtt`);
+}
+
+function writeSubtitleCache(cachePath: string, content: string): void {
+  try {
+    fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+    const tempPath = `${cachePath}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(tempPath, content, 'utf8');
+    fs.renameSync(tempPath, cachePath);
+  } catch (error) {
+    console.warn('[Subtitles] Não foi possível gravar cache WebVTT:', error instanceof Error ? error.message : error);
+  }
 }
 
 export function streamSubtitlesToVtt(
@@ -511,8 +665,16 @@ export function streamSubtitlesToVtt(
     return;
   }
 
+  const cachePath = getSubtitleCachePath(filePath, streamIndex, Number.isFinite(offsetSeconds) ? offsetSeconds : 0);
+  if (fs.existsSync(cachePath) && fs.statSync(cachePath).size > 0) {
+    res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.sendFile(cachePath);
+    return;
+  }
+
   res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Cache-Control', 'public, max-age=60');
 
   const args = [
     '-i', filePath,
@@ -522,17 +684,22 @@ export function streamSubtitlesToVtt(
   ];
 
   const proc = spawn(ffmpeg, args);
-  if (!Number.isFinite(offsetSeconds) || offsetSeconds === 0) {
-    proc.stdout.pipe(res);
-  } else {
-    const chunks: Buffer[] = [];
-    proc.stdout.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
-    proc.stdout.on('end', () => {
-      if (!res.writableEnded) {
-        res.send(shiftWebVttTimestamps(Buffer.concat(chunks).toString('utf8'), offsetSeconds));
-      }
-    });
-  }
+  const chunks: Buffer[] = [];
+  proc.stdout.on('data', (chunk) => {
+    const buffer = Buffer.from(chunk);
+    chunks.push(buffer);
+    if (offsetSeconds === 0 && !res.writableEnded) res.write(buffer);
+  });
+  proc.stdout.on('end', () => {
+    const raw = Buffer.concat(chunks).toString('utf8');
+    const output = shiftWebVttTimestamps(raw, offsetSeconds);
+    writeSubtitleCache(cachePath, output);
+    if (offsetSeconds !== 0 && !res.writableEnded) {
+      res.end(output);
+    } else if (!res.writableEnded) {
+      res.end();
+    }
+  });
 
   proc.stderr.on('data', () => {}); // silence or debug
   proc.on('error', (err) => {
