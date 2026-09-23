@@ -1,14 +1,18 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
-import { VitePWA } from 'vite-plugin-pwa';
+import { defineConfig, type PluginOption } from 'vite';
 
-export default defineConfig(() => {
-  return {
-    plugins: [
-      react(),
-      tailwindcss(),
+export default defineConfig(async () => {
+  const plugins: PluginOption[] = [
+    react(),
+    tailwindcss(),
+  ];
+
+  try {
+    const pwaModule = await import('vite-plugin-pwa');
+    const VitePWA = pwaModule.VitePWA;
+    plugins.push(
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.png', 'apple-touch-icon.png', 'icon.svg'],
@@ -52,8 +56,16 @@ export default defineConfig(() => {
           enabled: true,
           type: 'module',
         },
-      }),
-    ],
+      })
+    );
+  } catch (err) {
+    console.warn('[CineLocal] Aviso: O pacote "vite-plugin-pwa" não está instalado no node_modules.');
+    console.warn('[CineLocal] O CineLocal iniciará normalmente sem o módulo de Service Worker PWA.');
+    console.warn('[CineLocal] Para ativar todos os recursos do PWA, execute "instalar dependências.bat".');
+  }
+
+  return {
+    plugins,
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, '.'),

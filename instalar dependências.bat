@@ -76,6 +76,11 @@ if not exist "%APP_DIR%node_modules\hls.js" (
     pause
     exit /b 1
 )
+if not exist "%APP_DIR%node_modules\vite-plugin-pwa" (
+    echo [ERRO] A dependencia vite-plugin-pwa nao foi instalada corretamente.
+    pause
+    exit /b 1
+)
 
 where ffmpeg >nul 2>&1
 if errorlevel 1 if not exist "%APP_DIR%bin\ffmpeg.exe" (

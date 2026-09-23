@@ -57,6 +57,15 @@ if not exist "%~dp0node_modules\tsx" (
     pause
     exit /b 1
 )
+if not exist "%~dp0node_modules\vite-plugin-pwa" (
+    echo [AVISO] O modulo vite-plugin-pwa ainda nao esta instalado na pasta node_modules.
+    echo Tentando atualizar dependencias automaticamente...
+    call npm.cmd install vite-plugin-pwa --save
+    if errorlevel 1 (
+        echo [AVISO] Nao foi possivel baixar o modulo vite-plugin-pwa agora.
+        echo O CineLocal prosseguira com o servidor offline padrao.
+    )
+)
 
 :: Verifica se o FFmpeg esta presente
 where ffmpeg >nul 2>&1

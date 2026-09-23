@@ -34,7 +34,7 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 
 # Instala ou atualiza dependências se necessário
-if [ ! -d "$DIR/node_modules" ] || [ ! -d "$DIR/node_modules/hls.js" ] || [ ! -d "$DIR/node_modules/tsx" ]; then
+if [ ! -d "$DIR/node_modules" ] || [ ! -d "$DIR/node_modules/hls.js" ] || [ ! -d "$DIR/node_modules/tsx" ] || [ ! -d "$DIR/node_modules/vite-plugin-pwa" ]; then
   echo "[INFO] Instalando/atualizando dependências necessárias (npm install)..."
   npm install
   echo "[OK] Dependências instaladas com sucesso!"
