@@ -72,6 +72,10 @@ export interface Episode {
   airDate?: string;
   rating?: number;
   stillPath?: string;
+  isTorrent?: boolean;
+  fileIndex?: number;
+  magnetUri?: string;
+  infoHash?: string;
 }
 
 export interface Season {
@@ -108,6 +112,9 @@ export interface MediaItem {
   lastWatchedAt?: string;
   createdAt: string;
   updatedAt: string;
+  isTorrent?: boolean;
+  magnetUri?: string;
+  infoHash?: string;
 }
 
 export interface LibraryData {

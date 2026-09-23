@@ -13,6 +13,7 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
+  CheckCircle2,
 } from 'lucide-react';
 import { TorrentStatus, TorrentHistoryItem, TorrentFileItem } from '../types';
 import { formatTime, formatBytes } from '../utils';
@@ -294,24 +295,33 @@ export const TorrentModal: React.FC<TorrentModalProps> = ({
               )}
 
               {/* Action Button */}
-              <button
-                onClick={handleLaunchPlayer}
-                disabled={status.state === 'error' || (videoFiles.length === 0 && status.state !== 'ready')}
-                className="w-full py-3 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 disabled:opacity-50 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-red-950/40 cursor-pointer"
-              >
-                <Play className="w-4 h-4 fill-current" />
-                <span>Assistir no Player CineLocal</span>
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={handleLaunchPlayer}
+                  disabled={status.state === 'error' || (videoFiles.length === 0 && status.state !== 'ready')}
+                  className="w-full py-3 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 disabled:opacity-50 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-red-950/40 cursor-pointer"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>Assistir no Player CineLocal</span>
+                </button>
+                <div className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-400/90 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Salvo na sua Biblioteca (disponível no catálogo principal)</span>
+                </div>
+              </div>
             </div>
           )}
 
           {/* History List */}
           {history.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                Torrents Recentes
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  Torrents na Biblioteca
+                </h3>
+                <span className="text-[11px] text-zinc-500">Salvos no catálogo</span>
+              </div>
               <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                 {history.map((item) => (
                   <div
@@ -328,10 +338,13 @@ export const TorrentModal: React.FC<TorrentModalProps> = ({
                           {item.name}
                         </p>
                         <div className="flex items-center gap-2 text-[10px] text-zinc-400 mt-0.5">
-                          {item.totalBytes ? <span>{formatBytes(item.totalBytes)}</span> : null}
+                          <span className="text-emerald-400/80 font-medium flex items-center gap-1">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> Na Biblioteca
+                          </span>
+                          {item.totalBytes ? <span>• {formatBytes(item.totalBytes)}</span> : null}
                           {item.progressSeconds && item.progressSeconds > 10 ? (
                             <span className="text-amber-400">
-                              Parou em: {formatTime(item.progressSeconds)}
+                              • Parou em: {formatTime(item.progressSeconds)}
                             </span>
                           ) : null}
                         </div>

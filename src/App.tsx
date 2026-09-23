@@ -213,7 +213,7 @@ export default function App() {
   };
 
   // Start playback
-  const handlePlayEpisode = (media: MediaItem, episode?: Episode) => {
+  const handlePlayEpisode = async (media: MediaItem, episode?: Episode) => {
     let targetEp = episode;
     if (!targetEp) {
       if (media.lastWatchedEpisodeId) {
@@ -229,6 +229,33 @@ export default function App() {
     if (!targetEp && media.seasons[0]?.episodes[0]) {
       targetEp = media.seasons[0].episodes[0];
     }
+
+    if (media.isTorrent || targetEp?.isTorrent || media.folderPath?.startsWith('torrent://')) {
+      setActiveMediaDetail(null);
+      const magnetUri =
+        media.magnetUri ||
+        targetEp?.magnetUri ||
+        (media.infoHash ? `magnet:?xt=urn:btih:${media.infoHash}` : targetEp?.filePath?.replace('torrent://', 'magnet:?xt=urn:btih:') || '');
+
+      const fileIdx = targetEp?.fileIndex ?? 0;
+      if (magnetUri) {
+        try {
+          const res = await fetch('/api/torrent/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ magnetUri }),
+          });
+          if (res.ok) {
+            const torrentStatus: TorrentStatus = await res.json();
+            setPlayingTorrent({ status: torrentStatus, selectedFileIndex: fileIdx });
+            return;
+          }
+        } catch (err) {
+          console.error('Erro ao reproduzir torrent da biblioteca:', err);
+        }
+      }
+    }
+
     if (targetEp) {
       setActiveMediaDetail(null);
       setPlayingState({ media, episode: targetEp });
@@ -601,9 +628,13 @@ export default function App() {
       {/* Torrent & Magnet Modal */}
       <TorrentModal
         isOpen={showTorrentModal}
-        onClose={() => setShowTorrentModal(false)}
+        onClose={() => {
+          setShowTorrentModal(false);
+          fetchLibrary();
+        }}
         onPlayTorrent={(status, fileIndex) => {
           setPlayingTorrent({ status, selectedFileIndex: fileIndex });
+          fetchLibrary();
         }}
       />
 
@@ -612,7 +643,10 @@ export default function App() {
         <TorrentPlayer
           status={playingTorrent.status}
           selectedFileIndex={playingTorrent.selectedFileIndex}
-          onClose={() => setPlayingTorrent(null)}
+          onClose={() => {
+            setPlayingTorrent(null);
+            fetchLibrary();
+          }}
           onSelectFile={(fileIndex) => {
             setPlayingTorrent((prev) => (prev ? { ...prev, selectedFileIndex: fileIndex } : null));
           }}

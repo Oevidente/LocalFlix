@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Info, CheckCircle2 } from 'lucide-react';
+import { Play, Info, CheckCircle2, Radio } from 'lucide-react';
 import { MediaItem, Episode } from '../types';
 import { formatTime } from '../utils';
 
@@ -74,6 +74,12 @@ export const MediaCard: React.FC<MediaCardProps> = ({
           <span className="bg-black/70 backdrop-blur-xs text-[10px] uppercase font-bold text-neutral-200 px-1.5 py-0.5 rounded">
             {media.kind === 'series' ? 'Série' : 'Filme'}
           </span>
+          {media.isTorrent && (
+            <span className="bg-red-950/90 text-red-300 border border-red-800/60 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow-sm">
+              <Radio className="w-2.5 h-2.5 text-red-400" />
+              Magnet
+            </span>
+          )}
           {isAllWatched && (
             <span className="bg-emerald-950/80 text-emerald-400 border border-emerald-800/40 p-0.5 rounded-full" title="Assistido">
               <CheckCircle2 className="w-3.5 h-3.5" />

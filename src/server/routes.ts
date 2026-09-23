@@ -13,6 +13,8 @@ import {
   relocateMediaFolder,
   updateMediaBanner,
   getDataDir,
+  updateTorrentProgressInLibrary,
+  saveTorrentMediaItem,
 } from './storage';
 import { scanMediaFolder } from './scanner';
 import { enrichMediaWithTmdb, isTmdbConfigured } from './tmdb';
@@ -249,6 +251,15 @@ apiRouter.delete('/library/:id', (req: Request, res: Response) => {
   const lib = readLibrary();
   lib.items = lib.items.filter((item) => item.id !== id);
   writeLibrary(lib);
+
+  if (id.startsWith('torrent_')) {
+    const cleanHash = id.replace('torrent_', '');
+    try {
+      removeTorrentHistoryItem(cleanHash);
+      stopTorrent(cleanHash, true).catch(() => {});
+    } catch {}
+  }
+
   res.json({ success: true });
 });
 
@@ -1485,6 +1496,17 @@ apiRouter.post('/torrent/progress', (req: Request, res: Response) => {
     selectedFileIndex: selectedFileIndex || 0,
     totalBytes: totalBytes || 0,
   });
+
+  try {
+    updateTorrentProgressInLibrary(
+      infoHash,
+      selectedFileIndex || 0,
+      progressSeconds || 0,
+      durationSeconds || 0
+    );
+  } catch (err) {
+    console.error('Erro ao atualizar progresso do torrent na biblioteca:', err);
+  }
 
   res.json({ success: true });
 });

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { LibraryData, MediaItem, Episode } from '../types';
+import { LibraryData, MediaItem, Episode, Season } from '../types';
+import { parseEpisodeInfo } from './scanner';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const LIBRARY_FILE = path.join(DATA_DIR, 'library.json');
@@ -225,3 +226,233 @@ export function updateMediaBanner(mediaId: string, bannerUrl: string): boolean {
   writeLibrary(lib, true);
   return true;
 }
+
+const TORRENT_VIDEO_EXTS = new Set(['.mp4', '.mkv', '.avi', '.webm', '.mov', '.m4v', '.wmv', '.flv', '.ts']);
+
+export function saveTorrentMediaItem(params: {
+  infoHash: string;
+  magnetUri: string;
+  name?: string;
+  files?: Array<{ name: string; path?: string; length: number; index: number }>;
+  totalBytes?: number;
+  selectedFileIndex?: number;
+}): MediaItem {
+  const lib = readLibrary();
+  const cleanHash = params.infoHash.toLowerCase();
+  const mediaId = `torrent_${cleanHash}`;
+  const now = new Date().toISOString();
+
+  let existingIndex = lib.items.findIndex((item) => item.id === mediaId);
+  const existing = existingIndex >= 0 ? lib.items[existingIndex] : undefined;
+
+  const rawFiles = params.files || [];
+  const videoFiles = rawFiles.filter((f) => {
+    const ext = path.extname(f.name || '').toLowerCase();
+    return TORRENT_VIDEO_EXTS.has(ext);
+  });
+
+  const displayFiles = videoFiles.length > 0 ? videoFiles : rawFiles;
+  const isSeries = displayFiles.length > 1 || /[Ss]\d{1,2}|Season\s*\d+/i.test(params.name || '');
+
+  // Parse files into episodes
+  const parsedEpisodes: { ep: Episode; seasonNum: number }[] = [];
+  if (displayFiles.length > 0) {
+    displayFiles.forEach((f, idx) => {
+      const parsed = parseEpisodeInfo(f.name, idx + 1);
+      const epId = `ep_torrent_${cleanHash}_${f.index ?? idx}`;
+
+      let existingEp: Episode | undefined;
+      if (existing) {
+        for (const s of existing.seasons) {
+          const found = s.episodes.find((e) => e.id === epId || e.fileName === f.name);
+          if (found) {
+            existingEp = found;
+            break;
+          }
+        }
+      }
+
+      const ep: Episode = {
+        id: epId,
+        seasonNumber: parsed.seasonNumber || 1,
+        episodeNumber: parsed.episodeNumber || idx + 1,
+        title: parsed.cleanTitle || f.name,
+        fileName: f.name,
+        filePath: `torrent://${cleanHash}/${f.index ?? idx}`,
+        extension: path.extname(f.name).toLowerCase() || '.mp4',
+        sizeBytes: f.length || 0,
+        durationSeconds: existingEp?.durationSeconds || 0,
+        audioTracks: existingEp?.audioTracks || [],
+        subtitleTracks: existingEp?.subtitleTracks || [],
+        watched: existingEp?.watched || false,
+        progressSeconds: existingEp?.progressSeconds || 0,
+        lastWatchedAt: existingEp?.lastWatchedAt,
+        selectedAudioIndex: existingEp?.selectedAudioIndex,
+        selectedSubtitleIndex: existingEp?.selectedSubtitleIndex,
+        isTorrent: true,
+        fileIndex: f.index ?? idx,
+        magnetUri: params.magnetUri,
+        infoHash: cleanHash,
+      };
+
+      parsedEpisodes.push({ ep, seasonNum: parsed.seasonNumber || 1 });
+    });
+  } else if (!existing || existing.seasons.length === 0) {
+    // If no files yet discovered and no previous record, create a placeholder episode
+    const epId = `ep_torrent_${cleanHash}_0`;
+    parsedEpisodes.push({
+      seasonNum: 1,
+      ep: {
+        id: epId,
+        seasonNumber: 1,
+        episodeNumber: 1,
+        title: params.name || 'Vídeo do Torrent',
+        fileName: params.name || 'video.mp4',
+        filePath: `torrent://${cleanHash}/0`,
+        extension: '.mp4',
+        sizeBytes: params.totalBytes || 0,
+        durationSeconds: 0,
+        audioTracks: [],
+        subtitleTracks: [],
+        watched: false,
+        progressSeconds: 0,
+        isTorrent: true,
+        fileIndex: 0,
+        magnetUri: params.magnetUri,
+        infoHash: cleanHash,
+      },
+    });
+  }
+
+  // Group into seasons
+  let seasons: Season[] = [];
+  if (parsedEpisodes.length > 0) {
+    const seasonMap = new Map<number, Episode[]>();
+    for (const item of parsedEpisodes) {
+      if (!seasonMap.has(item.seasonNum)) {
+        seasonMap.set(item.seasonNum, []);
+      }
+      seasonMap.get(item.seasonNum)!.push(item.ep);
+    }
+    const sortedSeasonNumbers = Array.from(seasonMap.keys()).sort((a, b) => a - b);
+    seasons = sortedSeasonNumbers.map((num) => {
+      const episodes = seasonMap.get(num)!;
+      episodes.sort((a, b) => a.episodeNumber - b.episodeNumber);
+      return {
+        seasonNumber: num,
+        title: `Temporada ${num}`,
+        episodes,
+      };
+    });
+  } else if (existing) {
+    seasons = existing.seasons;
+  }
+
+  const rawTitle = params.name || (existing ? existing.title : `Torrent ${cleanHash.slice(0, 8)}`);
+  const cleanTitle =
+    rawTitle
+      .replace(/[\[\(].*?[\]\)]/g, ' ')
+      .replace(/(?:1080p|720p|480p|2160p|4k|bluray|webrip|web-dl|hdtv|x264|x265|hevc|aac|dts|yify|yts)/gi, ' ')
+      .replace(/[\._]/g, ' ')
+      .replace(/^[-\s]+|[-\s]+$/g, '')
+      .trim() || rawTitle;
+
+  const totalEpisodes = seasons.reduce((acc, s) => acc + s.episodes.length, 0);
+  const totalSeasons = seasons.length;
+
+  let itemToReturn: MediaItem;
+
+  if (existing) {
+    existing.title = existing.customTitle || cleanTitle || existing.title;
+    existing.folderPath = `torrent://${cleanHash}`;
+    existing.magnetUri = params.magnetUri || existing.magnetUri;
+    existing.infoHash = cleanHash;
+    existing.isTorrent = true;
+    existing.kind = isSeries ? 'series' : 'movie';
+    if (seasons.length > 0) {
+      existing.seasons = seasons;
+      existing.totalEpisodes = totalEpisodes;
+      existing.totalSeasons = totalSeasons;
+    }
+    existing.updatedAt = now;
+    itemToReturn = existing;
+  } else {
+    itemToReturn = {
+      id: mediaId,
+      title: cleanTitle,
+      kind: isSeries ? 'series' : 'movie',
+      folderPath: `torrent://${cleanHash}`,
+      isTorrent: true,
+      magnetUri: params.magnetUri,
+      infoHash: cleanHash,
+      totalEpisodes,
+      totalSeasons,
+      seasons,
+      createdAt: now,
+      updatedAt: now,
+    };
+    lib.items.unshift(itemToReturn);
+  }
+
+  writeLibrary(lib, true);
+  return itemToReturn;
+}
+
+export function updateTorrentProgressInLibrary(
+  infoHash: string,
+  selectedFileIndex: number,
+  progressSeconds: number,
+  durationSeconds?: number
+): boolean {
+  const lib = readLibrary();
+  const cleanHash = infoHash.toLowerCase();
+  const mediaId = `torrent_${cleanHash}`;
+  const media = lib.items.find((item) => item.id === mediaId);
+  if (!media) return false;
+
+  let found = false;
+  const now = new Date().toISOString();
+
+  for (const season of media.seasons) {
+    for (const ep of season.episodes) {
+      if (
+        ep.fileIndex === selectedFileIndex ||
+        ep.id === `ep_torrent_${cleanHash}_${selectedFileIndex}`
+      ) {
+        ep.progressSeconds = Math.max(0, Math.floor(progressSeconds));
+        if (durationSeconds && durationSeconds > 0) {
+          ep.durationSeconds = Math.floor(durationSeconds);
+        }
+        if (ep.durationSeconds > 0 && ep.progressSeconds >= ep.durationSeconds * 0.9) {
+          ep.watched = true;
+        }
+        ep.lastWatchedAt = now;
+        media.lastWatchedEpisodeId = ep.id;
+        media.lastWatchedAt = now;
+        media.updatedAt = now;
+        found = true;
+        break;
+      }
+    }
+    if (found) break;
+  }
+
+  if (found) {
+    writeLibrary(lib);
+  }
+  return found;
+}
+
+export function removeTorrentFromLibrary(infoHash: string): boolean {
+  const lib = readLibrary();
+  const cleanHash = infoHash.toLowerCase();
+  const mediaId = `torrent_${cleanHash}`;
+  const prevLen = lib.items.length;
+  lib.items = lib.items.filter((item) => item.id !== mediaId);
+  if (lib.items.length !== prevLen) {
+    writeLibrary(lib, true);
+    return true;
+  }
+  return false;
+}
+

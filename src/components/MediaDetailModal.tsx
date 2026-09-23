@@ -18,6 +18,7 @@ import {
   Search,
   Download,
   Star,
+  Radio,
 } from 'lucide-react';
 import { MediaItem, Episode, OnlineSubtitleOption, Season } from '../types';
 import { formatTime, formatBytes } from '../utils';
@@ -251,6 +252,12 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                 <span className="bg-[#E50914] text-white px-2 py-0.5 rounded font-black text-[11px] tracking-tight">
                   {media.kind === 'series' ? 'SÉRIE' : 'FILME'}
                 </span>
+                {media.isTorrent && (
+                  <span className="bg-red-950/90 text-red-300 border border-red-800/60 text-[11px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                    <Radio className="w-3 h-3 text-red-400" />
+                    MAGNET / TORRENT
+                  </span>
+                )}
                 <span className="text-neutral-400">·</span>
                 <span>{media.totalEpisodes} Episódio{media.totalEpisodes > 1 ? 's' : ''}</span>
                 {media.totalSeasons > 1 && (
@@ -301,10 +308,21 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
         <div className="px-6 py-3 bg-black/40 border-y border-white/5 flex flex-wrap items-center justify-between gap-3 text-xs">
           {/* Path info */}
           <div className="flex items-center space-x-2 text-neutral-400 max-w-md truncate">
-            <Folder className="w-4 h-4 shrink-0 text-amber-500" />
-            <span className="font-mono truncate" title={media.folderPath}>
-              {media.folderPath}
-            </span>
+            {media.isTorrent ? (
+              <>
+                <Radio className="w-4 h-4 shrink-0 text-red-500" />
+                <span className="font-mono truncate text-neutral-300" title={media.magnetUri || media.folderPath}>
+                  {media.infoHash ? `Hash: ${media.infoHash}` : media.folderPath}
+                </span>
+              </>
+            ) : (
+              <>
+                <Folder className="w-4 h-4 shrink-0 text-amber-500" />
+                <span className="font-mono truncate" title={media.folderPath}>
+                  {media.folderPath}
+                </span>
+              </>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -325,24 +343,28 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
               </button>
             )}
 
-            <button
-              onClick={() => onOpenRelocate(media)}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-medium transition-colors border border-white/5"
-              title="Mudar pasta (caso a letra do drive do pendrive mude)"
-            >
-              <FolderSync className="w-3.5 h-3.5 text-blue-400" />
-              <span>Relocalizar</span>
-            </button>
+            {!media.isTorrent && (
+              <button
+                onClick={() => onOpenRelocate(media)}
+                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-medium transition-colors border border-white/5"
+                title="Mudar pasta (caso a letra do drive do pendrive mude)"
+              >
+                <FolderSync className="w-3.5 h-3.5 text-blue-400" />
+                <span>Relocalizar</span>
+              </button>
+            )}
 
-            <button
-              onClick={handleRescan}
-              disabled={isRescanning}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-medium transition-colors border border-white/5 disabled:opacity-50"
-              title="Escanear pasta novamente para novos episódios"
-            >
-              <RotateCw className={`w-3.5 h-3.5 text-emerald-400 ${isRescanning ? 'animate-spin' : ''}`} />
-              <span>{isRescanning ? 'Escaneando...' : 'Re-escanear'}</span>
-            </button>
+            {!media.isTorrent && (
+              <button
+                onClick={handleRescan}
+                disabled={isRescanning}
+                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-medium transition-colors border border-white/5 disabled:opacity-50"
+                title="Escanear pasta novamente para novos episódios"
+              >
+                <RotateCw className={`w-3.5 h-3.5 text-emerald-400 ${isRescanning ? 'animate-spin' : ''}`} />
+                <span>{isRescanning ? 'Escaneando...' : 'Re-escanear'}</span>
+              </button>
+            )}
 
             {confirmDelete ? (
               <div className="flex items-center space-x-1">

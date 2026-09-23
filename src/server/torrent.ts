@@ -4,7 +4,8 @@ import os from 'os';
 // @ts-ignore
 import torrentStream from 'torrent-stream';
 import { TorrentStatus, TorrentFileItem, TorrentHistoryItem } from '../types';
-import { getDataDir } from './storage';
+import { getDataDir, saveTorrentMediaItem, removeTorrentFromLibrary, updateTorrentProgressInLibrary, readLibrary, writeLibrary } from './storage';
+import { enrichMediaWithTmdb, isTmdbConfigured } from './tmdb';
 
 const TORRENT_CACHE_DIR = path.join(getDataDir(), 'torrent-cache');
 const TORRENT_HISTORY_FILE = path.join(getDataDir(), 'torrent-history.json');
@@ -135,10 +136,41 @@ export function removeTorrentHistoryItem(infoHash: string): void {
   try {
     const list = readTorrentHistory().filter((i) => i.infoHash.toLowerCase() !== infoHash.toLowerCase());
     fs.writeFileSync(TORRENT_HISTORY_FILE, JSON.stringify(list, null, 2), 'utf-8');
+    removeTorrentFromLibrary(infoHash);
   } catch (err) {
     console.error('Erro ao remover item do histórico:', err);
   }
 }
+
+export function syncExistingTorrentHistoryToLibrary(): void {
+  try {
+    const history = readTorrentHistory();
+    for (const item of history) {
+      if (item.infoHash && item.magnetUri) {
+        saveTorrentMediaItem({
+          infoHash: item.infoHash,
+          magnetUri: item.magnetUri,
+          name: item.name,
+          totalBytes: item.totalBytes,
+          selectedFileIndex: item.selectedFileIndex,
+        });
+        if (item.progressSeconds) {
+          updateTorrentProgressInLibrary(
+            item.infoHash,
+            item.selectedFileIndex || 0,
+            item.progressSeconds,
+            item.durationSeconds
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao sincronizar histórico de torrents:', err);
+  }
+}
+
+// Initial sync of existing torrents into library
+syncExistingTorrentHistoryToLibrary();
 
 /**
  * Initializes or returns an active torrent-stream engine for a magnet link.
@@ -159,6 +191,17 @@ export function getOrCreateTorrentEngine(magnetUriOrHash: string): Promise<Engin
   return new Promise((resolve) => {
     const initialName = parseTorrentName(magnetUri) || `Torrent_${infoHash.slice(0, 8)}`;
     const torrentPath = path.join(TORRENT_CACHE_DIR, infoHash);
+
+    // Immediately register in library with initial name and magnet URI
+    try {
+      saveTorrentMediaItem({
+        infoHash,
+        magnetUri,
+        name: initialName,
+      });
+    } catch (e) {
+      console.error('Erro ao salvar torrent preliminar na biblioteca:', e);
+    }
 
     const record: EngineRecord = {
       engine: null,
@@ -229,6 +272,39 @@ export function getOrCreateTorrentEngine(magnetUriOrHash: string): Promise<Engin
           totalBytes: record.totalBytes,
           selectedFileIndex: record.selectedFileIndex,
         });
+
+        // Save / update complete media in library with files
+        try {
+          const savedItem = saveTorrentMediaItem({
+            infoHash: record.infoHash,
+            magnetUri: record.magnetUri,
+            name: record.name,
+            files: record.files.map((f: any, idx: number) => ({
+              name: f.name,
+              path: f.path,
+              length: f.length,
+              index: idx,
+            })),
+            totalBytes: record.totalBytes,
+            selectedFileIndex: record.selectedFileIndex,
+          });
+
+          // Asynchronously enrich with TMDb metadata if configured
+          if (isTmdbConfigured()) {
+            enrichMediaWithTmdb(savedItem)
+              .then((enriched) => {
+                const lib = readLibrary();
+                const idx = lib.items.findIndex((i) => i.id === enriched.id);
+                if (idx >= 0) {
+                  lib.items[idx] = enriched;
+                  writeLibrary(lib, true);
+                }
+              })
+              .catch(() => {});
+          }
+        } catch (e) {
+          console.error('Erro ao atualizar torrent na biblioteca:', e);
+        }
 
         resolve(record);
       });
