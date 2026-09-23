@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { Readable } from 'stream';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -1807,7 +1808,7 @@ apiRouter.get('/iptv/proxy', async (req: Request, res: Response) => {
     if (isM3U8) {
       const text = await response.text();
       // Check if it's really an M3U8 playlist
-      if (text.includes('#EXTM3U')) {
+      if (text.includes('#EXTM3U') || text.includes('#EXTINF') || text.includes('#EXT-X-')) {
         const lines = text.split(/\r?\n/);
         const rewrittenLines: string[] = [];
 
@@ -1852,10 +1853,17 @@ apiRouter.get('/iptv/proxy', async (req: Request, res: Response) => {
         res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
         res.send(rewrittenLines.join('\n'));
         return;
+      } else {
+        // If response.text() was consumed but not a valid m3u8 playlist, send it directly
+        if (contentType) {
+          res.setHeader('Content-Type', contentType);
+        }
+        res.status(response.status).send(text);
+        return;
       }
     }
 
-    // Binary / TS stream or direct media chunk
+    // Binary / TS stream or direct media chunk (response.body not yet consumed)
     if (contentType) {
       res.setHeader('Content-Type', contentType);
     }
@@ -1875,24 +1883,21 @@ apiRouter.get('/iptv/proxy', async (req: Request, res: Response) => {
     res.status(response.status);
 
     if (response.body) {
-      const reader = response.body.getReader();
-      const pump = async () => {
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            if (res.writableEnded || res.destroyed) {
-              reader.cancel();
-              break;
-            }
-            res.write(value);
-          }
-          res.end();
-        } catch (streamErr) {
+      try {
+        const nodeStream = Readable.fromWeb(response.body as any);
+        nodeStream.on('error', () => {
           if (!res.writableEnded) res.end();
-        }
-      };
-      pump();
+        });
+        res.on('close', () => {
+          try {
+            nodeStream.destroy();
+          } catch {}
+        });
+        nodeStream.pipe(res);
+      } catch (streamErr) {
+        const arrayBuf = await response.arrayBuffer();
+        res.send(Buffer.from(arrayBuf));
+      }
     } else {
       res.end();
     }
