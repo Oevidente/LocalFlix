@@ -39,20 +39,28 @@ interface IptvPlayerModalProps {
 }
 
 type StreamMode = 'proxy' | 'transmux' | 'direct';
-type UserAgentProfile = 'vlc' | 'appletv' | 'chrome' | 'kodi';
+type UserAgentProfile = 'vlc' | 'tivimate' | 'smarttv' | 'appletv' | 'chrome' | 'kodi';
 type GeoProfile = 'auto' | 'BR' | 'PT' | 'US';
 
 const USER_AGENTS: Record<UserAgentProfile, { label: string; value: string }> = {
   vlc: {
-    label: 'VLC Media Player (Recomendado)',
+    label: 'VLC Media Player 3.0 (Padrão)',
     value: 'VLC/3.0.20 LibVLC/3.0.20 (Windows NT 10.0; Win64; x64)',
+  },
+  tivimate: {
+    label: 'TiviMate IPTV Player',
+    value: 'TiviMate/4.7.0 (Android TV; SDK 30)',
+  },
+  smarttv: {
+    label: 'Smart TV (LG webOS / Samsung Tizen)',
+    value: 'Mozilla/5.0 (Web0S; SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.128 Safari/537.36 WebAppManager',
   },
   appletv: {
     label: 'Apple TV / Safari HLS',
     value: 'AppleCoreMedia/1.0.0.18E182 (Apple TV; U; CPU OS 14_4 like Mac OS X; en_us)',
   },
   chrome: {
-    label: 'Google Chrome',
+    label: 'Google Chrome Desktop',
     value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
   },
   kodi: {
@@ -228,7 +236,8 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
   );
 
   useEffect(() => {
-    loadStream(channel.url, streamMode);
+    setStreamMode('proxy');
+    loadStream(channel.url, 'proxy');
 
     return () => {
       if (hlsRef.current) {
@@ -236,7 +245,7 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
         hlsRef.current = null;
       }
     };
-  }, [channel, streamMode, uaProfile, geoProfile, loadStream]);
+  }, [channel.id]);
 
   // Handle controls auto-hide
   const handleMouseMove = () => {
@@ -652,9 +661,11 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
               }}
               className="w-full bg-black/60 border border-neutral-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 cursor-pointer"
             >
-              <option value="vlc">VLC Media Player 3.0 (Recomendado)</option>
+              <option value="vlc">VLC Media Player 3.0 (Padrão)</option>
+              <option value="tivimate">TiviMate IPTV Player</option>
+              <option value="smarttv">Smart TV (LG / Samsung)</option>
               <option value="appletv">Apple TV / Safari HLS</option>
-              <option value="chrome">Google Chrome</option>
+              <option value="chrome">Google Chrome Desktop</option>
               <option value="kodi">Kodi Media Center</option>
             </select>
           </div>

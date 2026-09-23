@@ -1923,47 +1923,87 @@ apiRouter.get('/iptv/transmux', (req: Request, res: Response) => {
     return;
   }
 
-  res.setHeader('Content-Type', 'video/mp4');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'no-cache, no-store');
-
   const userAgent =
     (req.query.userAgent as string) ||
     'VLC/3.0.20 LibVLC/3.0.20 (Windows NT 10.0; Win64; x64)';
   const referrer = (req.query.referrer as string) || '';
+  const country = (req.query.country as string) || '';
+
+  const headersList = [
+    `User-Agent: ${userAgent}`,
+    `Accept: */*`,
+    `Connection: keep-alive`,
+  ];
+
+  if (referrer) {
+    headersList.push(`Referer: ${referrer}`);
+  }
+  if (country === 'BR') {
+    headersList.push('X-Forwarded-For: 177.18.200.50');
+    headersList.push('Client-IP: 177.18.200.50');
+  } else if (country === 'PT') {
+    headersList.push('X-Forwarded-For: 188.82.100.20');
+    headersList.push('Client-IP: 188.82.100.20');
+  } else if (country === 'US') {
+    headersList.push('X-Forwarded-For: 198.51.100.42');
+    headersList.push('Client-IP: 198.51.100.42');
+  }
 
   const args = [
     '-reconnect', '1',
     '-reconnect_at_eof', '1',
     '-reconnect_streamed', '1',
     '-reconnect_delay_max', '4',
+    '-headers', headersList.join('\r\n') + '\r\n',
     '-user_agent', userAgent,
-  ];
-
-  if (referrer) {
-    args.push('-headers', `Referer: ${referrer}\r\n`);
-  }
-
-  args.push(
     '-i', targetUrl,
     '-c:v', 'copy',
     '-c:a', 'aac',
     '-b:a', '160k',
     '-f', 'mp4',
     '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
-    'pipe:1'
-  );
+    'pipe:1',
+  ];
 
   console.log(`[FFmpeg IPTV Transmux] Iniciando streaming de: ${targetUrl}`);
   const proc = spawn(ffmpeg, args, { stdio: ['ignore', 'pipe', 'pipe'] });
 
-  proc.stdout.pipe(res);
+  let hasSentData = false;
+  let stderrBuffer = '';
+
+  proc.stdout.on('data', (chunk) => {
+    if (!hasSentData) {
+      hasSentData = true;
+      res.setHeader('Content-Type', 'video/mp4');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'no-cache, no-store');
+      res.status(200);
+    }
+    res.write(chunk);
+  });
 
   proc.stderr.on('data', (d) => {
-    // Optional debug log
     const msg = d.toString();
-    if (msg.includes('Error') || msg.includes('fatal')) {
+    stderrBuffer += msg;
+    if (stderrBuffer.length > 2000) {
+      stderrBuffer = stderrBuffer.substring(stderrBuffer.length - 2000);
+    }
+    if (msg.includes('Error') || msg.includes('403') || msg.includes('404')) {
       console.warn('[FFmpeg IPTV Transmux]', msg.trim());
+    }
+  });
+
+  proc.on('close', (code) => {
+    if (!hasSentData && !res.headersSent) {
+      if (stderrBuffer.includes('403 Forbidden')) {
+        res.status(403).send('Servidor remoto retornou 403 Forbidden (Acesso negado pela emissora)');
+      } else if (stderrBuffer.includes('404 Not Found')) {
+        res.status(404).send('Servidor remoto retornou 404 (Sinal não encontrado)');
+      } else {
+        res.status(502).send(`Falha ao decodificar stream via FFmpeg (Código ${code})`);
+      }
+    } else {
+      if (!res.writableEnded) res.end();
     }
   });
 
