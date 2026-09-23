@@ -25,8 +25,17 @@ if %ERRORLEVEL% NEQ 0 (
     pause
     exit /b 1
 )
+:: Obtem o endereco IP local da rede para acesso no celular
+set "LOCAL_IP="
+for /f "usebackq tokens=*" %%i in (`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "(Get-NetIPAddress -AddressFamily IPv4 -Type Unicast | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | Select-Object -ExpandProperty IPAddress -First 1)"`) do set "LOCAL_IP=%%i"
+
 echo Iniciando servidor em https://localhost:%PORT% ...
 echo Porta HTTP auxiliar para o Chromecast: %CAST_MEDIA_PORT%
+if defined LOCAL_IP (
+    echo Endereco HTTPS para acessar no celular: https://%LOCAL_IP%:%PORT%
+) else (
+    echo Endereco HTTPS para acessar no celular: https://[IP_DO_SEU_PC]:%PORT%
+)
 echo Certificado para instalar no celular: %HTTPS_CERT_DIR%\cinelocal.crt
 echo (Pressione Ctrl+C para encerrar)
 echo.

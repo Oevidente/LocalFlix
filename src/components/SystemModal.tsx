@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, HardDrive, CheckCircle, AlertTriangle, Terminal, FileJson, Download, Loader2, Zap, Cpu, Smartphone, Subtitles, Film, Key, RefreshCw, Sparkles, ExternalLink } from 'lucide-react';
 import { SystemStatus } from '../types';
+import { MobileAccessBanner } from './MobileAccessBanner';
 
 interface SystemModalProps {
   onClose: () => void;
@@ -341,18 +342,9 @@ export const SystemModal: React.FC<SystemModalProps> = ({
               </div>
             </div>
 
-            {/* PWA & Offline Access */}
-            <div className="p-3 rounded-lg bg-neutral-900 border border-neutral-800 space-y-2">
-              <div className="flex items-center justify-between text-neutral-200 font-semibold border-b border-neutral-800 pb-1.5">
-                <span className="flex items-center space-x-1.5">
-                  <Smartphone className="w-4 h-4 text-emerald-400" />
-                  <span>Aplicativo Web Progressivo (PWA)</span>
-                </span>
-                <span className="text-emerald-400 text-[11px] font-mono">Service Worker Ativo</span>
-              </div>
-              <p className="text-[11px] text-neutral-400 leading-relaxed">
-                O CineLocal pode ser instalado no seu navegador, desktop ou celular como aplicativo nativo, funcionando diretamente da rede local ou pendrive sem conexão com a internet externa.
-              </p>
+            {/* PWA & Mobile Access */}
+            <div className="space-y-2">
+              <MobileAccessBanner />
             </div>
 
             {/* TMDb Integration (Metadata & Covers) */}

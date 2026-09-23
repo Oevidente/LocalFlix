@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio, Sparkles, Home, History, MoreVertical, X, FolderPlus } from 'lucide-react';
+import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio, Sparkles, Home, History, MoreVertical, X, FolderPlus, Smartphone } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface NavbarProps {
@@ -170,6 +170,25 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>Offline</span>
             </div>
+
+            {/* Mobile Access Button */}
+            <button
+              id="mobile-access-nav-btn"
+              onClick={() => {
+                onTabChange('all');
+                setTimeout(() => {
+                  const banner = document.getElementById('mobile-access-banner');
+                  if (banner) {
+                    banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }, 100);
+              }}
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 text-xs font-mono cursor-pointer hover:bg-emerald-900/50 transition-colors shadow-sm"
+              title="Acessar no celular / tablet (Exibir IP e QR Code)"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Acesso Celular</span>
+            </button>
 
             {/* Torrent Player Button */}
             <button

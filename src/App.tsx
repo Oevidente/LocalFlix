@@ -12,6 +12,7 @@ import { TorrentModal } from './components/TorrentModal';
 import { TorrentPlayer } from './components/TorrentPlayer';
 import { ChannelsPage } from './components/ChannelsPage';
 import { IptvPlayerModal } from './components/IptvPlayerModal';
+import { MobileAccessBanner } from './components/MobileAccessBanner';
 import { LibraryData, MediaItem, Episode, OnlineSubtitleOption, TorrentStatus, IptvChannel } from './types';
 import { FolderPlus, Film, Tv, Play, HardDrive, RefreshCw, Radio } from 'lucide-react';
 
@@ -699,6 +700,11 @@ export default function App() {
               Você pode copiar essa pasta inteira para um pendrive e abrir dando duplo clique em <strong className="text-white">start.bat</strong>.
             </p>
           </div>
+
+          {/* Mobile Access Instruction Banner on Empty State */}
+          <div className="mt-8 w-full max-w-2xl text-left">
+            <MobileAccessBanner />
+          </div>
         </div>
       ) : (
         /* Populated Library View */
@@ -714,6 +720,12 @@ export default function App() {
 
           {/* Rows Container */}
           <main className={`relative z-20 ${heroMedia && !searchQuery ? 'mt-3 sm:mt-6 lg:mt-8' : 'pt-28 sm:pt-32 lg:pt-36'}`}>
+            {/* Mobile Access Instruction Banner on Home Screen */}
+            {!searchQuery && activeTab === 'all' && (
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 sm:mb-8">
+                <MobileAccessBanner />
+              </div>
+            )}
             {/* 1. Continuar Assistindo Row (Backdrop card variant with progress bar) */}
             {continueWatchingItems.length > 0 && activeTab !== 'series' && activeTab !== 'movie' && (
               <MediaRow

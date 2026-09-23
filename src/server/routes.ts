@@ -1221,6 +1221,37 @@ apiRouter.get('/system/cast-info', (req: Request, res: Response) => {
   });
 });
 
+// 13.0.1b Full network and mobile LAN access info
+apiRouter.get('/system/network-info', (req: Request, res: Response) => {
+  const httpsRequested = process.env.HTTPS === 'true' || process.env.HTTPS === '1';
+  const certificateDirectory = process.env.HTTPS_CERT_DIR || path.join(process.cwd(), 'certs');
+  const pfxPath = process.env.HTTPS_PFX_PATH || path.join(certificateDirectory, 'cinelocal.pfx');
+  const useHttps = httpsRequested && fs.existsSync(pfxPath);
+  const protocol = useHttps ? 'https' : 'http';
+
+  const configuredPort = Number(process.env.PORT);
+  const port = Number.isInteger(configuredPort) && configuredPort > 0 ? configuredPort : 3000;
+
+  const addresses = Object.values(os.networkInterfaces())
+    .flatMap((entries) => entries || [])
+    .filter((entry) => {
+      const isIpv4 = entry.family === 'IPv4' || String(entry.family) === '4';
+      return isIpv4 && !entry.internal && !entry.address.startsWith('169.254.');
+    })
+    .map((entry) => entry.address);
+
+  const uniqueAddresses = [...new Set(addresses)];
+  const mobileUrls = uniqueAddresses.map((ip) => `${protocol}://${ip}:${port}`);
+
+  res.json({
+    protocol,
+    port,
+    addresses: uniqueAddresses,
+    mobileUrls,
+    certPath: path.join(certificateDirectory, 'cinelocal.crt'),
+  });
+});
+
 // 13.0.2 Configure Hardware Acceleration
 apiRouter.post('/system/hardware-acceleration', (req: Request, res: Response) => {
   const { mode, encoder } = req.body || {};
