@@ -53,7 +53,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
       </div>
 
       {/* Hero Content */}
-      <div className="relative max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-28 sm:pb-36 lg:pb-40 z-10">
+      <div className="relative max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-12 sm:pb-16 lg:pb-20 z-10">
         {/* Badges */}
         <div className="flex items-center space-x-2 text-xs font-semibold uppercase tracking-wider text-neutral-300 mb-2">
           <span className="bg-[#E50914] text-white px-2 py-0.5 rounded font-black text-[11px] tracking-tight">

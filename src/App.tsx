@@ -713,7 +713,7 @@ export default function App() {
           )}
 
           {/* Rows Container */}
-          <main className={`relative z-20 ${heroMedia && !searchQuery ? '-mt-12 sm:-mt-16 lg:-mt-20' : 'pt-24'}`}>
+          <main className={`relative z-20 ${heroMedia && !searchQuery ? 'mt-3 sm:mt-6 lg:mt-8' : 'pt-28 sm:pt-32 lg:pt-36'}`}>
             {/* 1. Continuar Assistindo Row (Backdrop card variant with progress bar) */}
             {continueWatchingItems.length > 0 && activeTab !== 'series' && activeTab !== 'movie' && (
               <MediaRow
