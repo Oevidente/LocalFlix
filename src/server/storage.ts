@@ -262,7 +262,7 @@ export function normalizeSearchTitle(title: string): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[\[\(].*?[\]\)]/g, ' ')
-    .replace(/(?:[Ss]\d{1,2}(?:-[Ss]\d{1,2})?|[Ss]eason\s*\d+|[Tt]emporada\s*\d+|[Cc]omplete\s*[Ss]eries|[Cc]omplete|[Ee]pisode\s*\d+|[Ee]pisodio\s*\d+|[Ee]\d{1,3})/gi, ' ')
+    .replace(/(?:[Ss]\d{1,2}(?:-[Ss]\d{1,2})?|[Ss]eason\s*\d+|[Tt]emporada\s*\d+|[Cc]omplete\s*[Ss]eries|[Cc]omplete|[Ee]pisode\s*\d+(?:\s*[-x]\s*\d+)?|[Ee]pisodio\s*\d+(?:\s*[-x]\s*\d+)?|[Ee]\d{1,3}(?:\s*[-xEe]\s*\d{1,3})*)/gi, ' ')
     .replace(/(?:2160p|1080p|720p|480p|4k|bluray|brrip|webrip|web-dl|webdl|hdtv|x264|x265|hevc|avc|aac|dts|ddp|ac3|yify|yts|eztv|tgx|rarbg|galaxytv|dual|dublado|legendado|multi)/gi, ' ')
     .replace(/[^a-z0-9]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -427,11 +427,18 @@ export function saveTorrentMediaItem(params: {
 
       // Check if episode already exists in this season to PREVENT DUPLICATES
       let existingEp = seasonObj.episodes.find(
-        (e) => e.episodeNumber === eNum || e.id === epId || e.fileName === f.name
+        (e) =>
+          e.id === epId ||
+          (e.seasonNumber === sNum && e.episodeNumber === eNum) ||
+          (e.infoHash?.toLowerCase() === cleanHash && e.fileIndex === (f.index ?? idx)) ||
+          e.fileName === f.name
       );
 
       if (existingEp) {
         // Update torrent pointer properties on existing episode
+        existingEp.seasonNumber = sNum;
+        existingEp.episodeNumber = eNum;
+        existingEp.fileName = f.name;
         existingEp.isTorrent = true;
         existingEp.fileIndex = f.index ?? idx;
         existingEp.magnetUri = params.magnetUri || existingEp.magnetUri;
