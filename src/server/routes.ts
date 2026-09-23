@@ -30,6 +30,7 @@ import {
   shiftWebVttTimestamps,
   downloadAndInstallFFmpeg,
   getHardwareAccelerationStatus,
+  setHardwareAccelerationConfig,
   getVideoEncodingPlan,
 } from './ffmpeg';
 import { getOrCreateHlsSession, findActiveSession } from './hls';
@@ -1079,6 +1080,20 @@ apiRouter.get('/system/cast-info', (req: Request, res: Response) => {
     port: Number(req.app.locals.castMediaPort) || null,
     addresses: [...new Set(addresses)],
   });
+});
+
+// 13.0.2 Configure Hardware Acceleration
+apiRouter.post('/system/hardware-acceleration', (req: Request, res: Response) => {
+  const { mode, encoder } = req.body || {};
+  if (mode && !['auto', 'software', 'off'].includes(mode)) {
+    res.status(400).json({ error: 'Modo inválido. Use auto, software ou off.' });
+    return;
+  }
+  setHardwareAccelerationConfig({
+    mode: mode as any,
+    encoder: typeof encoder === 'string' ? encoder : undefined,
+  });
+  res.json({ success: true, hardwareAcceleration: getHardwareAccelerationStatus() });
 });
 
 // 13.1 Install Portable FFmpeg into ./bin/

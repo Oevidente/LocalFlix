@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, HardDrive, CheckCircle, AlertTriangle, Terminal, FileJson, Download, Loader2 } from 'lucide-react';
+import { X, HardDrive, CheckCircle, AlertTriangle, Terminal, FileJson, Download, Loader2, Zap, Cpu, Smartphone } from 'lucide-react';
 import { SystemStatus } from '../types';
 
 interface SystemModalProps {
@@ -13,6 +13,7 @@ export const SystemModal: React.FC<SystemModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [installingFfmpeg, setInstallingFfmpeg] = useState(false);
   const [installMessage, setInstallMessage] = useState<string | null>(null);
+  const [updatingHw, setUpdatingHw] = useState(false);
 
   const fetchStatus = () => {
     fetch('/api/system/status')
@@ -25,6 +26,25 @@ export const SystemModal: React.FC<SystemModalProps> = ({
   useEffect(() => {
     fetchStatus();
   }, []);
+
+  const handleSetHwMode = async (mode: 'auto' | 'software' | 'off') => {
+    setUpdatingHw(true);
+    try {
+      const res = await fetch('/api/system/hardware-acceleration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode }),
+      });
+      const data = await res.json();
+      if (data.success && data.hardwareAcceleration) {
+        setStatus((prev) => prev ? { ...prev, hardwareAcceleration: data.hardwareAcceleration } : prev);
+      }
+    } catch (err) {
+      console.error('Erro ao alternar aceleração por hardware:', err);
+    } finally {
+      setUpdatingHw(false);
+    }
+  };
 
   const handleInstallFfmpeg = async () => {
     setInstallingFfmpeg(true);
@@ -171,6 +191,110 @@ export const SystemModal: React.FC<SystemModalProps> = ({
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Hardware Acceleration (GPU) */}
+            <div className="p-3 rounded-lg bg-neutral-900 border border-neutral-800 space-y-2.5">
+              <div className="flex items-center justify-between text-neutral-200 font-semibold border-b border-neutral-800 pb-1.5">
+                <span className="flex items-center space-x-1.5">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  <span>Aceleração por Hardware (GPU / Transcoder)</span>
+                </span>
+                <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
+                  status?.hardwareAcceleration?.encoder
+                    ? 'bg-emerald-950/60 border border-emerald-700/60 text-emerald-400 font-bold'
+                    : 'bg-neutral-800 text-neutral-400'
+                }`}>
+                  {status?.hardwareAcceleration?.encoder
+                    ? `GPU Ativa (${status.hardwareAcceleration.encoder})`
+                    : status?.hardwareAcceleration?.mode === 'off'
+                    ? 'Desativado'
+                    : 'Software (CPU / libx264)'}
+                </span>
+              </div>
+
+              <div className="space-y-2 text-neutral-400 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-neutral-400">Encoder em uso:</span>
+                  <span className="font-mono text-white text-[11px]">
+                    {status?.hardwareAcceleration?.encoder || 'libx264 (Software CPU)'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-neutral-400">Encoders GPU detectados:</span>
+                  <div className="flex flex-wrap gap-1 justify-end">
+                    {status?.hardwareAcceleration?.availableEncoders && status.hardwareAcceleration.availableEncoders.length > 0 ? (
+                      status.hardwareAcceleration.availableEncoders.map((enc) => (
+                        <span key={enc} className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-neutral-800 text-emerald-400 border border-emerald-900/50">
+                          {enc}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-neutral-500 text-[11px]">Nenhum codec GPU proprietário (usando CPU)</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Mode Selector */}
+                <div className="pt-1">
+                  <span className="text-[11px] text-neutral-400 block mb-1.5">Modo de Transcodificação:</span>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleSetHwMode('auto')}
+                      disabled={updatingHw}
+                      className={`py-1.5 px-2 rounded text-[11px] font-medium transition cursor-pointer flex items-center justify-center gap-1 ${
+                        status?.hardwareAcceleration?.mode === 'auto'
+                          ? 'bg-amber-600/30 text-amber-300 border border-amber-500/50 font-semibold'
+                          : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                      }`}
+                    >
+                      <Zap className="w-3 h-3 text-amber-400" />
+                      Auto (GPU)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetHwMode('software')}
+                      disabled={updatingHw}
+                      className={`py-1.5 px-2 rounded text-[11px] font-medium transition cursor-pointer flex items-center justify-center gap-1 ${
+                        status?.hardwareAcceleration?.mode === 'software'
+                          ? 'bg-sky-600/30 text-sky-300 border border-sky-500/50 font-semibold'
+                          : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                      }`}
+                    >
+                      <Cpu className="w-3 h-3 text-sky-400" />
+                      Software (CPU)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetHwMode('off')}
+                      disabled={updatingHw}
+                      className={`py-1.5 px-2 rounded text-[11px] font-medium transition cursor-pointer ${
+                        status?.hardwareAcceleration?.mode === 'off'
+                          ? 'bg-red-600/30 text-red-300 border border-red-500/50 font-semibold'
+                          : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                      }`}
+                    >
+                      Desativado
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* PWA & Offline Access */}
+            <div className="p-3 rounded-lg bg-neutral-900 border border-neutral-800 space-y-2">
+              <div className="flex items-center justify-between text-neutral-200 font-semibold border-b border-neutral-800 pb-1.5">
+                <span className="flex items-center space-x-1.5">
+                  <Smartphone className="w-4 h-4 text-emerald-400" />
+                  <span>Aplicativo Web Progressivo (PWA)</span>
+                </span>
+                <span className="text-emerald-400 text-[11px] font-mono">Service Worker Ativo</span>
+              </div>
+              <p className="text-[11px] text-neutral-400 leading-relaxed">
+                O CineLocal pode ser instalado no seu navegador, desktop ou celular como aplicativo nativo, funcionando diretamente da rede local ou pendrive sem conexão com a internet externa.
+              </p>
             </div>
 
             {/* Portable Pendrive guide */}

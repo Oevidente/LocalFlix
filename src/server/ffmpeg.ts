@@ -193,16 +193,26 @@ function readAvailableVideoEncoders(ffmpeg: string): string[] {
   }
 }
 
+let runtimeHwMode: HardwareAccelerationStatus['mode'] | undefined;
+let runtimeHwEncoder: string | undefined;
+
+export function setHardwareAccelerationConfig(config: { mode?: HardwareAccelerationStatus['mode']; encoder?: string }) {
+  if (config.mode !== undefined) runtimeHwMode = config.mode;
+  if (config.encoder !== undefined) runtimeHwEncoder = config.encoder || undefined;
+  cachedHardwareStatus = undefined;
+}
+
 export function getHardwareAccelerationStatus(): HardwareAccelerationStatus {
   if (cachedHardwareStatus) return cachedHardwareStatus;
 
-  const configuredMode = process.env.FFMPEG_HW_ACCELERATION?.trim().toLowerCase();
-  const mode: HardwareAccelerationStatus['mode'] = configuredMode === 'off' || configuredMode === 'software'
-    ? configuredMode
+  const envMode = process.env.FFMPEG_HW_ACCELERATION?.trim().toLowerCase();
+  const rawMode = runtimeHwMode || (envMode === 'off' || envMode === 'software' ? envMode : 'auto');
+  const mode: HardwareAccelerationStatus['mode'] = rawMode === 'off' || rawMode === 'software'
+    ? rawMode
     : 'auto';
   const { ffmpeg } = getBinaries();
   const availableEncoders = ffmpeg ? readAvailableVideoEncoders(ffmpeg) : [];
-  const requestedEncoder = process.env.FFMPEG_VIDEO_ENCODER?.trim().toLowerCase();
+  const requestedEncoder = runtimeHwEncoder || process.env.FFMPEG_VIDEO_ENCODER?.trim().toLowerCase();
   const preferredOrder = requestedEncoder
     ? [requestedEncoder]
     : ['h264_nvenc', 'h264_qsv', 'h264_amf', 'h264_vaapi'];

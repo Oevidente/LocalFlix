@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio } from 'lucide-react';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface NavbarProps {
   activeTab: 'all' | 'series' | 'movie' | 'continue';
@@ -177,6 +178,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </>
             )}
           </button>
+
+          {/* Install PWA Button */}
+          <PWAInstallButton />
 
           {/* System & Storage status button */}
           <button
