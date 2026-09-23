@@ -115,6 +115,8 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
   const [castDeviceName, setCastDeviceName] = useState<string | null>(null);
   const castSessionRef = useRef<any>(null);
   const castMediaRef = useRef<any>(null);
+  const castStartTimeRef = useRef<number>(0);
+  const castCurrentTimeRef = useRef<number>(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -188,22 +190,51 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
 
   // Google Cast Listener
   useEffect(() => {
+    let cleanupEvents = () => {};
     const unsubscribe = subscribeToCastAvailability((context) => {
+      cleanupEvents();
+      cleanupEvents = () => {};
+
       if (!context) {
         setCastAvailable(false);
         return;
       }
       setCastAvailable(true);
-      const session = context.getCurrentSession?.();
-      if (session) {
-        castSessionRef.current = session;
-        const device = session.getCastDevice?.();
-        setCastDeviceName(device?.friendlyName || 'Chromecast');
-      }
+      const eventTypes = (window as any).cast?.framework?.CastContextEventType || {};
+
+      const syncCast = () => {
+        const session = context.getCurrentSession?.();
+        if (session) {
+          castSessionRef.current = session;
+          const device = session.getCastDevice?.();
+          setCastDeviceName(device?.friendlyName || 'Chromecast');
+        } else if (isCasting) {
+          // Disconnected from Cast, resume local playback at true absolute position
+          const resumePos = castCurrentTimeRef.current;
+          if (videoRef.current && Number.isFinite(resumePos) && resumePos > 0) {
+            videoRef.current.currentTime = resumePos;
+            setCurrentTime(resumePos);
+            videoRef.current.play().catch(() => {});
+          }
+          setIsCasting(false);
+          setCastDeviceName(null);
+        }
+      };
+
+      context.addEventListener?.(eventTypes.SESSION_STATE_CHANGED, syncCast);
+      context.addEventListener?.(eventTypes.CAST_STATE_CHANGED, syncCast);
+      cleanupEvents = () => {
+        context.removeEventListener?.(eventTypes.SESSION_STATE_CHANGED, syncCast);
+        context.removeEventListener?.(eventTypes.CAST_STATE_CHANGED, syncCast);
+      };
+      syncCast();
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      unsubscribe();
+      cleanupEvents();
+    };
+  }, [isCasting]);
 
   // Set stream source
   const streamUrl = `/api/torrent/stream/${status.infoHash}/${currentFileIdx}${forceTranscode ? '?transcode=1' : ''}`;
@@ -217,6 +248,8 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
       if (!castSession) return;
 
       castSessionRef.current = castSession;
+      castStartTimeRef.current = currentTime;
+      castCurrentTimeRef.current = currentTime;
       setIsCasting(true);
 
       const castUrls = await resolveCastBaseUrls();
@@ -234,6 +267,21 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
 
       await castSession.loadMedia(request);
       if (videoRef.current) videoRef.current.pause();
+
+      const remoteMedia = castSession.getMediaSession?.();
+      if (remoteMedia) {
+        castMediaRef.current = remoteMedia;
+        const updateListener = () => {
+          const estimated = remoteMedia.getEstimatedTime?.();
+          if (typeof estimated === 'number' && Number.isFinite(estimated)) {
+            const offset = castStartTimeRef.current;
+            const absolute = offset > 0 && estimated < offset ? offset + estimated : estimated;
+            castCurrentTimeRef.current = absolute;
+            setCurrentTime(absolute);
+          }
+        };
+        remoteMedia.addUpdateListener?.(updateListener);
+      }
     } catch (err: any) {
       console.error('Erro ao transmitir para o Cast:', err);
     }

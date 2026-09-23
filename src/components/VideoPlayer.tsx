@@ -83,7 +83,7 @@ function parseWebVtt(text: string): SubtitleCue[] {
 }
 
 function getCastCustomData(media: any): Record<string, any> {
-  const customData = media?.customData;
+  const customData = media?.media?.customData ?? media?.customData;
   if (customData && typeof customData === 'object') return customData;
   if (typeof customData === 'string') {
     try {
@@ -338,6 +338,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const castSessionRef = useRef<any>(null);
   const castMediaRef = useRef<any>(null);
   const castMediaListenerRef = useRef<((isAlive: boolean) => void) | null>(null);
+  const castStartTimeRef = useRef<number>(0);
   const castCurrentTimeRef = useRef<number>(0);
   const castStreamOffsetRef = useRef<number>(0);
   const castLastProgressSaveRef = useRef<number>(0);
@@ -403,6 +404,30 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     [media.id, episode.id, duration, selectedAudioIndex, selectedSubtitleIndex]
   );
 
+  // Converts Chromecast receiver time to the real absolute video position.
+  // When an HLS stream with a seek offset is loaded into Chromecast, the receiver starts
+  // counting from zero (relative time). We restore the true absolute position by adding the offset.
+  const getAbsolutePositionFromCast = useCallback((estimatedTime: number | null | undefined): number => {
+    const offset = castStartTimeRef.current || castStreamOffsetRef.current || 0;
+    if (typeof estimatedTime !== 'number' || !Number.isFinite(estimatedTime) || estimatedTime < 0) {
+      return castCurrentTimeRef.current > 0 ? castCurrentTimeRef.current : Math.max(0, offset);
+    }
+    if (offset > 0) {
+      // If estimatedTime is less than offset, it is definitely relative to the Chromecast start
+      if (estimatedTime < offset) {
+        return Math.max(0, offset + estimatedTime);
+      }
+      // If estimatedTime >= offset:
+      // Check whether estimatedTime is already the absolute timeline position
+      // (very close to castCurrentTimeRef.current) or if it's relative elapsed duration
+      if (castCurrentTimeRef.current > offset && Math.abs(estimatedTime - castCurrentTimeRef.current) < 15) {
+        return Math.max(0, estimatedTime);
+      }
+      return Math.max(0, offset + estimatedTime);
+    }
+    return Math.max(0, estimatedTime);
+  }, []);
+
   const registerCastMedia = useCallback(
     (session: any) => {
       const media = session?.getMediaSession?.();
@@ -416,8 +441,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const estimatedTime = media.getEstimatedTime?.();
         if (typeof estimatedTime !== 'number' || !Number.isFinite(estimatedTime)) return;
 
-        castCurrentTimeRef.current = Math.max(0, castStreamOffsetRef.current + estimatedTime);
-        setCurrentTime(castCurrentTimeRef.current);
+        const absoluteTime = getAbsolutePositionFromCast(estimatedTime);
+        castCurrentTimeRef.current = absoluteTime;
+        setCurrentTime(absoluteTime);
 
         if (media.playerState === 'PLAYING' || media.playerState === 'BUFFERING') {
           setIsPlaying(true);
@@ -428,7 +454,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const now = Date.now();
         if (now - castLastProgressSaveRef.current >= 8000) {
           castLastProgressSaveRef.current = now;
-          saveProgress(castCurrentTimeRef.current, duration, false, true);
+          saveProgress(absoluteTime, duration, false, true);
         }
       };
 
@@ -437,7 +463,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       media.addUpdateListener?.(updateListener);
       updateListener();
     },
-    [duration, saveProgress]
+    [duration, getAbsolutePositionFromCast, saveProgress]
   );
 
   const waitForCastMediaSession = useCallback(
@@ -455,27 +481,31 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   );
 
   const restoreLocalAfterCast = useCallback(() => {
-    const position = castCurrentTimeRef.current;
+    const position = Math.max(0, castCurrentTimeRef.current);
     const video = videoRef.current;
     const shouldResumeLocalPlayback = castWasPlayingRef.current;
-    const needsLocalStreamReload =
-      video &&
-      Number.isFinite(position) &&
-      position < hlsStreamOffsetRef.current - 0.5;
+    const targetIsDirectMP4 = episode.extension === '.mp4' || episode.extension === '.webm';
+    const shouldUseHls = !targetIsDirectMP4 || isForceTranscode || (selectedAudioIndexRef.current || 0) > 0;
 
-    if (needsLocalStreamReload) {
-      // A local HLS session started after the position we are returning to
-      // cannot seek backwards into an earlier segment. Recreate it from the
-      // Chromecast position so the browser resumes at the exact same point.
-      pendingReloadPositionRef.current = Math.max(0, position);
+    // Immediately persist the absolute progress to the library database so no progress is lost
+    saveProgress(position, duration, false, true);
+
+    if (shouldUseHls) {
+      // Recreate the local HLS session directly from the absolute position
+      // where Chromecast stopped. This avoids seeking into unbuffered segments
+      // or stalling on a stale background stream.
+      pendingReloadPositionRef.current = position;
       resumeAfterReloadRef.current = shouldResumeLocalPlayback;
       setCurrentTime(position);
       setHlsReloadVersion((version) => version + 1);
     } else if (video && Number.isFinite(position)) {
       try {
-        video.currentTime = Math.max(0, position - hlsStreamOffsetRef.current);
+        video.currentTime = position;
         setCurrentTime(position);
       } catch {}
+      if (shouldResumeLocalPlayback) {
+        video.play().catch(() => {});
+      }
     }
 
     if (castMediaRef.current && castMediaListenerRef.current) {
@@ -486,24 +516,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     castSessionRef.current = null;
     castActiveRef.current = false;
     castStreamOffsetRef.current = 0;
+    castStartTimeRef.current = 0;
     castLastLoadedEpisodeIdRef.current = null;
     setIsCasting(false);
     setCastDeviceName(null);
-
-    if (video && shouldResumeLocalPlayback && !needsLocalStreamReload) {
-      video.play().catch(() => {});
-    }
-  }, []);
+  }, [duration, episode.extension, isForceTranscode, saveProgress]);
 
   const disconnectCast = useCallback(async () => {
     const context = castContextRef.current || getCastContext();
     const session = castSessionRef.current || context?.getCurrentSession?.();
-    const remoteMedia = castMediaRef.current;
+    const remoteMedia = castMediaRef.current || session?.getMediaSession?.();
     const estimatedTime = remoteMedia?.getEstimatedTime?.();
 
     if (typeof estimatedTime === 'number' && Number.isFinite(estimatedTime)) {
-      castCurrentTimeRef.current = Math.max(0, castStreamOffsetRef.current + estimatedTime);
-      setCurrentTime(castCurrentTimeRef.current);
+      const absolutePosition = getAbsolutePositionFromCast(estimatedTime);
+      castCurrentTimeRef.current = absolutePosition;
+      setCurrentTime(absolutePosition);
     }
 
     if (remoteMedia?.playerState) {
@@ -522,7 +550,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       // Local playback has already been restored; a receiver-side disconnect
       // failure should not leave the player locked in Cast mode.
     }
-  }, [restoreLocalAfterCast]);
+  }, [getAbsolutePositionFromCast, restoreLocalAfterCast]);
 
   // Initialize the Google Cast sender framework when the SDK becomes ready.
   useEffect(() => {
@@ -554,12 +582,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             const savedCastOffset = Number(customData.castStartSeconds);
             if (Number.isFinite(savedCastOffset) && savedCastOffset >= 0) {
               castStreamOffsetRef.current = savedCastOffset;
+              castStartTimeRef.current = savedCastOffset;
             }
             castLastLoadedEpisodeIdRef.current = customData.episodeId || null;
             setIsCasting(true);
             registerCastMedia(session);
           }
         } else if (castActiveRef.current) {
+          const remoteMedia = castMediaRef.current;
+          const estimatedTime = remoteMedia?.getEstimatedTime?.();
+          if (typeof estimatedTime === 'number' && Number.isFinite(estimatedTime)) {
+            const absolutePosition = getAbsolutePositionFromCast(estimatedTime);
+            castCurrentTimeRef.current = absolutePosition;
+            setCurrentTime(absolutePosition);
+          }
           restoreLocalAfterCast();
         }
       };
@@ -585,7 +621,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       unsubscribe();
       removeContextListeners();
     };
-  }, [registerCastMedia, restoreLocalAfterCast]);
+  }, [getAbsolutePositionFromCast, registerCastMedia, restoreLocalAfterCast]);
 
   useEffect(() => {
     const nextAudioIndex = episode.selectedAudioIndex ?? 0;
@@ -902,10 +938,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       const targetIsDirectMP4 = targetEpisode.extension === '.mp4' || targetEpisode.extension === '.webm';
       const shouldUseHls = !targetIsDirectMP4 || isForceTranscode || targetAudioIndex > 0;
       const castStartOffset = shouldUseHls ? Math.max(0, position) : 0;
-      // HLS generated for Cast starts at zero in the receiver. Keep the
-      // absolute source position available before loadMedia fires session
-      // events, so receiver updates are converted to the original timeline.
-      castStreamOffsetRef.current = castStartOffset;
+      // Store the starting absolute position so disconnect can always recover it accurately.
+      castStartTimeRef.current = position;
+      castStreamOffsetRef.current = castStartOffset > 0 ? castStartOffset : position;
       castCurrentTimeRef.current = position;
       const streamPath = shouldUseHls
         ? `/api/media/${targetMedia.id}/episode/${targetEpisode.id}/hls/master.m3u8?audio=${targetAudioIndex}&cast=1${
@@ -951,7 +986,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             mediaId: targetMedia.id,
             episodeId: targetEpisode.id,
             audioIndex: targetAudioIndex,
-            castStartSeconds: castStartOffset,
+            castStartSeconds: castStartOffset > 0 ? castStartOffset : position,
           };
 
           const loadRequest = new mediaApi.LoadRequest(mediaInfo);
@@ -1040,7 +1075,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       castSessionRef.current = session;
       castActiveRef.current = true;
       castWasPlayingRef.current = wasPlaying;
-      castStreamOffsetRef.current = castStartOffset;
+      castStartTimeRef.current = position;
+      castStreamOffsetRef.current = castStartOffset > 0 ? castStartOffset : position;
       castCurrentTimeRef.current = position;
       castLastProgressSaveRef.current = Date.now();
       castLastLoadedEpisodeIdRef.current = targetEpisode.id;
