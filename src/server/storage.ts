@@ -272,18 +272,22 @@ export function saveTorrentMediaItem(params: {
 
   const rawFiles = params.files || [];
   const videoFiles = rawFiles.filter((f) => {
-    const ext = path.extname(f.name || '').toLowerCase();
+    const ext = path.extname(f.name || f.path || '').toLowerCase();
     return TORRENT_VIDEO_EXTS.has(ext);
   });
 
   const displayFiles = videoFiles.length > 0 ? videoFiles : rawFiles;
-  const isSeries = displayFiles.length > 1 || /[Ss]\d{1,2}|Season\s*\d+/i.test(params.name || '');
+  const isSeries =
+    displayFiles.length > 1 ||
+    /[Ss]\d{1,2}|Season\s*\d+|Temporada\s*\d+|Complete|S\d+-\S\d+|[0-9]{1,2}x[0-9]{1,2}/i.test(params.name || '') ||
+    displayFiles.some((f) => /[Ss]\d{1,2}|Season\s*\d+|Temporada|Episodio|Episode|\bE\d{1,3}\b/i.test(f.path || f.name));
 
   // Parse files into episodes
   const parsedEpisodes: { ep: Episode; seasonNum: number }[] = [];
   if (displayFiles.length > 0) {
     displayFiles.forEach((f, idx) => {
-      const parsed = parseEpisodeInfo(f.name, idx + 1);
+      const filePathToParse = f.path || f.name;
+      const parsed = parseEpisodeInfo(filePathToParse, idx + 1);
       const epId = `ep_torrent_${cleanHash}_${f.index ?? idx}`;
 
       let existingEp: Episode | undefined;
@@ -377,9 +381,10 @@ export function saveTorrentMediaItem(params: {
   const cleanTitle =
     rawTitle
       .replace(/[\[\(].*?[\]\)]/g, ' ')
-      .replace(/(?:1080p|720p|480p|2160p|4k|bluray|webrip|web-dl|hdtv|x264|x265|hevc|aac|dts|yify|yts)/gi, ' ')
+      .replace(/(?:[Ss]\d{1,2}(?:-[Ss]\d{1,2})?|[Ss]eason\s*\d+|[Tt]emporada\s*\d+|[Cc]omplete\s*[Ss]eries|[Cc]omplete)/gi, ' ')
+      .replace(/(?:2160p|1080p|720p|480p|4k|bluray|brrip|webrip|web-dl|webdl|hdtv|x264|x265|hevc|avc|aac|dts|ddp|ac3|yify|yts|eztv|tgx|rarbg|galaxytv|dual|dublado|legendado|multi)/gi, ' ')
       .replace(/[\._]/g, ' ')
-      .replace(/^[-\s]+|[-\s]+$/g, '')
+      .replace(/^[-\s.:]+|[-\s.:]+$/g, '')
       .trim() || rawTitle;
 
   const totalEpisodes = seasons.reduce((acc, s) => acc + s.episodes.length, 0);

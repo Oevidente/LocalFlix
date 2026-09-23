@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   ArrowLeft,
   Play,
@@ -19,10 +19,15 @@ import {
   Upload,
   Cast as CastIcon,
   SkipForward,
+  SkipBack,
   Check,
   Plus,
+  Tv,
+  Layers,
+  List,
+  X,
 } from 'lucide-react';
-import { TorrentStatus, TorrentFileItem } from '../types';
+import { TorrentStatus, TorrentFileItem, MediaItem, Episode } from '../types';
 import { formatTime, formatBytes } from '../utils';
 import {
   getCastContext,
@@ -34,6 +39,7 @@ import {
 interface TorrentPlayerProps {
   status: TorrentStatus;
   selectedFileIndex: number;
+  media?: MediaItem | null;
   onClose: () => void;
   onSelectFile?: (fileIndex: number) => void;
 }
@@ -42,6 +48,15 @@ interface SubtitleCue {
   start: number;
   end: number;
   text: string;
+}
+
+interface ParsedPlayerEpisode {
+  fileIndex: number;
+  fileName: string;
+  seasonNumber: number;
+  episodeNumber: number;
+  cleanTitle: string;
+  length: number;
 }
 
 function parseSubtitleTime(value: string): number {
@@ -82,9 +97,133 @@ function parseSrtOrVtt(text: string): SubtitleCue[] {
     .sort((a, b) => a.start - b.start);
 }
 
+function parseEpisodeInfoFromFileName(file: TorrentFileItem, fallbackIndex: number): ParsedPlayerEpisode {
+  const normalizedPath = (file.path || file.name).replace(/\\/g, '/');
+  const pathParts = normalizedPath.split('/').filter(Boolean);
+  const fileName = pathParts[pathParts.length - 1] || file.name;
+  const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
+
+  let pathSeason: number | undefined;
+  for (let i = 0; i < pathParts.length - 1; i++) {
+    const part = pathParts[i];
+    const sMatch = part.match(/(?:temporada|season|s)\s*(\d{1,2})/i);
+    if (sMatch) {
+      const parsedS = parseInt(sMatch[1], 10);
+      if (parsedS > 0 && parsedS < 100) pathSeason = parsedS;
+    }
+  }
+
+  const sxxExx = nameWithoutExt.match(/[Ss](\d{1,2})[\.\s_-]*[Ee](\d{1,3})/);
+  if (sxxExx) {
+    const s = parseInt(sxxExx[1], 10);
+    const e = parseInt(sxxExx[2], 10);
+    let title = nameWithoutExt.substring(nameWithoutExt.indexOf(sxxExx[0]) + sxxExx[0].length);
+    title = cleanRawPlayerTitle(title);
+    return {
+      fileIndex: file.index,
+      fileName: file.name,
+      seasonNumber: s || pathSeason || 1,
+      episodeNumber: e,
+      cleanTitle: title || `Episódio ${e}`,
+      length: file.length || 0,
+    };
+  }
+
+  const xMatch = nameWithoutExt.match(/(?:^|[\s._\-\[])(\d{1,2})[xX](\d{1,3})/);
+  if (xMatch) {
+    const s = parseInt(xMatch[1], 10);
+    const e = parseInt(xMatch[2], 10);
+    let title = nameWithoutExt.substring(nameWithoutExt.indexOf(xMatch[0]) + xMatch[0].length);
+    title = cleanRawPlayerTitle(title);
+    return {
+      fileIndex: file.index,
+      fileName: file.name,
+      seasonNumber: s || pathSeason || 1,
+      episodeNumber: e,
+      cleanTitle: title || `Episódio ${e}`,
+      length: file.length || 0,
+    };
+  }
+
+  const seasonEpMatch = nameWithoutExt.match(/(?:temporada|season)\s*(\d{1,2})[\s\S]*?(?:episodio|episódio|ep|episode)\s*(\d{1,3})/i);
+  if (seasonEpMatch) {
+    const s = parseInt(seasonEpMatch[1], 10);
+    const e = parseInt(seasonEpMatch[2], 10);
+    return {
+      fileIndex: file.index,
+      fileName: file.name,
+      seasonNumber: s || pathSeason || 1,
+      episodeNumber: e,
+      cleanTitle: `Episódio ${e}`,
+      length: file.length || 0,
+    };
+  }
+
+  const epOnly = nameWithoutExt.match(/(?:^|[\s._\-\[])(?:[Ee][Pp]?|episodio|episódio)\s*[-_.]?\s*(\d{1,3})/i);
+  if (epOnly) {
+    const e = parseInt(epOnly[1], 10);
+    let title = nameWithoutExt.substring(nameWithoutExt.indexOf(epOnly[0]) + epOnly[0].length);
+    title = cleanRawPlayerTitle(title);
+    return {
+      fileIndex: file.index,
+      fileName: file.name,
+      seasonNumber: pathSeason || 1,
+      episodeNumber: e,
+      cleanTitle: title || `Episódio ${e}`,
+      length: file.length || 0,
+    };
+  }
+
+  const animeMatch = nameWithoutExt.match(/(?:^|[\s._\-\]])-\s*(\d{1,3})(?:[\s._\-\[]|$)/);
+  if (animeMatch) {
+    const e = parseInt(animeMatch[1], 10);
+    return {
+      fileIndex: file.index,
+      fileName: file.name,
+      seasonNumber: pathSeason || 1,
+      episodeNumber: e,
+      cleanTitle: `Episódio ${e}`,
+      length: file.length || 0,
+    };
+  }
+
+  const leadingNum = nameWithoutExt.match(/^(\d{1,3})[\s\.\-_]*(.*)/);
+  if (leadingNum) {
+    const e = parseInt(leadingNum[1], 10);
+    const title = cleanRawPlayerTitle(leadingNum[2]);
+    return {
+      fileIndex: file.index,
+      fileName: file.name,
+      seasonNumber: pathSeason || 1,
+      episodeNumber: e,
+      cleanTitle: title || `Episódio ${e}`,
+      length: file.length || 0,
+    };
+  }
+
+  return {
+    fileIndex: file.index,
+    fileName: file.name,
+    seasonNumber: pathSeason || 1,
+    episodeNumber: fallbackIndex,
+    cleanTitle: cleanRawPlayerTitle(nameWithoutExt) || `Vídeo ${fallbackIndex}`,
+    length: file.length || 0,
+  };
+}
+
+function cleanRawPlayerTitle(raw: string): string {
+  return raw
+    .replace(/[\[\(].*?[\]\)]/g, ' ')
+    .replace(/\b(?:2160p|1080p|720p|480p|4k|bluray|brrip|webrip|web-dl|webdl|hdtv|x264|x265|hevc|avc|aac|dts|ddp|ac3|yify|yts|eztv|tgx|rarbg|galaxytv|dual|dublado|legendado|multi|ita|eng|por)\b/gi, ' ')
+    .replace(/[\._]/g, ' ')
+    .replace(/^[-\s.:]+|[-\s.:]+$/g, '')
+    .trim();
+}
+
 export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
   status: initialStatus,
   selectedFileIndex: initialFileIdx,
+  media,
   onClose,
   onSelectFile,
 }) => {
@@ -99,12 +238,16 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
   const [isBuffering, setIsBuffering] = useState(true);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [showSubModal, setShowSubModal] = useState(false);
-  const [showFileModal, setShowFileModal] = useState(false);
+  const [showEpisodesDrawer, setShowEpisodesDrawer] = useState(false);
+  const [selectedSeasonTab, setSelectedSeasonTab] = useState<number | 'all'>('all');
   const [forceTranscode, setForceTranscode] = useState(false);
+
+  // Auto-play next episode countdown
+  const [nextCountdown, setNextCountdown] = useState<number | null>(null);
 
   // Subtitle state
   const [subtitles, setSubtitles] = useState<{ name: string; cues: SubtitleCue[] }[]>([]);
-  const [selectedSubIdx, setSelectedSubIdx] = useState<number>(-1); // -1 = off
+  const [selectedSubIdx, setSelectedSubIdx] = useState<number>(-1);
   const [subOffsetSeconds, setSubOffsetSeconds] = useState<number>(0);
   const [subSize, setSubSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [currentSubText, setCurrentSubText] = useState<string>('');
@@ -124,11 +267,45 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hideControlsTimer = useRef<NodeJS.Timeout | null>(null);
-  const saveProgressTimer = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const videoFiles = status.files?.filter((f) => f.isVideo) || [];
+  const videoFiles = useMemo(() => status.files?.filter((f) => f.isVideo) || [], [status.files]);
   const currentFile = status.files?.find((f) => f.index === currentFileIdx) || videoFiles[0];
+
+  // Parse all video files into structured episodes
+  const parsedEpisodes: ParsedPlayerEpisode[] = useMemo(() => {
+    return videoFiles.map((file, idx) => parseEpisodeInfoFromFileName(file, idx + 1));
+  }, [videoFiles]);
+
+  const currentParsedEp = useMemo(() => {
+    return parsedEpisodes.find((e) => e.fileIndex === currentFileIdx) || parsedEpisodes[0];
+  }, [parsedEpisodes, currentFileIdx]);
+
+  // Unique seasons list
+  const availableSeasons = useMemo(() => {
+    const set = new Set<number>();
+    parsedEpisodes.forEach((e) => set.add(e.seasonNumber));
+    return Array.from(set).sort((a, b) => a - b);
+  }, [parsedEpisodes]);
+
+  // Next and Previous episodes
+  const currentIdxInEpisodes = useMemo(() => {
+    return parsedEpisodes.findIndex((e) => e.fileIndex === currentFileIdx);
+  }, [parsedEpisodes, currentFileIdx]);
+
+  const nextParsedEp = useMemo(() => {
+    if (currentIdxInEpisodes >= 0 && currentIdxInEpisodes < parsedEpisodes.length - 1) {
+      return parsedEpisodes[currentIdxInEpisodes + 1];
+    }
+    return null;
+  }, [parsedEpisodes, currentIdxInEpisodes]);
+
+  const prevParsedEp = useMemo(() => {
+    if (currentIdxInEpisodes > 0) {
+      return parsedEpisodes[currentIdxInEpisodes - 1];
+    }
+    return null;
+  }, [parsedEpisodes, currentIdxInEpisodes]);
 
   // Poll torrent status for peers / download speed HUD
   useEffect(() => {
@@ -153,7 +330,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
       if (videoRef.current && !videoRef.current.paused) {
         setControlsVisible(false);
         setShowSubModal(false);
-        setShowFileModal(false);
+        setShowEpisodesDrawer(false);
       }
     }, 3500);
   }, []);
@@ -187,10 +364,77 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
       if (isPlaying && currentTime > 0) {
         saveProgress(currentTime, duration);
       }
-    }, 5000);
+    }, 4000);
     return () => clearInterval(timer);
   }, [isPlaying, currentTime, duration, saveProgress]);
 
+  // Auto-play Next Episode Countdown Trigger (when near end of episode)
+  useEffect(() => {
+    if (!nextParsedEp || duration <= 30) {
+      setNextCountdown(null);
+      return;
+    }
+
+    const timeLeft = duration - currentTime;
+    if (timeLeft > 0 && timeLeft <= 15 && isPlaying) {
+      if (nextCountdown === null) {
+        setNextCountdown(Math.ceil(timeLeft));
+      }
+    } else if (timeLeft > 15) {
+      setNextCountdown(null);
+    }
+  }, [currentTime, duration, isPlaying, nextParsedEp, nextCountdown]);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (nextCountdown === null) return;
+    if (nextCountdown <= 0) {
+      // Trigger next episode
+      if (nextParsedEp) {
+        handlePlayNextEpisode();
+      }
+      setNextCountdown(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setNextCountdown((prev) => (prev !== null ? prev - 1 : null));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [nextCountdown, nextParsedEp]);
+
+  const handlePlayNextEpisode = () => {
+    if (!nextParsedEp) return;
+    if (videoRef.current) {
+      saveProgress(videoRef.current.currentTime, videoRef.current.duration);
+    }
+    setNextCountdown(null);
+    setCurrentFileIdx(nextParsedEp.fileIndex);
+    if (onSelectFile) onSelectFile(nextParsedEp.fileIndex);
+  };
+
+  const handlePlayPrevEpisode = () => {
+    if (!prevParsedEp) return;
+    if (videoRef.current) {
+      saveProgress(videoRef.current.currentTime, videoRef.current.duration);
+    }
+    setNextCountdown(null);
+    setCurrentFileIdx(prevParsedEp.fileIndex);
+    if (onSelectFile) onSelectFile(prevParsedEp.fileIndex);
+  };
+
+  const handleSwitchEpisode = (fileIndex: number) => {
+    if (videoRef.current) {
+      saveProgress(videoRef.current.currentTime, videoRef.current.duration);
+    }
+    setNextCountdown(null);
+    setCurrentFileIdx(fileIndex);
+    if (onSelectFile) onSelectFile(fileIndex);
+    setShowEpisodesDrawer(false);
+  };
+
+  // Google Cast Restore
   const restoreLocalFromCast = useCallback(() => {
     const resumePos = castCurrentTimeRef.current;
     if (videoRef.current && Number.isFinite(resumePos) && resumePos >= 0) {
@@ -265,7 +509,6 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
       const video = videoRef.current;
       const pos = video ? video.currentTime : currentTime;
 
-      // Lock local video immediately
       if (video && !video.paused) {
         try {
           video.pause();
@@ -285,8 +528,8 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
 
       const mediaInfo = new (window as any).chrome.cast.media.MediaInfo(castMediaUrl, 'video/mp4');
       mediaInfo.metadata = new (window as any).chrome.cast.media.GenericMediaMetadata();
-      mediaInfo.metadata.title = currentFile?.name || status.name;
-      mediaInfo.metadata.subtitle = 'CineLocal Torrent Stream';
+      mediaInfo.metadata.title = currentParsedEp?.cleanTitle || currentFile?.name || status.name;
+      mediaInfo.metadata.subtitle = `CineLocal • ${status.name}`;
 
       const request = new (window as any).chrome.cast.media.LoadRequest(mediaInfo);
       request.currentTime = pos;
@@ -372,7 +615,6 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
     };
   }, [currentFileIdx, isCasting, restoreLocalFromCast]);
 
-  // Set stream source
   const streamUrl = `/api/torrent/stream/${status.infoHash}/${currentFileIdx}${forceTranscode ? '?transcode=1' : ''}`;
 
   // Keyboard shortcuts
@@ -410,6 +652,18 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
           e.preventDefault();
           toggleFullscreen();
           break;
+        case 'n':
+          if (nextParsedEp) {
+            e.preventDefault();
+            handlePlayNextEpisode();
+          }
+          break;
+        case 'p':
+          if (prevParsedEp) {
+            e.preventDefault();
+            handlePlayPrevEpisode();
+          }
+          break;
         case 'escape':
           if (isFullscreen) {
             document.exitFullscreen?.().catch(() => {});
@@ -423,7 +677,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, currentTime, duration, volume, isMuted, isFullscreen]);
+  }, [isPlaying, currentTime, duration, volume, isMuted, isFullscreen, nextParsedEp, prevParsedEp]);
 
   // Fullscreen sync
   useEffect(() => {
@@ -528,7 +782,6 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
     e.target.value = '';
   };
 
-  // Drag and drop subtitle support
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
@@ -550,25 +803,16 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
     }
   };
 
-  const handleNextVideo = () => {
-    const currentIdxInVideos = videoFiles.findIndex((f) => f.index === currentFileIdx);
-    if (currentIdxInVideos >= 0 && currentIdxInVideos < videoFiles.length - 1) {
-      const nextFile = videoFiles[currentIdxInVideos + 1];
-      setCurrentFileIdx(nextFile.index);
-      if (onSelectFile) onSelectFile(nextFile.index);
-    }
-  };
-
-  const hasNextVideo = () => {
-    const currentIdxInVideos = videoFiles.findIndex((f) => f.index === currentFileIdx);
-    return currentIdxInVideos >= 0 && currentIdxInVideos < videoFiles.length - 1;
-  };
-
   const subFontSize = {
     small: 'clamp(1.2rem, 1.4vw, 2.2rem)',
     medium: 'clamp(1.6rem, 2vw, 3.2rem)',
     large: 'clamp(2rem, 2.6vw, 4.2rem)',
   }[subSize];
+
+  const drawerEpisodes = useMemo(() => {
+    if (selectedSeasonTab === 'all') return parsedEpisodes;
+    return parsedEpisodes.filter((e) => e.seasonNumber === selectedSeasonTab);
+  }, [parsedEpisodes, selectedSeasonTab]);
 
   return (
     <div
@@ -577,11 +821,12 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
       onClick={handleUserActivity}
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
-      className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none overflow-hidden"
+      className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none overflow-hidden font-sans"
     >
       {/* Native Video Element */}
       <video
         ref={videoRef}
+        key={streamUrl}
         src={streamUrl}
         playsInline
         autoPlay
@@ -595,6 +840,11 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
         onDurationChange={() => {
           if (videoRef.current && videoRef.current.duration > 0) {
             setDuration(videoRef.current.duration);
+          }
+        }}
+        onEnded={() => {
+          if (nextParsedEp) {
+            handlePlayNextEpisode();
           }
         }}
         onWaiting={() => setIsBuffering(true)}
@@ -643,6 +893,45 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
         </div>
       )}
 
+      {/* Auto-Play Next Episode Floating Card (Netflix style) */}
+      {nextCountdown !== null && nextParsedEp && (
+        <div className="absolute right-6 bottom-24 z-30 bg-zinc-950/95 border border-zinc-700/80 rounded-2xl p-4 shadow-2xl backdrop-blur-md max-w-sm animate-in slide-in-from-bottom-5 duration-200">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                Próximo Episódio em {nextCountdown}s
+              </span>
+              <h4 className="text-sm font-bold text-white line-clamp-1 mt-0.5">
+                T{nextParsedEp.seasonNumber}:E{nextParsedEp.episodeNumber} - {nextParsedEp.cleanTitle}
+              </h4>
+            </div>
+            <button
+              onClick={() => setNextCountdown(null)}
+              className="text-zinc-400 hover:text-white p-1"
+              title="Cancelar avanço automático"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 mt-3">
+            <button
+              onClick={handlePlayNextEpisode}
+              className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition shadow-md shadow-red-950/40 cursor-pointer"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Assistir Agora</span>
+            </button>
+            <button
+              onClick={() => setNextCountdown(null)}
+              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs rounded-xl font-medium transition cursor-pointer"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Controls Overlay */}
       <div
         className={`absolute inset-0 flex flex-col justify-between p-6 bg-gradient-to-t from-black/90 via-transparent to-black/80 transition-opacity duration-300 pointer-events-none ${
@@ -654,29 +943,44 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
           <div className="flex items-center gap-4">
             <button
               onClick={handleClose}
-              className="p-2.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-white border border-zinc-700/50 shadow-lg transition"
+              className="p-2.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-white border border-zinc-700/50 shadow-lg transition cursor-pointer"
               title="Voltar (Esc)"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
 
             <div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white">
-                  Torrent
-                </span>
-                <h1 className="text-base font-bold text-white line-clamp-1">{status.name}</h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                {parsedEpisodes.length > 1 ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-600/30 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                    <Tv className="w-3 h-3" /> Série Torrent
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white">
+                    Torrent
+                  </span>
+                )}
+                <h1 className="text-base font-bold text-white line-clamp-1">
+                  {media?.title || status.name}
+                </h1>
               </div>
-              {currentFile && (
-                <p className="text-xs text-zinc-400 line-clamp-1 mt-0.5">
-                  {currentFile.name} ({formatBytes(currentFile.length)})
+
+              {currentParsedEp && (
+                <p className="text-xs text-zinc-300 line-clamp-1 mt-0.5 flex items-center gap-2">
+                  <span className="font-semibold text-amber-400">
+                    T{currentParsedEp.seasonNumber < 10 ? `0${currentParsedEp.seasonNumber}` : currentParsedEp.seasonNumber}:E{currentParsedEp.episodeNumber < 10 ? `0${currentParsedEp.episodeNumber}` : currentParsedEp.episodeNumber}
+                  </span>
+                  <span>•</span>
+                  <span>{currentParsedEp.cleanTitle}</span>
+                  <span className="text-zinc-500">({formatBytes(currentParsedEp.length)})</span>
                 </p>
               )}
             </div>
           </div>
 
-          {/* Torrent Real-time HUD badge */}
+          {/* Right Top Actions */}
           <div className="flex items-center gap-2.5">
+            {/* Real-time HUD badge */}
             <div className="flex items-center gap-3 bg-zinc-900/90 border border-zinc-700/60 px-3.5 py-1.5 rounded-xl text-xs text-zinc-300 shadow-xl backdrop-blur-md">
               <div className="flex items-center gap-1.5" title="Peers conectados">
                 <Users className="w-3.5 h-3.5 text-sky-400" />
@@ -686,11 +990,6 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
               <div className="flex items-center gap-1.5" title="Velocidade de download">
                 <Download className="w-3.5 h-3.5 text-emerald-400" />
                 <span className="font-medium">{formatBytes(status.downloadSpeed)}/s</span>
-              </div>
-              <div className="w-px h-3 bg-zinc-700" />
-              <div className="flex items-center gap-1.5" title="Baixado">
-                <Radio className="w-3.5 h-3.5 text-amber-400" />
-                <span className="font-medium">{status.progress}%</span>
               </div>
             </div>
 
@@ -704,41 +1003,32 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                     ? 'bg-amber-600 border-amber-500 text-white'
                     : 'bg-zinc-900/80 border-zinc-700 hover:bg-zinc-800 text-zinc-300'
                 }`}
-                title={isCasting ? `Transmitindo para ${castDeviceName || 'Chromecast'} (Clique para desconectar)` : 'Transmitir para Chromecast / Google Cast'}
+                title={isCasting ? `Transmitindo para ${castDeviceName || 'Chromecast'}` : 'Transmitir para TV'}
               >
-                {isCastLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-                ) : (
-                  <CastIcon className="w-4 h-4" />
-                )}
-                <span>
-                  {isCastLoading
-                    ? isCasting
-                      ? 'Desconectando...'
-                      : 'Conectando...'
-                    : isCasting
-                      ? castDeviceName || 'Casting'
-                      : 'Cast'}
-                </span>
+                {isCastLoading ? <Loader2 className="w-4 h-4 animate-spin text-amber-400" /> : <CastIcon className="w-4 h-4" />}
+                <span>{isCasting ? castDeviceName || 'Casting' : 'Cast'}</span>
               </button>
             )}
 
-            {/* Multi-file selector modal trigger */}
-            {videoFiles.length > 1 && (
+            {/* Episodes Drawer Trigger (if Series) */}
+            {parsedEpisodes.length > 1 && (
               <button
-                onClick={() => setShowFileModal((v) => !v)}
-                className="px-3 py-2 bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700 text-xs font-medium text-white rounded-xl transition"
+                onClick={() => setShowEpisodesDrawer((v) => !v)}
+                className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                  showEpisodesDrawer
+                    ? 'bg-red-600 border-red-500 text-white'
+                    : 'bg-zinc-900/90 hover:bg-zinc-800 border-zinc-700/80 text-white'
+                }`}
               >
-                Episódios ({videoFiles.length})
+                <List className="w-4 h-4" />
+                <span>Episódios ({parsedEpisodes.length})</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* Center Big Play/Pause Toggle Indicator */}
-        <div className="self-center flex items-center justify-center">
-          {/* Subtle click area */}
-        </div>
+        {/* Center Indicator Area */}
+        <div className="self-center" />
 
         {/* Bottom Control Bar */}
         <div className="space-y-3 pointer-events-auto">
@@ -774,10 +1064,21 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
           {/* Buttons Row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              {/* Previous Episode */}
+              {prevParsedEp && (
+                <button
+                  onClick={handlePlayPrevEpisode}
+                  className="p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800/60 transition cursor-pointer"
+                  title={`Episódio Anterior (P): ${prevParsedEp.cleanTitle}`}
+                >
+                  <SkipBack className="w-5 h-5" />
+                </button>
+              )}
+
               {/* Play/Pause */}
               <button
                 onClick={togglePlay}
-                className="p-3 bg-white text-black hover:bg-zinc-200 rounded-full shadow-lg transition"
+                className="p-3 bg-white text-black hover:bg-zinc-200 rounded-full shadow-lg transition cursor-pointer"
                 title="Reproduzir/Pausar (Espaço)"
               >
                 {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
@@ -786,7 +1087,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
               {/* Seek -10s */}
               <button
                 onClick={() => seekBy(-10)}
-                className="p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800/60 transition"
+                className="p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800/60 transition cursor-pointer"
                 title="Voltar 10s (Seta Esquerda)"
               >
                 <RotateCcw className="w-5 h-5" />
@@ -795,18 +1096,18 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
               {/* Seek +10s */}
               <button
                 onClick={() => seekBy(10)}
-                className="p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800/60 transition"
+                className="p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800/60 transition cursor-pointer"
                 title="Avançar 10s (Seta Direita)"
               >
                 <RotateCw className="w-5 h-5" />
               </button>
 
-              {/* Next Video button if series */}
-              {hasNextVideo() && (
+              {/* Next Episode */}
+              {nextParsedEp && (
                 <button
-                  onClick={handleNextVideo}
-                  className="p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800/60 transition flex items-center gap-1 text-xs"
-                  title="Próximo Episódio"
+                  onClick={handlePlayNextEpisode}
+                  className="p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800/60 transition flex items-center gap-1 text-xs cursor-pointer"
+                  title={`Próximo Episódio (N): ${nextParsedEp.cleanTitle}`}
                 >
                   <SkipForward className="w-5 h-5" />
                 </button>
@@ -816,7 +1117,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
               <div className="flex items-center gap-2 group/vol ml-2">
                 <button
                   onClick={toggleMute}
-                  className="p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800/60 transition"
+                  className="p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800/60 transition cursor-pointer"
                   title="Silenciar (M)"
                 >
                   {isMuted || volume === 0 ? <VolumeX className="w-5 h-5 text-red-400" /> : <Volume2 className="w-5 h-5" />}
@@ -847,12 +1148,12 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
               <div className="relative">
                 <button
                   onClick={() => setShowSubModal((v) => !v)}
-                  className={`p-2 rounded-lg border transition ${
+                  className={`p-2 rounded-lg border transition cursor-pointer ${
                     selectedSubIdx >= 0
                       ? 'bg-red-600 border-red-500 text-white'
                       : 'text-zinc-300 hover:text-white border-zinc-700 hover:bg-zinc-800/60'
                   }`}
-                  title="Legendas e Áudio"
+                  title="Legendas"
                 >
                   <Subtitles className="w-5 h-5" />
                 </button>
@@ -863,7 +1164,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                       <h4 className="text-xs font-bold text-white uppercase tracking-wider">Legendas</h4>
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="px-2 py-1 bg-red-600 hover:bg-red-700 text-[10px] font-semibold text-white rounded-lg flex items-center gap-1 transition"
+                        className="px-2 py-1 bg-red-600 hover:bg-red-700 text-[10px] font-semibold text-white rounded-lg flex items-center gap-1 transition cursor-pointer"
                       >
                         <Plus className="w-3 h-3" />
                         <span>Carregar .srt</span>
@@ -877,11 +1178,10 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                       />
                     </div>
 
-                    {/* Subtitle track list */}
                     <div className="space-y-1 max-h-36 overflow-y-auto">
                       <button
                         onClick={() => setSelectedSubIdx(-1)}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between transition ${
+                        className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between transition cursor-pointer ${
                           selectedSubIdx === -1
                             ? 'bg-zinc-800 text-white font-medium'
                             : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
@@ -895,7 +1195,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                         <button
                           key={idx}
                           onClick={() => setSelectedSubIdx(idx)}
-                          className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between transition ${
+                          className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between transition cursor-pointer ${
                             selectedSubIdx === idx
                               ? 'bg-zinc-800 text-white font-medium'
                               : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
@@ -907,7 +1207,6 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                       ))}
                     </div>
 
-                    {/* Subtitle Size Adjuster */}
                     {selectedSubIdx >= 0 && (
                       <div className="pt-2 border-t border-zinc-800 space-y-2">
                         <label className="text-[11px] text-zinc-400">Tamanho da Legenda:</label>
@@ -916,7 +1215,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                             <button
                               key={size}
                               onClick={() => setSubSize(size)}
-                              className={`py-1 text-[10px] rounded-md font-medium capitalize transition ${
+                              className={`py-1 text-[10px] rounded-md font-medium capitalize transition cursor-pointer ${
                                 subSize === size
                                   ? 'bg-red-600 text-white'
                                   : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
@@ -927,7 +1226,6 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                           ))}
                         </div>
 
-                        {/* Timing sync offset */}
                         <div className="pt-2 space-y-1">
                           <div className="flex justify-between text-[11px] text-zinc-400">
                             <span>Sincronia:</span>
@@ -963,7 +1261,7 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
               {/* Fullscreen Button */}
               <button
                 onClick={toggleFullscreen}
-                className="p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800/60 transition"
+                className="p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800/60 transition cursor-pointer"
                 title="Tela Cheia (F)"
               >
                 {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
@@ -973,39 +1271,78 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
         </div>
       </div>
 
-      {/* Episode / Multi-file Selector Drawer Modal */}
-      {showFileModal && (
-        <div className="absolute right-6 top-20 w-80 bg-zinc-950/95 border border-zinc-800 rounded-2xl p-4 shadow-2xl backdrop-blur-md z-30 space-y-3 animate-in fade-in duration-150">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-              Arquivos de Vídeo ({videoFiles.length})
-            </h3>
+      {/* Episodes Drawer for Torrent Series */}
+      {showEpisodesDrawer && parsedEpisodes.length > 1 && (
+        <div className="absolute right-6 top-20 w-88 max-w-[90vw] bg-zinc-950/95 border border-zinc-700/90 rounded-2xl p-4 shadow-2xl backdrop-blur-md z-40 space-y-3 animate-in slide-in-from-right-5 duration-150">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
+            <div className="flex items-center gap-2">
+              <Tv className="w-4 h-4 text-amber-400" />
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                Episódios da Série ({parsedEpisodes.length})
+              </h3>
+            </div>
             <button
-              onClick={() => setShowFileModal(false)}
-              className="text-zinc-400 hover:text-white text-xs"
+              onClick={() => setShowEpisodesDrawer(false)}
+              className="text-zinc-400 hover:text-white text-xs cursor-pointer p-1"
             >
               Fechar
             </button>
           </div>
-          <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
-            {videoFiles.map((file) => {
-              const isSelected = file.index === currentFileIdx;
-              return (
+
+          {/* Season tabs inside drawer */}
+          {availableSeasons.length > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+              <button
+                onClick={() => setSelectedSeasonTab('all')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap transition cursor-pointer ${
+                  selectedSeasonTab === 'all'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-zinc-800/80 text-zinc-400 hover:text-white'
+                }`}
+              >
+                Todas
+              </button>
+              {availableSeasons.map((seasonNum) => (
                 <button
-                  key={file.index}
-                  onClick={() => {
-                    setCurrentFileIdx(file.index);
-                    if (onSelectFile) onSelectFile(file.index);
-                    setShowFileModal(false);
-                  }}
-                  className={`w-full text-left p-2.5 rounded-xl text-xs flex items-center justify-between transition ${
-                    isSelected
-                      ? 'bg-red-600 text-white font-medium shadow-md shadow-red-950/50'
-                      : 'bg-zinc-900/60 hover:bg-zinc-900 text-zinc-300'
+                  key={seasonNum}
+                  onClick={() => setSelectedSeasonTab(seasonNum)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap transition cursor-pointer ${
+                    selectedSeasonTab === seasonNum
+                      ? 'bg-red-600 text-white'
+                      : 'bg-zinc-800/80 text-zinc-400 hover:text-white'
                   }`}
                 >
-                  <span className="truncate pr-2">{file.name}</span>
-                  <span className="text-[10px] opacity-70 flex-shrink-0">{formatBytes(file.length)}</span>
+                  T{seasonNum}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* List of episodes */}
+          <div className="max-h-80 overflow-y-auto space-y-1.5 pr-1">
+            {drawerEpisodes.map((ep) => {
+              const isSelected = ep.fileIndex === currentFileIdx;
+              return (
+                <button
+                  key={ep.fileIndex}
+                  onClick={() => handleSwitchEpisode(ep.fileIndex)}
+                  className={`w-full text-left p-2.5 rounded-xl text-xs flex items-center justify-between transition cursor-pointer border ${
+                    isSelected
+                      ? 'bg-red-600 border-red-500 text-white font-semibold shadow-md shadow-red-950/60'
+                      : 'bg-zinc-900/70 hover:bg-zinc-900 border-transparent text-zinc-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate min-w-0 pr-2">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold flex-shrink-0 ${
+                      isSelected ? 'bg-black/40 text-white' : 'bg-zinc-800 text-zinc-300'
+                    }`}>
+                      T{ep.seasonNumber < 10 ? `0${ep.seasonNumber}` : ep.seasonNumber}:E{ep.episodeNumber < 10 ? `0${ep.episodeNumber}` : ep.episodeNumber}
+                    </span>
+                    <span className="truncate">{ep.cleanTitle}</span>
+                  </div>
+                  <span className="text-[10px] opacity-75 flex-shrink-0 font-mono">
+                    {formatBytes(ep.length)}
+                  </span>
                 </button>
               );
             })}

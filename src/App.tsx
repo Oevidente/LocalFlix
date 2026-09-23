@@ -41,7 +41,11 @@ export default function App() {
   const [showTmdbConfigModal, setShowTmdbConfigModal] = useState<boolean>(false);
   const [relocateTarget, setRelocateTarget] = useState<MediaItem | null>(null);
   const [showTorrentModal, setShowTorrentModal] = useState<boolean>(false);
-  const [playingTorrent, setPlayingTorrent] = useState<{ status: TorrentStatus; selectedFileIndex: number } | null>(null);
+  const [playingTorrent, setPlayingTorrent] = useState<{
+    status: TorrentStatus;
+    selectedFileIndex: number;
+    media?: MediaItem | null;
+  } | null>(null);
 
   // IPTV Live Channels State
   const [iptvPlaying, setIptvPlaying] = useState<{ channel: IptvChannel; allChannels: IptvChannel[] } | null>(null);
@@ -372,7 +376,7 @@ export default function App() {
           });
           if (res.ok) {
             const torrentStatus: TorrentStatus = await res.json();
-            setPlayingTorrent({ status: torrentStatus, selectedFileIndex: fileIdx });
+            setPlayingTorrent({ status: torrentStatus, selectedFileIndex: fileIdx, media });
             return;
           }
         } catch (err) {
@@ -872,6 +876,7 @@ export default function App() {
         <TorrentPlayer
           status={playingTorrent.status}
           selectedFileIndex={playingTorrent.selectedFileIndex}
+          media={playingTorrent.media}
           onClose={() => {
             setPlayingTorrent(null);
             fetchLibrary();

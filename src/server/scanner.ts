@@ -27,30 +27,47 @@ interface ParsedEpisodeInfo {
   cleanTitle: string;
 }
 
-export function parseEpisodeInfo(fileName: string, fallbackIndex: number): ParsedEpisodeInfo {
+export function parseEpisodeInfo(fileNameOrPath: string, fallbackIndex: number): ParsedEpisodeInfo {
+  // Normalize slashes
+  const normalizedPath = fileNameOrPath.replace(/\\/g, '/');
+  const pathParts = normalizedPath.split('/').filter(Boolean);
+  const fileName = pathParts[pathParts.length - 1] || fileNameOrPath;
   const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
 
-  // 1. Match S01E02 or s1e2 or S01.E02
+  // 0. Check if any directory in path indicates a Season (e.g. "Season 2", "Temporada 03", "S04")
+  let pathSeason: number | undefined;
+  for (let i = 0; i < pathParts.length - 1; i++) {
+    const part = pathParts[i];
+    const sMatch = part.match(/(?:temporada|season|s)\s*(\d{1,2})/i);
+    if (sMatch) {
+      const parsedS = parseInt(sMatch[1], 10);
+      if (parsedS > 0 && parsedS < 100) {
+        pathSeason = parsedS;
+      }
+    }
+  }
+
+  // 1. Match S01E02 or s1e2 or S01.E02 or S01_E02 or S01 - E02
   const sxxExxMatch = nameWithoutExt.match(/[Ss](\d{1,2})[\.\s_-]*[Ee](\d{1,3})/);
   if (sxxExxMatch) {
     const season = parseInt(sxxExxMatch[1], 10);
     const episode = parseInt(sxxExxMatch[2], 10);
     const title = cleanEpisodeTitle(nameWithoutExt, sxxExxMatch[0]);
     return {
-      seasonNumber: season || 1,
+      seasonNumber: season || pathSeason || 1,
       episodeNumber: episode,
       cleanTitle: title || `Episódio ${episode}`,
     };
   }
 
   // 2. Match 1x02 or 01x02
-  const xMatch = nameWithoutExt.match(/(\d{1,2})[xX](\d{1,3})/);
+  const xMatch = nameWithoutExt.match(/(?:^|[\s._\-\[])(\d{1,2})[xX](\d{1,3})/);
   if (xMatch) {
     const season = parseInt(xMatch[1], 10);
     const episode = parseInt(xMatch[2], 10);
     const title = cleanEpisodeTitle(nameWithoutExt, xMatch[0]);
     return {
-      seasonNumber: season || 1,
+      seasonNumber: season || pathSeason || 1,
       episodeNumber: episode,
       cleanTitle: title || `Episódio ${episode}`,
     };
@@ -61,38 +78,52 @@ export function parseEpisodeInfo(fileName: string, fallbackIndex: number): Parse
   if (seasonEpisodeMatch) {
     const season = parseInt(seasonEpisodeMatch[1], 10);
     const episode = parseInt(seasonEpisodeMatch[2], 10);
+    const title = cleanEpisodeTitle(nameWithoutExt, seasonEpisodeMatch[0]);
     return {
-      seasonNumber: season || 1,
+      seasonNumber: season || pathSeason || 1,
       episodeNumber: episode,
-      cleanTitle: `Episódio ${episode}`,
+      cleanTitle: title || `Episódio ${episode}`,
     };
   }
 
   // 4. Match E02 or EP02 or Episodio 02
-  const epOnlyMatch = nameWithoutExt.match(/(?:[Ee][Pp]?|episodio|episódio)\s*[-_.]?\s*(\d{1,3})/i);
+  const epOnlyMatch = nameWithoutExt.match(/(?:^|[\s._\-\[])(?:[Ee][Pp]?|episodio|episódio)\s*[-_.]?\s*(\d{1,3})/i);
   if (epOnlyMatch) {
     const episode = parseInt(epOnlyMatch[1], 10);
+    const title = cleanEpisodeTitle(nameWithoutExt, epOnlyMatch[0]);
     return {
-      seasonNumber: 1,
+      seasonNumber: pathSeason || 1,
       episodeNumber: episode,
-      cleanTitle: `Episódio ${episode}`,
+      cleanTitle: title || `Episódio ${episode}`,
     };
   }
 
-  // 5. Match leading number like "01 - Pilot" or "1. Pilot"
-  const leadingNumMatch = nameWithoutExt.match(/^(\d{1,3})[\s\.\-_]+(.*)/);
+  // 5. Match anime release patterns like "[Subs] Anime Title - 04 [1080p]" or "Title - 04"
+  const animeMatch = nameWithoutExt.match(/(?:^|[\s._\-\]])-\s*(\d{1,3})(?:[\s._\-\[]|$)/);
+  if (animeMatch) {
+    const episode = parseInt(animeMatch[1], 10);
+    const title = cleanEpisodeTitle(nameWithoutExt, animeMatch[0]);
+    return {
+      seasonNumber: pathSeason || 1,
+      episodeNumber: episode,
+      cleanTitle: title || `Episódio ${episode}`,
+    };
+  }
+
+  // 6. Match leading number like "01 - Pilot" or "1. Pilot" or "01.mkv"
+  const leadingNumMatch = nameWithoutExt.match(/^(\d{1,3})[\s\.\-_]*(.*)/);
   if (leadingNumMatch) {
     const episode = parseInt(leadingNumMatch[1], 10);
     const title = cleanEpisodeTitle(leadingNumMatch[2], '');
     return {
-      seasonNumber: 1,
+      seasonNumber: pathSeason || 1,
       episodeNumber: episode,
       cleanTitle: title || `Episódio ${episode}`,
     };
   }
 
   return {
-    seasonNumber: 1,
+    seasonNumber: pathSeason || 1,
     episodeNumber: fallbackIndex,
     cleanTitle: cleanEpisodeTitle(nameWithoutExt, '') || `Vídeo ${fallbackIndex}`,
   };
@@ -108,12 +139,12 @@ function cleanEpisodeTitle(rawName: string, matchedToken: string): string {
     }
   }
 
-  // Clean release artifacts like [1080p], (720p), x264, WEBRip, etc.
+  // Clean release tags, groups, resolutions, audio codecs
   cleaned = cleaned
     .replace(/[\[\(].*?[\]\)]/g, ' ')
-    .replace(/(?:1080p|720p|480p|2160p|4k|bluray|webrip|web-dl|hdtv|x264|x265|hevc|aac|dts|yify|yts)/gi, ' ')
+    .replace(/\b(?:2160p|1080p|720p|480p|4k|bluray|brrip|webrip|web-dl|webdl|hdtv|x264|x265|hevc|avc|aac|dts|ddp|ac3|yify|yts|eztv|tgx|rarbg|galaxytv|dual|dublado|legendado|multi|ita|eng|por)\b/gi, ' ')
     .replace(/[\._]/g, ' ')
-    .replace(/^[-\s]+|[-\s]+$/g, '')
+    .replace(/^[-\s.:]+|[-\s.:]+$/g, '')
     .trim();
 
   return cleaned;

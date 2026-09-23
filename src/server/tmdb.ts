@@ -94,10 +94,12 @@ export function getLanguage(): string {
 
 function normalizeSearchTitle(title: string): string {
   return title
-    .replace(/(?:^|[\s._-])[Ss]\d{1,2}(?:[Ee]\d{1,3})?(?:[-_. ]*[Ee]\d{1,3})?/g, ' ')
+    .replace(/(?:^|[\s._-])[Ss]\d{1,2}(?:[-_. ][Ss]\d{1,2})?(?:[Ee]\d{1,3})?(?:[-_. ]*[Ee]\d{1,3})?/g, ' ')
+    .replace(/(?:temporada|season)\s*\d+/gi, ' ')
+    .replace(/(?:complete\s*series|complete\s*season|complete)/gi, ' ')
     .replace(/[._]/g, ' ')
     .replace(/[\[\(].*?[\]\)]/g, ' ')
-    .replace(/\b(?:2160p|1080p|720p|480p|4k|bluray|brrip|webrip|web[- ]?dl|hdtv|x26[45]|hevc|aac|dts|remux|proper|repack)\b/gi, ' ')
+    .replace(/\b(?:2160p|1080p|720p|480p|4k|bluray|brrip|webrip|web[- ]?dl|webdl|hdtv|x26[45]|hevc|avc|aac|dts|ddp|ac3|remux|proper|repack|yify|yts|eztv|rarbg|tgx|dual|dublado|legendado|multi)\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
