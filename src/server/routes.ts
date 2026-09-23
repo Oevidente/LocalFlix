@@ -19,6 +19,8 @@ import { enrichMediaWithTmdb, isTmdbConfigured } from './tmdb';
 import {
   downloadOnlineSubtitle,
   isOpenSubtitlesConfigured,
+  isOpenSubtitlesAccountConfigured,
+  getOpenSubtitlesUsername,
   searchOnlineSubtitles,
 } from './opensubtitles';
 import {
@@ -1059,6 +1061,8 @@ apiRouter.get('/system/status', (req: Request, res: Response) => {
     platform: process.platform,
     tmdbConfigured: isTmdbConfigured(),
     openSubtitlesConfigured: isOpenSubtitlesConfigured(),
+    openSubtitlesAccountConfigured: isOpenSubtitlesAccountConfigured(),
+    openSubtitlesUsername: getOpenSubtitlesUsername(),
     hardwareAcceleration: getHardwareAccelerationStatus(),
   };
 

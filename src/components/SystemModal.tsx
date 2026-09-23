@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, HardDrive, CheckCircle, AlertTriangle, Terminal, FileJson, Download, Loader2, Zap, Cpu, Smartphone } from 'lucide-react';
+import { X, HardDrive, CheckCircle, AlertTriangle, Terminal, FileJson, Download, Loader2, Zap, Cpu, Smartphone, Subtitles } from 'lucide-react';
 import { SystemStatus } from '../types';
 
 interface SystemModalProps {
@@ -295,6 +295,38 @@ export const SystemModal: React.FC<SystemModalProps> = ({
               <p className="text-[11px] text-neutral-400 leading-relaxed">
                 O CineLocal pode ser instalado no seu navegador, desktop ou celular como aplicativo nativo, funcionando diretamente da rede local ou pendrive sem conexão com a internet externa.
               </p>
+            </div>
+
+            {/* OpenSubtitles Integration */}
+            <div className="p-3 rounded-lg bg-neutral-900 border border-neutral-800 space-y-2">
+              <div className="flex items-center justify-between text-neutral-200 font-semibold border-b border-neutral-800 pb-1.5">
+                <span className="flex items-center space-x-1.5">
+                  <Subtitles className="w-4 h-4 text-amber-400" />
+                  <span>Legendas Online (OpenSubtitles)</span>
+                </span>
+                <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
+                  status?.openSubtitlesAccountConfigured
+                    ? 'bg-emerald-950/60 border border-emerald-700/60 text-emerald-400 font-bold'
+                    : 'bg-neutral-800 text-neutral-400'
+                }`}>
+                  {status?.openSubtitlesAccountConfigured ? 'Conta Ativa' : 'API Básica'}
+                </span>
+              </div>
+              <div className="space-y-1 text-neutral-400 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-neutral-400">Usuário conectado:</span>
+                  <span className="font-mono text-white text-[11px]">
+                    {status?.openSubtitlesUsername || 'oevidente'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-neutral-400">Busca e Download:</span>
+                  <span className="text-emerald-400 text-[11px] flex items-center gap-1">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    Habilitado (Login Automático)
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Portable Pendrive guide */}

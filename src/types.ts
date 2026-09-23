@@ -134,6 +134,8 @@ export interface SystemStatus {
   platform: string;
   tmdbConfigured?: boolean;
   openSubtitlesConfigured?: boolean;
+  openSubtitlesAccountConfigured?: boolean;
+  openSubtitlesUsername?: string;
   hardwareAcceleration?: HardwareAccelerationStatus;
 }
 

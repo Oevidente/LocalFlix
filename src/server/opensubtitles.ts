@@ -58,21 +58,31 @@ interface OpenSubtitlesDownloadResponse {
 let cachedSession: OpenSubtitlesSession | null = null;
 
 const DEFAULT_API_KEY = 'neEqFAdRQC2PpeMiOZi06dw0qiKf6X5d';
+const DEFAULT_USERNAME = 'oevidente';
+const DEFAULT_PASSWORD = 'Oevdt.51190';
 
 function getApiKey(): string | undefined {
   return process.env.OPENSUBTITLES_API_KEY?.trim() || DEFAULT_API_KEY;
 }
 
 function getUsername(): string | undefined {
-  return process.env.OPENSUBTITLES_USERNAME?.trim() || undefined;
+  return process.env.OPENSUBTITLES_USERNAME?.trim() || DEFAULT_USERNAME;
 }
 
 function getPassword(): string | undefined {
-  return process.env.OPENSUBTITLES_PASSWORD || undefined;
+  return process.env.OPENSUBTITLES_PASSWORD || DEFAULT_PASSWORD;
 }
 
 export function isOpenSubtitlesConfigured(): boolean {
   return Boolean(getApiKey());
+}
+
+export function isOpenSubtitlesAccountConfigured(): boolean {
+  return Boolean(getUsername() && getPassword());
+}
+
+export function getOpenSubtitlesUsername(): string | undefined {
+  return getUsername();
 }
 
 function normalizeLanguage(language: string): string {
