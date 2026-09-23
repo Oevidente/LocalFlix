@@ -21,6 +21,7 @@ interface TmdbSearchResult {
   backdrop_path?: string | null;
   vote_average?: number;
   vote_count?: number;
+  media_type?: string;
 }
 
 interface TmdbSearchResponse {
@@ -199,11 +200,35 @@ function chooseSearchResult(results: TmdbSearchResult[], query: string): TmdbSea
 
 async function findMedia(query: string, kind: MediaItem['kind']): Promise<TmdbSearchResult | undefined> {
   const cleanQuery = normalizeSearchTitle(query);
-  if (!cleanQuery) return undefined;
+  const queriesToTry = [cleanQuery, query.trim()].filter(Boolean);
 
-  const endpoint = kind === 'movie' ? '/search/movie' : '/search/tv';
-  const response = await requestTmdb<TmdbSearchResponse>(endpoint, { query: cleanQuery, include_adult: 'false' });
-  return chooseSearchResult(response.results || [], cleanQuery);
+  for (const q of [...new Set(queriesToTry)]) {
+    // 1. Try primary endpoint for the given kind
+    const primaryEndpoint = kind === 'movie' ? '/search/movie' : '/search/tv';
+    try {
+      const response = await requestTmdb<TmdbSearchResponse>(primaryEndpoint, { query: q, include_adult: 'false' });
+      const match = chooseSearchResult(response.results || [], q);
+      if (match) return match;
+    } catch {}
+
+    // 2. Try alternate endpoint
+    const secondaryEndpoint = kind === 'movie' ? '/search/tv' : '/search/movie';
+    try {
+      const response = await requestTmdb<TmdbSearchResponse>(secondaryEndpoint, { query: q, include_adult: 'false' });
+      const match = chooseSearchResult(response.results || [], q);
+      if (match) return match;
+    } catch {}
+
+    // 3. Try multi-search
+    try {
+      const response = await requestTmdb<TmdbSearchResponse>('/search/multi', { query: q, include_adult: 'false' });
+      const filtered = (response.results || []).filter((r) => r.media_type === 'movie' || r.media_type === 'tv' || !r.media_type);
+      const match = chooseSearchResult(filtered, q);
+      if (match) return match;
+    } catch {}
+  }
+
+  return undefined;
 }
 
 function applyMediaDetail(media: MediaItem, detail: TmdbDetail): void {
@@ -250,15 +275,23 @@ async function enrichSeriesEpisodes(media: MediaItem, tmdbId: number): Promise<v
   }));
 }
 
-export async function searchTmdb(query: string, kind: MediaItem['kind'] = 'movie'): Promise<TmdbSearchResult[]> {
+export async function searchTmdb(query: string, kind?: MediaItem['kind']): Promise<TmdbSearchResult[]> {
   if (!isTmdbConfigured()) return [];
   const cleanQuery = normalizeSearchTitle(query);
-  if (!cleanQuery) return [];
+  const q = cleanQuery || query.trim();
+  if (!q) return [];
 
-  const endpoint = kind === 'movie' ? '/search/movie' : '/search/tv';
   try {
-    const response = await requestTmdb<TmdbSearchResponse>(endpoint, { query: cleanQuery, include_adult: 'false' });
-    return response.results || [];
+    if (kind === 'movie') {
+      const res = await requestTmdb<TmdbSearchResponse>('/search/movie', { query: q, include_adult: 'false' });
+      return res.results || [];
+    } else if (kind === 'series') {
+      const res = await requestTmdb<TmdbSearchResponse>('/search/tv', { query: q, include_adult: 'false' });
+      return res.results || [];
+    } else {
+      const res = await requestTmdb<TmdbSearchResponse>('/search/multi', { query: q, include_adult: 'false' });
+      return (res.results || []).filter((r) => r.media_type === 'movie' || r.media_type === 'tv' || !r.media_type);
+    }
   } catch (error) {
     console.warn('[TMDb] Falha ao pesquisar títulos:', error instanceof Error ? error.message : error);
     return [];
@@ -270,47 +303,57 @@ export async function enrichMediaWithTmdb(
   customQuery?: string,
   explicitTmdbId?: number
 ): Promise<MediaItem> {
-  if (!isTmdbConfigured()) return media;
+  if (!isTmdbConfigured()) {
+    throw new Error('Chave da API do TMDb não configurada no servidor.');
+  }
 
   const query = customQuery?.trim() || media.customTitle || media.title || path.basename(media.folderPath);
+  let targetId = explicitTmdbId;
+
+  if (!targetId) {
+    const searchResult = await findMedia(query, media.kind);
+    if (!searchResult) {
+      throw new Error(`Nenhum título encontrado no TMDb para "${query}". Tente buscar digitando o nome exato na barra de busca.`);
+    }
+    targetId = searchResult.id;
+  }
+
+  const endpoint = media.kind === 'movie' ? `/movie/${targetId}` : `/tv/${targetId}`;
+  let detail: TmdbDetail;
   try {
-    let targetId = explicitTmdbId;
+    detail = await requestTmdb<TmdbDetail>(endpoint, { append_to_response: 'credits' });
+  } catch (err) {
+    // If not found in primary endpoint, try other endpoint
+    const fallbackEndpoint = media.kind === 'movie' ? `/tv/${targetId}` : `/movie/${targetId}`;
+    detail = await requestTmdb<TmdbDetail>(fallbackEndpoint, { append_to_response: 'credits' });
+  }
 
-    if (!targetId) {
-      const searchResult = await findMedia(query, media.kind);
-      if (!searchResult) {
-        console.warn(`[TMDb] Nenhum resultado encontrado para "${query}"`);
-        return media;
-      }
-      targetId = searchResult.id;
+  applyMediaDetail(media, detail);
+
+  const posterUrl = imageUrl(detail.poster_path, 'w500');
+  const backdropUrl = imageUrl(detail.backdrop_path, 'w780');
+  const [posterPath, backdropPath] = await Promise.all([
+    cacheImage(media.id, 'poster', posterUrl),
+    cacheImage(media.id, 'backdrop', backdropUrl),
+  ]);
+
+  if (posterPath) {
+    media.posterPath = posterPath;
+  } else if (posterUrl) {
+    media.posterPath = posterUrl;
+  }
+
+  if (backdropPath) {
+    media.backdropPath = backdropPath;
+  } else if (backdropUrl) {
+    media.backdropPath = backdropUrl;
+  }
+
+  if (media.kind === 'series') {
+    await enrichSeriesEpisodes(media, detail.id);
+    for (const season of media.seasons) {
+      season.title = `Temporada ${season.seasonNumber}`;
     }
-
-    const endpoint = media.kind === 'movie' ? `/movie/${targetId}` : `/tv/${targetId}`;
-    const detail = await requestTmdb<TmdbDetail>(endpoint, { append_to_response: 'credits' });
-    applyMediaDetail(media, detail);
-
-    const posterUrl = imageUrl(detail.poster_path, 'w500');
-    const backdropUrl = imageUrl(detail.backdrop_path, 'w780');
-    const [posterPath, backdropPath] = await Promise.all([
-      cacheImage(media.id, 'poster', posterUrl),
-      cacheImage(media.id, 'backdrop', backdropUrl),
-    ]);
-
-    if (posterPath) {
-      media.posterPath = posterPath;
-    }
-    if (backdropPath) {
-      media.backdropPath = backdropPath;
-    }
-
-    if (media.kind === 'series') {
-      await enrichSeriesEpisodes(media, detail.id);
-      for (const season of media.seasons) {
-        season.title = `Temporada ${season.seasonNumber}`;
-      }
-    }
-  } catch (error) {
-    console.warn('[TMDb] Falha ao enriquecer mídia:', error instanceof Error ? error.message : error);
   }
 
   return media;

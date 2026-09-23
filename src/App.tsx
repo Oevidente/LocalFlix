@@ -346,24 +346,24 @@ export default function App() {
     }
   };
 
-  const handleRefreshMetadata = async (mediaId: string, query?: string): Promise<boolean> => {
+  const handleRefreshMetadata = async (mediaId: string, query?: string, tmdbId?: number): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`/api/library/metadata/${mediaId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, tmdbId }),
       });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await res.json();
+      if (res.ok && data.success) {
         await fetchLibrary();
         if (data.item) {
           setActiveMediaDetail(data.item);
         }
-        return true;
+        return { success: true };
       }
-      return false;
-    } catch {
-      return false;
+      return { success: false, error: data.error || 'Erro ao obter dados do TMDb.' };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Erro de conexão com o servidor.' };
     }
   };
 

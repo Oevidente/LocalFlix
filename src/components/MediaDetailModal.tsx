@@ -35,7 +35,7 @@ interface MediaDetailModalProps {
   onDeleteMedia: (mediaId: string) => void;
   onUpdateBanner?: (mediaId: string, bannerUrl: string) => Promise<boolean>;
   onUpdatePoster?: (mediaId: string, posterUrl: string) => Promise<boolean>;
-  onRefreshMetadata?: (mediaId: string, query?: string) => Promise<boolean>;
+  onRefreshMetadata?: (mediaId: string, query?: string, tmdbId?: number) => Promise<{ success: boolean; error?: string }>;
   onImportSubtitle: (mediaId: string, episodeId: string, file: File) => Promise<void>;
   onRemoveImportedSubtitle: (mediaId: string, episodeId: string, trackIndex: number) => Promise<void>;
   onSearchOnlineSubtitles: (mediaId: string, episodeId: string) => Promise<OnlineSubtitleOption[]>;
@@ -78,7 +78,19 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const [showTmdbSearch, setShowTmdbSearch] = useState(false);
   const [tmdbSearchQuery, setTmdbSearchQuery] = useState(media.title || '');
   const [isFetchingTmdb, setIsFetchingTmdb] = useState(false);
-  const [tmdbSearchMessage, setTmdbSearchMessage] = useState<string | null>(null);
+  const [tmdbSearchMessage, setTmdbSearchMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const [tmdbSearchResults, setTmdbSearchResults] = useState<Array<{
+    id: number;
+    title?: string;
+    name?: string;
+    release_date?: string;
+    first_air_date?: string;
+    poster_path?: string | null;
+    overview?: string;
+    vote_average?: number;
+    media_type?: string;
+  }>>([]);
+  const [isSearchingCandidates, setIsSearchingCandidates] = useState(false);
   const [importingSubtitleEpisodeId, setImportingSubtitleEpisodeId] = useState<string | null>(null);
   const [removingSubtitleKey, setRemovingSubtitleKey] = useState<string | null>(null);
   const [subtitleMessage, setSubtitleMessage] = useState<{ episodeId: string; text: string; error?: boolean } | null>(null);
@@ -263,18 +275,63 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     setIsFetchingTmdb(true);
     setTmdbSearchMessage(null);
     try {
-      const ok = await onRefreshMetadata(media.id, tmdbSearchQuery.trim());
-      if (ok) {
-        setTmdbSearchMessage('Metadados e capa atualizados pelo TMDb!');
+      const res = await onRefreshMetadata(media.id, tmdbSearchQuery.trim());
+      if (res.success) {
+        setTmdbSearchMessage({ text: 'Metadados e capa atualizados com sucesso pelo TMDb!' });
         setTimeout(() => {
           setTmdbSearchMessage(null);
           setShowTmdbSearch(false);
-        }, 1500);
+        }, 1600);
       } else {
-        setTmdbSearchMessage('Não foi possível obter dados no TMDb. Verifique se sua chave está configurada no menu Status.');
+        setTmdbSearchMessage({ text: res.error || 'Não foi possível encontrar este título no TMDb.', error: true });
+        // Automatically search candidates to help the user choose
+        handleSearchCandidates(tmdbSearchQuery.trim());
       }
     } catch (err: any) {
-      setTmdbSearchMessage(err?.message || 'Erro ao conectar ao TMDb.');
+      setTmdbSearchMessage({ text: err?.message || 'Erro ao conectar ao TMDb.', error: true });
+    } finally {
+      setIsFetchingTmdb(false);
+    }
+  };
+
+  const handleSearchCandidates = async (queryToSearch: string) => {
+    const q = queryToSearch.trim();
+    if (!q) return;
+    setIsSearchingCandidates(true);
+    try {
+      const res = await fetch(`/api/system/tmdb/search?query=${encodeURIComponent(q)}&kind=${media.kind}`);
+      const data = await res.json();
+      if (data.results && Array.isArray(data.results)) {
+        setTmdbSearchResults(data.results.slice(0, 8));
+        if (data.results.length === 0) {
+          setTmdbSearchMessage({ text: `Nenhum resultado encontrado no TMDb para "${q}". Tente digitar o título oficial em português ou inglês.`, error: true });
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsSearchingCandidates(false);
+    }
+  };
+
+  const handleApplyCandidate = async (tmdbId: number) => {
+    if (!onRefreshMetadata) return;
+    setIsFetchingTmdb(true);
+    setTmdbSearchMessage(null);
+    try {
+      const res = await onRefreshMetadata(media.id, undefined, tmdbId);
+      if (res.success) {
+        setTmdbSearchMessage({ text: 'Título e capa aplicados com sucesso!' });
+        setTmdbSearchResults([]);
+        setTimeout(() => {
+          setTmdbSearchMessage(null);
+          setShowTmdbSearch(false);
+        }, 1600);
+      } else {
+        setTmdbSearchMessage({ text: res.error || 'Erro ao aplicar metadados do TMDb.', error: true });
+      }
+    } catch (err: any) {
+      setTmdbSearchMessage({ text: err?.message || 'Erro ao aplicar título.', error: true });
     } finally {
       setIsFetchingTmdb(false);
     }
@@ -523,16 +580,18 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
         {/* TMDb Search & Enriched Metadata Panel */}
         {showTmdbSearch && (
           <div className="p-4 bg-neutral-900 border-b border-neutral-800 animate-in fade-in duration-200">
-            <div className="max-w-2xl mx-auto space-y-3">
+            <div className="max-w-3xl mx-auto space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2 text-xs font-bold text-white">
                   <Sparkles className="w-4 h-4 text-pink-400" />
-                  <span>Buscar Capa e Informações no TMDb</span>
+                  <span>Buscar Capa e Metadados Oficiais no TMDb</span>
                 </div>
                 {tmdbSearchMessage && (
-                  <span className="text-xs font-semibold text-emerald-400 flex items-center space-x-1">
-                    <Check className="w-3.5 h-3.5" />
-                    <span>{tmdbSearchMessage}</span>
+                  <span className={`text-xs font-semibold flex items-center space-x-1 ${
+                    tmdbSearchMessage.error ? 'text-amber-400' : 'text-emerald-400'
+                  }`}>
+                    {!tmdbSearchMessage.error && <Check className="w-3.5 h-3.5" />}
+                    <span>{tmdbSearchMessage.text}</span>
                   </span>
                 )}
               </div>
@@ -542,8 +601,8 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                   <label className="block text-[11px] text-neutral-400 mb-1">
                     Nome do filme ou série a pesquisar no TMDb:
                   </label>
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative flex-1 min-w-[220px]">
                       <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
                       <input
                         id="tmdb-search-input"
@@ -557,24 +616,101 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                     <button
                       type="submit"
                       disabled={isFetchingTmdb || !tmdbSearchQuery.trim()}
-                      className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-50 text-white text-xs font-semibold transition-all shadow shrink-0 flex items-center space-x-1.5"
+                      className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-50 text-white text-xs font-semibold transition-all shadow shrink-0 flex items-center space-x-1.5"
+                      title="Baixar capa e metadados automaticamente"
                     >
                       {isFetchingTmdb ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                       <span>{isFetchingTmdb ? 'Buscando...' : 'Buscar e Aplicar'}</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => setShowTmdbSearch(false)}
+                      onClick={() => handleSearchCandidates(tmdbSearchQuery)}
+                      disabled={isSearchingCandidates || !tmdbSearchQuery.trim()}
+                      className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 text-neutral-200 text-xs font-medium transition-colors shrink-0 flex items-center space-x-1"
+                      title="Ver lista de títulos encontrados no TMDb para escolher"
+                    >
+                      {isSearchingCandidates ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5 text-pink-400" />}
+                      <span>Ver Resultados</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTmdbSearch(false);
+                        setTmdbSearchResults([]);
+                      }}
                       className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400 text-xs font-medium transition-colors"
                     >
                       Fechar
                     </button>
                   </div>
                   <p className="text-[11px] text-neutral-500 mt-1.5">
-                    Isso fará o download da capa oficial, sinopse em português, ano, gêneros, avaliação e atores do TMDb para esta mídia.
+                    Isso fará o download da capa oficial em alta definição, banner de fundo, sinopse em português, ano, gêneros e elenco do TMDb.
                   </p>
                 </div>
               </form>
+
+              {/* Candidate Results List */}
+              {tmdbSearchResults.length > 0 && (
+                <div className="pt-2 border-t border-neutral-800 space-y-2">
+                  <div className="text-xs font-semibold text-neutral-300">
+                    Selecione o título correto encontrado no catálogo:
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
+                    {tmdbSearchResults.map((candidate) => {
+                      const title = candidate.title || candidate.name || 'Sem título';
+                      const date = candidate.release_date || candidate.first_air_date || '';
+                      const year = date ? date.slice(0, 4) : '';
+                      const posterUrl = candidate.poster_path ? `https://image.tmdb.org/t/p/w200${candidate.poster_path}` : null;
+                      return (
+                        <div
+                          key={candidate.id}
+                          className="flex gap-2.5 p-2 bg-neutral-950/80 hover:bg-neutral-800/80 border border-neutral-800 rounded-lg transition-colors group"
+                        >
+                          <div className="w-12 h-16 bg-neutral-900 rounded overflow-hidden shrink-0 border border-white/10 flex items-center justify-center">
+                            {posterUrl ? (
+                              <img src={posterUrl} alt={title} className="w-full h-full object-cover" />
+                            ) : (
+                              <Film className="w-5 h-5 text-neutral-600" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0 flex flex-col justify-between">
+                            <div>
+                              <div className="text-xs font-semibold text-white truncate">{title}</div>
+                              <div className="text-[10px] text-neutral-400 flex items-center gap-2 mt-0.5">
+                                {year && <span>{year}</span>}
+                                {candidate.vote_average ? (
+                                  <span className="text-amber-400 flex items-center gap-0.5">
+                                    ★ {candidate.vote_average.toFixed(1)}
+                                  </span>
+                                ) : null}
+                                {candidate.media_type && (
+                                  <span className="uppercase text-[9px] px-1 py-0.2 bg-white/10 rounded">
+                                    {candidate.media_type === 'tv' ? 'Série' : 'Filme'}
+                                  </span>
+                                )}
+                              </div>
+                              {candidate.overview && (
+                                <p className="text-[10px] text-neutral-400 line-clamp-2 mt-1 leading-snug">
+                                  {candidate.overview}
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleApplyCandidate(candidate.id)}
+                              disabled={isFetchingTmdb}
+                              className="self-start mt-1.5 px-2.5 py-1 bg-pink-600 hover:bg-pink-700 disabled:opacity-50 text-white text-[11px] font-semibold rounded shadow transition-all flex items-center space-x-1"
+                            >
+                              {isFetchingTmdb ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                              <span>Aplicar este</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
