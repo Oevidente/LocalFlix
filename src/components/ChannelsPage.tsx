@@ -233,7 +233,7 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
   ];
 
   return (
-    <div className="min-h-screen bg-[#141414] text-white pt-20 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-[#141414] text-white pt-20 pb-28 sm:pb-20 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {/* Hero Header */}
       <div className="relative rounded-2xl bg-gradient-to-r from-red-950/50 via-zinc-900 to-black border border-red-900/30 p-6 sm:p-8 mb-8 overflow-hidden shadow-2xl">
         <div className="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">

@@ -612,7 +612,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#141414] text-neutral-200 selection:bg-[#E50914] selection:text-white pb-20">
+    <div className="min-h-screen bg-[#141414] text-neutral-200 selection:bg-[#E50914] selection:text-white pb-28 sm:pb-20">
       {/* Fixed Navbar */}
       <Navbar
         activeTab={activeTab}
