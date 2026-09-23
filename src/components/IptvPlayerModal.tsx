@@ -208,13 +208,18 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
       // In Proxy or Direct mode, try HLS.js first for .m3u8 streams
       if (Hls.isSupported()) {
         const hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: true,
-          backBufferLength: 60,
-          manifestLoadingTimeOut: 10000,
-          manifestLoadingMaxRetry: 2,
-          levelLoadingTimeOut: 10000,
-          fragLoadingTimeOut: 12000,
+          enableWorker: false, // Disabling worker allows robust ADTS/PES offset recovery on broadcast TS chunks
+          lowLatencyMode: false, // Prevents aggressive fragment aborts on live IPTV feeds
+          backBufferLength: 30,
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
+          maxBufferHole: 0.5,
+          manifestLoadingTimeOut: 15000,
+          manifestLoadingMaxRetry: 3,
+          levelLoadingTimeOut: 15000,
+          fragLoadingTimeOut: 15000,
+          fragLoadingMaxRetry: 3,
+          defaultAudioCodec: 'mp4a.40.2',
         });
 
         hls.loadSource(effectiveUrl);
@@ -230,12 +235,26 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
 
         hls.on(Hls.Events.ERROR, (_event, data) => {
           console.warn('[HLS.js Live] Event Error:', data);
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR || data.details === Hls.ErrorDetails.FRAG_PARSING_ERROR) {
+            console.log('[HLS.js] Tentando recuperação de MediaError / fragParsingError...');
+            try {
+              hls.recoverMediaError();
+            } catch (err) {
+              console.warn('[HLS.js] Falha na recuperação de mídia:', err);
+            }
+            return;
+          }
           if (data.fatal) {
-            hls.destroy();
-            setIsLoading(false);
-            setIsPlaying(false);
-            setErrorMsg('Sinal de transmissão indisponível na origem ou bloqueado geograficamente pelo servidor.');
-            reportChannelStatus('offline');
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              console.log('[HLS.js] Tentando reconectar fluxo de rede...');
+              hls.startLoad();
+            } else {
+              hls.destroy();
+              setIsLoading(false);
+              setIsPlaying(false);
+              setErrorMsg('Sinal de transmissão com instabilidade ou formato incompatível no navegador. Experimente o Motor FFmpeg.');
+              reportChannelStatus('offline');
+            }
           }
         });
 
