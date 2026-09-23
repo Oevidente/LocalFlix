@@ -274,6 +274,7 @@ export async function scanMediaFolder(folderPath: string, customTitle?: string):
   return {
     id: mediaId,
     title,
+    customTitle: customTitle?.trim() || undefined,
     kind,
     folderPath: resolvedPath,
     posterPath,

@@ -15,6 +15,7 @@ import {
   Check,
   Loader2,
   Upload,
+  Star,
 } from 'lucide-react';
 import { MediaItem, Episode, Season } from '../types';
 import { formatTime, formatBytes } from '../utils';
@@ -215,6 +216,25 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
               <h1 className="text-2xl sm:text-4xl font-black text-white drop-shadow-md">
                 {media.title}
               </h1>
+              {(media.year || media.rating !== undefined || media.genres?.length) && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-neutral-300">
+                  {media.year && <span>{media.year}</span>}
+                  {media.rating !== undefined && (
+                    <span className="inline-flex items-center gap-1 text-amber-300">
+                      <Star className="h-3.5 w-3.5 fill-current" />
+                      {media.rating.toFixed(1)}
+                    </span>
+                  )}
+                  {media.genres?.slice(0, 4).map((genre) => (
+                    <span key={genre} className="rounded bg-white/10 px-1.5 py-0.5">{genre}</span>
+                  ))}
+                </div>
+              )}
+              {media.overview && (
+                <p className="mt-2 max-w-2xl text-xs leading-relaxed text-neutral-300 line-clamp-3">
+                  {media.overview}
+                </p>
+              )}
             </div>
 
             {/* Main Play Button */}
@@ -303,6 +323,18 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
             )}
           </div>
         </div>
+
+        {media.cast && media.cast.length > 0 && (
+          <div className="border-b border-white/5 bg-black/20 px-6 py-3 text-xs text-neutral-400">
+            <span className="font-semibold text-neutral-300">Elenco: </span>
+            {media.cast.slice(0, 8).map((member, index) => (
+              <React.Fragment key={member.id}>
+                {index > 0 && ', '}
+                <span className="text-neutral-400">{member.name}</span>
+              </React.Fragment>
+            ))}
+          </div>
+        )}
 
         {/* Banner URL Editor Panel */}
         {showBannerInput && (

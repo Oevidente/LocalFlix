@@ -15,6 +15,7 @@ import {
   getDataDir,
 } from './storage';
 import { scanMediaFolder } from './scanner';
+import { enrichMediaWithTmdb, isTmdbConfigured } from './tmdb';
 import {
   getBinaries,
   generateThumbnail,
@@ -71,6 +72,7 @@ apiRouter.post('/library/add', async (req: Request, res: Response) => {
     }
 
     const mediaItem = await scanMediaFolder(folderPath, title);
+    await enrichMediaWithTmdb(mediaItem);
     const lib = readLibrary();
 
     // Replace if already exists with same folder or ID
@@ -133,7 +135,8 @@ apiRouter.post('/library/rescan/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const updatedItem = await scanMediaFolder(media.folderPath, media.title);
+    const updatedItem = await scanMediaFolder(media.folderPath, media.customTitle);
+    await enrichMediaWithTmdb(updatedItem);
     const lib = readLibrary();
     const idx = lib.items.findIndex((i) => i.id === id);
 
@@ -157,6 +160,17 @@ apiRouter.post('/library/rescan/:id', async (req: Request, res: Response) => {
     }
     updatedItem.lastWatchedEpisodeId = media.lastWatchedEpisodeId;
     updatedItem.lastWatchedAt = media.lastWatchedAt;
+    updatedItem.customTitle = media.customTitle;
+    updatedItem.tmdbId = updatedItem.tmdbId || media.tmdbId;
+    updatedItem.metadataProvider = updatedItem.metadataProvider || media.metadataProvider;
+    updatedItem.originalTitle = updatedItem.originalTitle || media.originalTitle;
+    updatedItem.year = updatedItem.year || media.year;
+    updatedItem.overview = updatedItem.overview || media.overview;
+    updatedItem.tagline = updatedItem.tagline || media.tagline;
+    updatedItem.genres = updatedItem.genres?.length ? updatedItem.genres : media.genres;
+    updatedItem.rating = updatedItem.rating ?? media.rating;
+    updatedItem.voteCount = updatedItem.voteCount ?? media.voteCount;
+    updatedItem.cast = updatedItem.cast?.length ? updatedItem.cast : media.cast;
     if (media.backdropPath) {
       updatedItem.backdropPath = media.backdropPath;
     }
@@ -170,6 +184,35 @@ apiRouter.post('/library/rescan/:id', async (req: Request, res: Response) => {
     res.json({ success: true, item: updatedItem });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// 3.1 Refresh metadata from TMDb without rescanning media files
+apiRouter.post('/library/metadata/:id', async (req: Request, res: Response) => {
+  try {
+    if (!isTmdbConfigured()) {
+      res.status(503).json({ error: 'TMDb não configurado. Defina TMDB_API_KEY ou TMDB_ACCESS_TOKEN.' });
+      return;
+    }
+
+    const media = findMediaItem(req.params.id);
+    if (!media) {
+      res.status(404).json({ error: 'Mídia não encontrada' });
+      return;
+    }
+
+    await enrichMediaWithTmdb(media);
+    const library = readLibrary();
+    const index = library.items.findIndex((item) => item.id === media.id);
+    if (index < 0) {
+      res.status(404).json({ error: 'Mídia não encontrada' });
+      return;
+    }
+    library.items[index] = media;
+    writeLibrary(library);
+    res.json({ success: true, item: media });
+  } catch (error: any) {
+    res.status(500).json({ error: error?.message || 'Erro ao atualizar metadados' });
   }
 });
 
@@ -838,6 +881,17 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/thumb', async (req: Request, r
     return;
   }
 
+  if (pair.episode.stillPath) {
+    if (pair.episode.stillPath.startsWith('http://') || pair.episode.stillPath.startsWith('https://')) {
+      res.redirect(pair.episode.stillPath);
+      return;
+    }
+    if (fs.existsSync(pair.episode.stillPath)) {
+      res.sendFile(pair.episode.stillPath);
+      return;
+    }
+  }
+
   const filePath = pair.episode.filePath;
   if (!fs.existsSync(filePath)) {
     res.status(404).send('Arquivo não encontrado');
@@ -934,6 +988,7 @@ apiRouter.get('/system/status', (req: Request, res: Response) => {
     libraryPath: path.join(getDataDir(), 'library.json'),
     totalItems: lib.items.length,
     platform: process.platform,
+    tmdbConfigured: isTmdbConfigured(),
   };
 
   res.json(status);

@@ -18,6 +18,13 @@ export interface SubtitleTrackInfo {
   filePath?: string;
 }
 
+export interface CastMember {
+  id: number;
+  name: string;
+  character?: string;
+  profilePath?: string;
+}
+
 export interface Episode {
   id: string;
   seasonNumber: number;
@@ -40,6 +47,11 @@ export interface Episode {
   lastWatchedAt?: string;
   selectedAudioIndex?: number;
   selectedSubtitleIndex?: number; // -1 for off
+  tmdbId?: number;
+  overview?: string;
+  airDate?: string;
+  rating?: number;
+  stillPath?: string;
 }
 
 export interface Season {
@@ -61,6 +73,14 @@ export interface MediaItem {
   backdropPath?: string;
   year?: number;
   overview?: string;
+  tagline?: string;
+  genres?: string[];
+  rating?: number;
+  voteCount?: number;
+  cast?: CastMember[];
+  tmdbId?: number;
+  metadataProvider?: 'tmdb';
+  customTitle?: string;
   totalEpisodes: number;
   totalSeasons: number;
   seasons: Season[];
@@ -92,6 +112,7 @@ export interface SystemStatus {
   libraryPath: string;
   totalItems: number;
   platform: string;
+  tmdbConfigured?: boolean;
 }
 
 export interface BrowseItem {

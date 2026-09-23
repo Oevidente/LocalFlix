@@ -15,6 +15,7 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
 }) => {
   const [folderPath, setFolderPath] = useState(initialFolderPath);
   const [title, setTitle] = useState('');
+  const [titleWasEdited, setTitleWasEdited] = useState(false);
   const [showBrowser, setShowBrowser] = useState(!initialFolderPath);
   const [isScanning, setIsScanning] = useState(false);
   const [isPickingNative, setIsPickingNative] = useState(false);
@@ -24,6 +25,7 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
     if (initialFolderPath) {
       setFolderPath(initialFolderPath);
       setShowBrowser(false);
+      setTitleWasEdited(false);
       // Auto fill title from folder name if empty
       const parts = initialFolderPath.replace(/\\/g, '/').split('/').filter(Boolean);
       const folderName = parts[parts.length - 1];
@@ -44,7 +46,7 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
         setShowBrowser(false);
         const parts = data.folderPath.replace(/\\/g, '/').split('/').filter(Boolean);
         const folderName = parts[parts.length - 1];
-        if (folderName && !title) {
+        if (folderName && !titleWasEdited) {
           setTitle(folderName);
         }
         return;
@@ -58,7 +60,7 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
             const handle = await (window as any).showDirectoryPicker();
             if (handle && handle.name) {
               setFolderPath(`./${handle.name}`);
-              if (!title) setTitle(handle.name);
+              if (!titleWasEdited) setTitle(handle.name);
               return;
             }
           } catch (err: any) {
@@ -88,7 +90,8 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
     setError(null);
     setIsScanning(true);
     try {
-      await onAddFolder(folderPath.trim(), title.trim() || undefined);
+      const explicitTitle = titleWasEdited ? title.trim() || undefined : undefined;
+      await onAddFolder(folderPath.trim(), explicitTitle);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Erro ao escanear pasta');
@@ -211,7 +214,7 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
                   setFolderPath(path);
                   const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
                   const folderName = parts[parts.length - 1];
-                  if (folderName && !title) {
+                  if (folderName && !titleWasEdited) {
                     setTitle(folderName);
                   }
                 }}
@@ -227,7 +230,10 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitleWasEdited(true);
+                setTitle(e.target.value);
+              }}
               placeholder="Deixe em branco para usar o nome da pasta"
               className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500 text-xs"
             />
