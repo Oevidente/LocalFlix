@@ -1176,7 +1176,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (isCasting) {
       if (!castMediaRef.current) return;
       const mediaApi = (window as any).chrome?.cast?.media;
-      const trackId = index >= 0 ? (episode.subtitleTracks[index]?.index ?? index) + 1 : undefined;
+      const selectedTrack = index >= 0 ? episode.subtitleTracks[index] : undefined;
+      const trackId = selectedTrack ? (selectedTrack.index ?? index) + 1 : undefined;
+      if (selectedTrack) {
+        const castStartSeconds = Number((castMediaRef.current as any)?.customData?.castStartSeconds) || 0;
+        const offsetSeconds = subtitleOffsetSeconds - castStartSeconds;
+        void fetch(`/api/media/${media.id}/episode/${episode.id}/subtitles/${selectedTrack.index}?offset=${encodeURIComponent(offsetSeconds)}`).catch(() => {});
+      }
       const castTextTrackStyle = createCastTextTrackStyle(mediaApi);
       const request = mediaApi?.EditTracksInfoRequest
         ? new mediaApi.EditTracksInfoRequest(trackId ? [trackId] : [], castTextTrackStyle)

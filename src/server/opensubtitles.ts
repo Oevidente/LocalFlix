@@ -90,10 +90,21 @@ function makeApiUrl(origin: string, endpoint: string): string {
   return `${apiOrigin(origin)}/api/v1${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 }
 
+function cleanSearchTitle(title: string): string {
+  return title
+    .replace(/(?:^|[\s._-])[Ss]\d{1,2}(?:[Ee]\d{1,3})?(?:[-_. ]*[Ee]\d{1,3})?/g, ' ')
+    .replace(/[._]/g, ' ')
+    .replace(/[\[\(].*?[\]\)]/g, ' ')
+    .replace(/\b(?:2160p|1080p|720p|480p|4k|bluray|brrip|webrip|web[- ]?dl|hdtv|x26[45]|hevc|aac|dts|remux|proper|repack)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function requestOpenSubtitles<T>(
   endpoint: string,
   init: RequestInit = {},
-  requireLogin = false
+  requireLogin = false,
+  isRetry = false
 ): Promise<T> {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -115,6 +126,10 @@ async function requestOpenSubtitles<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401 && requireLogin && !isRetry) {
+      clearOpenSubtitlesSession();
+      return requestOpenSubtitles<T>(endpoint, init, true, true);
+    }
     let message = `OpenSubtitles respondeu HTTP ${response.status}`;
     try {
       const errorBody = await response.json() as { message?: string };
@@ -184,8 +199,21 @@ export async function searchOnlineSubtitles(
   const params = new URLSearchParams();
   params.set('languages', normalizeLanguage(language));
   params.set('type', media.kind === 'series' ? 'episode' : 'movie');
-  params.set('query', media.kind === 'series' ? media.title : media.title);
-  if (media.year) params.set('year', String(media.year));
+
+  const queryCandidate = media.customTitle || media.title || '';
+  const cleaned = cleanSearchTitle(queryCandidate);
+  if (cleaned) {
+    params.set('query', cleaned);
+  } else if (queryCandidate) {
+    params.set('query', queryCandidate);
+  }
+
+  if (media.tmdbId) {
+    params.set('tmdb_id', String(media.tmdbId));
+  }
+  if (media.year) {
+    params.set('year', String(media.year));
+  }
   if (media.kind === 'series') {
     params.set('season_number', String(episode.seasonNumber));
     params.set('episode_number', String(episode.episodeNumber));

@@ -583,16 +583,18 @@ function parseWebVttTimestamp(value: string): number {
 }
 
 function formatWebVttTimestamp(totalSeconds: number): string {
-  const safeSeconds = Math.max(0, totalSeconds);
-  const hours = Math.floor(safeSeconds / 3600);
-  const minutes = Math.floor((safeSeconds % 3600) / 60);
-  const seconds = safeSeconds % 60;
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${seconds.toFixed(3).padStart(6, '0')}`;
+  const safeMs = Math.max(0, Math.round(totalSeconds * 1000));
+  const ms = safeMs % 1000;
+  const totalSec = Math.floor(safeMs / 1000);
+  const seconds = totalSec % 60;
+  const minutes = Math.floor(totalSec / 60) % 60;
+  const hours = Math.floor(totalSec / 3600);
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
 }
 
 export function shiftWebVttTimestamps(content: string, offsetSeconds: number): string {
   const safeOffset = Number.isFinite(offsetSeconds) ? offsetSeconds : 0;
-  const normalized = content.replace(/\r\n?/g, '\n').trimEnd();
+  const normalized = content.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').trimEnd();
   if (!normalized) return 'WEBVTT\n\n';
 
   const blocks = normalized.split(/\n{2,}/);
