@@ -224,3 +224,11 @@ export interface IptvPlaylistSummary {
   channels: IptvChannel[];
   lastUpdated: string;
 }
+
+export type ChannelStatus = 'online' | 'offline' | 'unknown';
+
+export interface ChannelStatusInfo {
+  status: 'online' | 'offline';
+  lastChecked: string;
+}
+

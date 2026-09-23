@@ -481,3 +481,31 @@ export function removeTorrentFromLibrary(infoHash: string): boolean {
   return false;
 }
 
+const IPTV_STATUS_FILE = path.join(DATA_DIR, 'iptv_status.json');
+let iptvStatusCache: Record<string, { status: 'online' | 'offline'; lastChecked: string }> | null = null;
+
+export function readIptvStatusMap(): Record<string, { status: 'online' | 'offline'; lastChecked: string }> {
+  if (iptvStatusCache) return iptvStatusCache;
+  try {
+    if (fs.existsSync(IPTV_STATUS_FILE)) {
+      const content = fs.readFileSync(IPTV_STATUS_FILE, 'utf-8');
+      iptvStatusCache = JSON.parse(content);
+      return iptvStatusCache || {};
+    }
+  } catch (err) {
+    console.error('Erro ao ler iptv_status.json:', err);
+  }
+  iptvStatusCache = {};
+  return iptvStatusCache;
+}
+
+export function saveIptvStatusMap(data: Record<string, { status: 'online' | 'offline'; lastChecked: string }>) {
+  iptvStatusCache = data;
+  try {
+    fs.writeFileSync(IPTV_STATUS_FILE, JSON.stringify(data), 'utf-8');
+  } catch (err) {
+    console.error('Erro ao gravar iptv_status.json:', err);
+  }
+}
+
+

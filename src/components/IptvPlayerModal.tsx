@@ -150,6 +150,14 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
     [channel]
   );
 
+  const reportChannelStatus = useCallback((status: 'online' | 'offline') => {
+    fetch('/api/iptv/report-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: channel.url, status }),
+    }).catch(() => {});
+  }, [channel.url]);
+
   // Setup stream playback
   const loadStream = useCallback(
     (streamUrl: string, targetMode: StreamMode = streamMode) => {
@@ -166,17 +174,33 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
 
       const effectiveUrl = getStreamUrl(streamUrl, targetMode, uaProfile, geoProfile);
 
-      // In transmux mode, we pipe fragmented MP4 directly to HTML5 video tag!
+      // Handle video tag native errors
+      video.onerror = () => {
+        setIsLoading(false);
+        setIsPlaying(false);
+        setErrorMsg('Não foi possível carregar a transmissão. O sinal pode estar temporariamente fora do ar ou com restrição regional.');
+        reportChannelStatus('offline');
+      };
+
+      video.onplaying = () => {
+        setIsLoading(false);
+        setIsPlaying(true);
+        reportChannelStatus('online');
+      };
+
+      // In transmux mode, we stream transcoded H.264/AAC directly to HTML5 video tag!
       if (targetMode === 'transmux') {
         video.src = effectiveUrl;
+        video.load();
         video
           .play()
           .then(() => {
             setIsLoading(false);
             setIsPlaying(true);
+            reportChannelStatus('online');
           })
           .catch((err) => {
-            console.warn('[FFmpeg Live Transmux play error]:', err);
+            console.warn('[FFmpeg Transmux play notice]:', err);
           });
         return;
       }
@@ -187,10 +211,10 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
           enableWorker: true,
           lowLatencyMode: true,
           backBufferLength: 60,
-          manifestLoadingTimeOut: 12000,
+          manifestLoadingTimeOut: 10000,
           manifestLoadingMaxRetry: 2,
-          levelLoadingTimeOut: 12000,
-          fragLoadingTimeOut: 15000,
+          levelLoadingTimeOut: 10000,
+          fragLoadingTimeOut: 12000,
         });
 
         hls.loadSource(effectiveUrl);
@@ -198,6 +222,7 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setIsLoading(false);
+          reportChannelStatus('online');
           video.play().catch(() => {
             setIsPlaying(false);
           });
@@ -206,19 +231,11 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
         hls.on(Hls.Events.ERROR, (_event, data) => {
           console.warn('[HLS.js Live] Event Error:', data);
           if (data.fatal) {
-            if (targetMode === 'proxy') {
-              console.log('[HLS Auto-Failover] Falha no HLS.js, ativando motor FFmpeg Transmux (compatível com VLC)...');
-              setStreamMode('transmux');
-              // Automatically fall back to transmux mode!
-              loadStream(streamUrl, 'transmux');
-            } else if (targetMode === 'direct') {
-              setStreamMode('proxy');
-              loadStream(streamUrl, 'proxy');
-            } else {
-              hls.destroy();
-              setErrorMsg('Sinal de transmissão indisponível na origem ou bloqueado geograficamente pelo servidor de transmissão.');
-              setIsLoading(false);
-            }
+            hls.destroy();
+            setIsLoading(false);
+            setIsPlaying(false);
+            setErrorMsg('Sinal de transmissão indisponível na origem ou bloqueado geograficamente pelo servidor.');
+            reportChannelStatus('offline');
           }
         });
 
@@ -226,13 +243,13 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         // Native Safari / iOS HLS
         video.src = effectiveUrl;
-        video.play().catch(() => setIsPlaying(false));
+        video.play().then(() => reportChannelStatus('online')).catch(() => setIsPlaying(false));
       } else {
         video.src = effectiveUrl;
-        video.play().catch(() => setIsPlaying(false));
+        video.play().then(() => reportChannelStatus('online')).catch(() => setIsPlaying(false));
       }
     },
-    [getStreamUrl, streamMode, uaProfile, geoProfile]
+    [getStreamUrl, streamMode, uaProfile, geoProfile, reportChannelStatus]
   );
 
   useEffect(() => {
@@ -419,10 +436,36 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
                   setStreamMode('transmux');
                   loadStream(channel.url, 'transmux');
                 }}
+                className={`px-3 py-2 rounded-lg font-medium flex items-center space-x-2 transition-all border cursor-pointer ${
+                  streamMode === 'transmux'
+                    ? 'bg-purple-900/60 border-purple-600 text-white'
+                    : 'bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-700'
+                }`}
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-purple-400" />
+                <span>Motor FFmpeg (H.264 Web)</span>
+              </button>
+              <button
+                onClick={() => {
+                  setStreamMode('proxy');
+                  setUaProfile('smarttv');
+                  loadStream(channel.url, 'proxy');
+                }}
                 className="px-3 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white font-medium flex items-center space-x-2 transition-all border border-neutral-700 cursor-pointer"
               >
-                <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Modo FFmpeg (Estilo VLC)</span>
+                <Shield className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Perfil Smart TV (LG/Samsung)</span>
+              </button>
+              <button
+                onClick={() => {
+                  setStreamMode('proxy');
+                  setUaProfile('tivimate');
+                  loadStream(channel.url, 'proxy');
+                }}
+                className="px-3 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white font-medium flex items-center space-x-2 transition-all border border-neutral-700 cursor-pointer"
+              >
+                <Tv className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Perfil TiviMate IPTV</span>
               </button>
               <button
                 onClick={() => {
@@ -432,8 +475,8 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
                 }}
                 className="px-3 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white font-medium flex items-center space-x-2 transition-all border border-neutral-700 cursor-pointer"
               >
-                <Shield className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Proxy + Headers VLC</span>
+                <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
+                <span>Proxy VLC Padrão</span>
               </button>
             </div>
             <div className="text-[11px] text-neutral-400 pt-1 border-t border-neutral-800/80">

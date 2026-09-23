@@ -18,6 +18,8 @@ import {
   getDataDir,
   updateTorrentProgressInLibrary,
   saveTorrentMediaItem,
+  readIptvStatusMap,
+  saveIptvStatusMap,
 } from './storage';
 import { scanMediaFolder } from './scanner';
 import { enrichMediaWithTmdb, isTmdbConfigured, searchTmdb, getApiKey, getLanguage } from './tmdb';
@@ -1739,6 +1741,114 @@ apiRouter.post('/iptv/favorites', (req: Request, res: Response) => {
   res.json({ success: true, favorites: current });
 });
 
+// 5.1 IPTV Channel Status Tracking & Batch Prober
+apiRouter.get('/iptv/statuses', (_req: Request, res: Response) => {
+  const map = readIptvStatusMap();
+  res.json(map);
+});
+
+apiRouter.post('/iptv/report-status', (req: Request, res: Response) => {
+  const { url, status } = req.body;
+  if (!url || !status) {
+    res.status(400).json({ error: 'url e status são obrigatórios' });
+    return;
+  }
+  const map = readIptvStatusMap();
+  map[url] = {
+    status: status === 'online' ? 'online' : 'offline',
+    lastChecked: new Date().toISOString(),
+  };
+  saveIptvStatusMap(map);
+  res.json({ success: true, status: map[url] });
+});
+
+apiRouter.post('/iptv/check-batch', async (req: Request, res: Response) => {
+  const urls: string[] = req.body.urls;
+  if (!Array.isArray(urls) || urls.length === 0) {
+    res.json({ results: {} });
+    return;
+  }
+
+  // Cap at 60 URLs per batch request to prevent abuse
+  const targetUrls = urls.slice(0, 60);
+  const statusMap = readIptvStatusMap();
+  const results: Record<string, { status: 'online' | 'offline'; lastChecked: string }> = {};
+
+  const probeChannel = async (channelUrl: string) => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+      const parsedTarget = new URL(channelUrl);
+      const resp = await fetch(channelUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'VLC/3.0.20 LibVLC/3.0.20 (Windows NT 10.0; Win64; x64)',
+          Referer: parsedTarget.origin,
+          Range: 'bytes=0-2048',
+          Accept: '*/*',
+        },
+        signal: controller.signal,
+        redirect: 'follow',
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!resp.ok && resp.status !== 206) {
+        const entry = { status: 'offline' as const, lastChecked: new Date().toISOString() };
+        results[channelUrl] = entry;
+        statusMap[channelUrl] = entry;
+        return;
+      }
+
+      const contentType = (resp.headers.get('content-type') || '').toLowerCase();
+      
+      // Read first chunk of body
+      const buffer = await resp.arrayBuffer().catch(() => new ArrayBuffer(0));
+      const textSample = Buffer.from(buffer).toString('utf-8', 0, Math.min(buffer.byteLength, 1024));
+
+      // Check if it is a fake 200 OK returning HTML error page
+      const isHtml =
+        contentType.includes('text/html') ||
+        textSample.toLowerCase().includes('<!doctype html') ||
+        textSample.toLowerCase().includes('<html') ||
+        textSample.toLowerCase().includes('403 forbidden') ||
+        textSample.toLowerCase().includes('access denied');
+
+      const isM3U8 =
+        textSample.includes('#EXTM3U') ||
+        textSample.includes('#EXTINF') ||
+        textSample.includes('#EXT-X-') ||
+        contentType.includes('mpegurl');
+
+      const isTsOrVideo =
+        contentType.includes('video/') ||
+        contentType.includes('application/octet-stream') ||
+        (buffer.byteLength > 0 && Buffer.from(buffer)[0] === 0x47);
+
+      const isOnline = !isHtml && (isM3U8 || isTsOrVideo || buffer.byteLength > 100);
+      const statusValue: 'online' | 'offline' = isOnline ? 'online' : 'offline';
+      const entry = { status: statusValue, lastChecked: new Date().toISOString() };
+      results[channelUrl] = entry;
+      statusMap[channelUrl] = entry;
+    } catch {
+      const entry = { status: 'offline' as const, lastChecked: new Date().toISOString() };
+      results[channelUrl] = entry;
+      statusMap[channelUrl] = entry;
+    }
+  };
+
+  // Run in chunks of 8 concurrent requests
+  const CHUNK_SIZE = 8;
+  for (let i = 0; i < targetUrls.length; i += CHUNK_SIZE) {
+    const chunk = targetUrls.slice(i, i + CHUNK_SIZE);
+    await Promise.all(chunk.map((u) => probeChannel(u)));
+  }
+
+  saveIptvStatusMap(statusMap);
+  res.json({ results });
+});
+
 // 6. IPTV Stream & M3U8 CORS Proxy (with VLC Header Emulation & Redirect Resolution)
 apiRouter.get('/iptv/proxy', async (req: Request, res: Response) => {
   const targetUrl = req.query.url as string;
@@ -1957,9 +2067,16 @@ apiRouter.get('/iptv/transmux', (req: Request, res: Response) => {
     '-headers', headersList.join('\r\n') + '\r\n',
     '-user_agent', userAgent,
     '-i', targetUrl,
-    '-c:v', 'copy',
+    '-c:v', 'libx264',
+    '-preset', 'ultrafast',
+    '-tune', 'zerolatency',
+    '-crf', '25',
+    '-pix_fmt', 'yuv420p',
+    '-g', '30',
     '-c:a', 'aac',
-    '-b:a', '160k',
+    '-b:a', '128k',
+    '-ar', '44100',
+    '-ac', '2',
     '-f', 'mp4',
     '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
     'pipe:1',

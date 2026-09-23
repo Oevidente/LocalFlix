@@ -22,7 +22,7 @@ import {
   Film,
   Zap,
 } from 'lucide-react';
-import { IptvChannel, IptvPreset, IptvPlaylistSummary } from '../types';
+import { IptvChannel, IptvPreset, IptvPlaylistSummary, ChannelStatusInfo } from '../types';
 
 interface ChannelsPageProps {
   onPlayChannel: (channel: IptvChannel, allChannels: IptvChannel[]) => void;
@@ -45,6 +45,11 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Channel Status Map (online / offline)
+  const [statusMap, setStatusMap] = useState<Record<string, ChannelStatusInfo>>({});
+  const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all');
+  const [isCheckingBatch, setIsCheckingBatch] = useState<boolean>(false);
+
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -57,12 +62,21 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
 
   const ITEMS_PER_PAGE = 48;
 
-  // Load presets
+  // Load presets & status map
   useEffect(() => {
     fetch('/api/iptv/presets')
       .then((res) => res.json())
       .then((data) => setPresets(data))
       .catch((err) => console.error('Erro ao carregar presets IPTV:', err));
+
+    fetch('/api/iptv/statuses')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && typeof data === 'object') {
+          setStatusMap(data);
+        }
+      })
+      .catch((err) => console.error('Erro ao carregar status dos canais:', err));
   }, []);
 
   // Fetch playlist
@@ -132,6 +146,11 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
     if (!playlistData) return [];
 
     return playlistData.channels.filter((ch) => {
+      // Availability filter
+      const chStatus = statusMap[ch.url]?.status;
+      if (statusFilter === 'online' && chStatus === 'offline') return false;
+      if (statusFilter === 'offline' && chStatus !== 'offline') return false;
+
       // Favorites filter
       if (selectedCategory === 'favorites') {
         if (!favorites.includes(ch.id)) return false;
@@ -160,7 +179,7 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
 
       return true;
     });
-  }, [playlistData, selectedCategory, selectedCountry, selectedQuality, searchQuery, favorites]);
+  }, [playlistData, selectedCategory, selectedCountry, selectedQuality, searchQuery, favorites, statusMap, statusFilter]);
 
   // Favorite channels list for top shelf
   const favoriteChannelsList = useMemo(() => {
@@ -174,6 +193,30 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredChannels.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredChannels, currentPage]);
+
+  // Batch prober for channels on the current page
+  const handleCheckCurrentPageStatus = async () => {
+    if (isCheckingBatch || paginatedChannels.length === 0) return;
+    setIsCheckingBatch(true);
+    try {
+      const urls = paginatedChannels.map((c) => c.url);
+      const res = await fetch('/api/iptv/check-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.results) {
+          setStatusMap((prev) => ({ ...prev, ...data.results }));
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao verificar status dos canais:', err);
+    } finally {
+      setIsCheckingBatch(false);
+    }
+  };
 
   // Main popular categories to show as quick chips
   const popularCategoryChips = [
@@ -436,6 +479,35 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
             <option value="4K">4K Ultra HD</option>
           </select>
 
+          {/* Availability Status Filter Dropdown */}
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as any);
+              setCurrentPage(1);
+            }}
+            className="bg-black/60 border border-neutral-700 text-neutral-300 rounded-lg px-2.5 py-2 focus:outline-none focus:border-[#E50914]"
+          >
+            <option value="all">Status: Todos</option>
+            <option value="online">🟢 Apenas Disponíveis (Online)</option>
+            <option value="offline">🔴 Apenas Fora do Ar (Indisponíveis)</option>
+          </select>
+
+          {/* Test Visible Channels Button */}
+          <button
+            onClick={handleCheckCurrentPageStatus}
+            disabled={isCheckingBatch || paginatedChannels.length === 0}
+            className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-neutral-700 text-neutral-200 hover:text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            title="Testar sinal dos canais visíveis nesta página"
+          >
+            {isCheckingBatch ? (
+              <RefreshCw className="w-3.5 h-3.5 text-red-400 animate-spin" />
+            ) : (
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+            )}
+            <span>{isCheckingBatch ? 'Testando sinais...' : 'Testar Sinais'}</span>
+          </button>
+
           {/* View Mode */}
           <div className="flex items-center bg-black/60 border border-neutral-700 rounded-lg p-0.5 ml-auto">
             <button
@@ -504,12 +576,42 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
               {paginatedChannels.map((ch) => {
                 const isFav = favorites.includes(ch.id);
+                const statusInfo = statusMap[ch.url];
+                const isOffline = statusInfo?.status === 'offline';
+                const isOnline = statusInfo?.status === 'online';
+
                 return (
                   <div
                     key={ch.id}
                     onClick={() => onPlayChannel(ch, filteredChannels)}
-                    className="group relative bg-zinc-900/90 hover:bg-zinc-800 border border-neutral-800 hover:border-red-600/60 rounded-xl p-3 flex flex-col items-center justify-between text-center transition-all duration-300 hover:scale-[1.03] hover:shadow-xl hover:shadow-red-950/20 cursor-pointer"
+                    className={`group relative bg-zinc-900/90 hover:bg-zinc-800 border rounded-xl p-3 flex flex-col items-center justify-between text-center transition-all duration-300 hover:scale-[1.03] hover:shadow-xl cursor-pointer ${
+                      isOffline
+                        ? 'opacity-65 hover:opacity-100 border-red-900/40 bg-zinc-950/70 hover:shadow-red-950/30'
+                        : isOnline
+                        ? 'border-emerald-800/40 hover:border-emerald-600/70 hover:shadow-emerald-950/20'
+                        : 'border-neutral-800 hover:border-red-600/60 hover:shadow-red-950/20'
+                    }`}
                   >
+                    {/* Status Badge (Online / Offline) */}
+                    {isOffline && (
+                      <span
+                        className="absolute top-2 left-2 flex items-center space-x-1 px-1.5 py-0.5 rounded bg-red-950/90 border border-red-700/80 text-red-300 text-[9px] font-extrabold z-10 shadow tracking-tight"
+                        title="Sinal offline ou indisponível no momento"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                        <span>Indisponível</span>
+                      </span>
+                    )}
+                    {isOnline && (
+                      <span
+                        className="absolute top-2 left-2 flex items-center space-x-1 px-1.5 py-0.5 rounded bg-emerald-950/90 border border-emerald-700/80 text-emerald-300 text-[9px] font-extrabold z-10 shadow tracking-tight"
+                        title="Sinal testado e ativo"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                        <span>Online</span>
+                      </span>
+                    )}
+
                     {/* Favorite Button */}
                     <button
                       onClick={(e) => {
@@ -550,7 +652,7 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
 
                     {/* Hover Play Button */}
                     <div className="absolute inset-0 bg-black/60 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-xs">
-                      <div className="w-11 h-11 rounded-full bg-[#E50914] text-white flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
+                      <div className={`w-11 h-11 rounded-full text-white flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform ${isOffline ? 'bg-zinc-700' : 'bg-[#E50914]'}`}>
                         <Play className="w-5 h-5 fill-current ml-0.5" />
                       </div>
                     </div>
@@ -562,11 +664,17 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
             <div className="bg-zinc-900/80 border border-neutral-800 rounded-xl divide-y divide-neutral-800/80 overflow-hidden">
               {paginatedChannels.map((ch) => {
                 const isFav = favorites.includes(ch.id);
+                const statusInfo = statusMap[ch.url];
+                const isOffline = statusInfo?.status === 'offline';
+                const isOnline = statusInfo?.status === 'online';
+
                 return (
                   <div
                     key={ch.id}
                     onClick={() => onPlayChannel(ch, filteredChannels)}
-                    className="flex items-center justify-between p-3 sm:p-4 hover:bg-white/5 cursor-pointer transition-colors"
+                    className={`flex items-center justify-between p-3 sm:p-4 hover:bg-white/5 cursor-pointer transition-colors ${
+                      isOffline ? 'opacity-65 hover:opacity-100 bg-red-950/10' : ''
+                    }`}
                   >
                     <div className="flex items-center space-x-3 overflow-hidden">
                       <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-black/60 border border-white/5 p-1 flex items-center justify-center shrink-0">
@@ -584,6 +692,18 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
                       <div className="truncate">
                         <div className="text-sm font-bold text-white truncate flex items-center space-x-2">
                           <span>{ch.name}</span>
+                          {isOffline && (
+                            <span className="px-1.5 py-0.5 rounded bg-red-950/90 border border-red-700/80 text-red-300 text-[10px] font-bold flex items-center space-x-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                              <span>Indisponível</span>
+                            </span>
+                          )}
+                          {isOnline && (
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-950/90 border border-emerald-700/80 text-emerald-300 text-[10px] font-bold flex items-center space-x-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                              <span>Online</span>
+                            </span>
+                          )}
                           {ch.resolution && (
                             <span className="px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-300 text-[10px] font-mono">
                               {ch.resolution}
@@ -608,7 +728,7 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
                         <Star className={`w-4 h-4 ${isFav ? 'text-amber-400 fill-amber-400' : ''}`} />
                       </button>
 
-                      <div className="w-8 h-8 rounded-full bg-[#E50914] text-white flex items-center justify-center shadow-md">
+                      <div className={`w-8 h-8 rounded-full text-white flex items-center justify-center shadow-md ${isOffline ? 'bg-zinc-700' : 'bg-[#E50914]'}`}>
                         <Play className="w-4 h-4 fill-current ml-0.5" />
                       </div>
                     </div>
