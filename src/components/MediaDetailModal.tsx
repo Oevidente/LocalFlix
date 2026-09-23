@@ -40,6 +40,7 @@ interface MediaDetailModalProps {
   onRemoveImportedSubtitle: (mediaId: string, episodeId: string, trackIndex: number) => Promise<void>;
   onSearchOnlineSubtitles: (mediaId: string, episodeId: string) => Promise<OnlineSubtitleOption[]>;
   onDownloadOnlineSubtitle: (mediaId: string, episodeId: string, option: OnlineSubtitleOption) => Promise<void>;
+  onOpenTmdbModal?: () => void;
 }
 
 export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
@@ -57,6 +58,7 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   onRemoveImportedSubtitle,
   onSearchOnlineSubtitles,
   onDownloadOnlineSubtitle,
+  onOpenTmdbModal,
 }) => {
   const [selectedSeasonNumber, setSelectedSeasonNumber] = useState<number>(
     media.seasons[0]?.seasonNumber || 1
@@ -585,6 +587,16 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                 <div className="flex items-center space-x-2 text-xs font-bold text-white">
                   <Sparkles className="w-4 h-4 text-pink-400" />
                   <span>Buscar Capa e Metadados Oficiais no TMDb</span>
+                  {onOpenTmdbModal && (
+                    <button
+                      type="button"
+                      onClick={onOpenTmdbModal}
+                      className="ml-2 px-2 py-0.5 rounded bg-pink-950/60 hover:bg-pink-900/80 border border-pink-700/50 text-[10px] text-pink-300 font-medium transition-colors"
+                      title="Abrir tela de configuração de chave do TMDb"
+                    >
+                      Configurar Chave
+                    </button>
+                  )}
                 </div>
                 {tmdbSearchMessage && (
                   <span className={`text-xs font-semibold flex items-center space-x-1 ${

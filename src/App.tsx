@@ -7,6 +7,7 @@ import { VideoPlayer } from './components/VideoPlayer';
 import { AddMediaModal } from './components/AddMediaModal';
 import { RelocateModal } from './components/RelocateModal';
 import { SystemModal } from './components/SystemModal';
+import { TmdbConfigModal } from './components/TmdbConfigModal';
 import { TorrentModal } from './components/TorrentModal';
 import { TorrentPlayer } from './components/TorrentPlayer';
 import { LibraryData, MediaItem, Episode, OnlineSubtitleOption, TorrentStatus } from './types';
@@ -35,6 +36,7 @@ export default function App() {
   const [initialAddFolder, setInitialAddFolder] = useState<string>('');
   const [isPickingFolder, setIsPickingFolder] = useState<boolean>(false);
   const [showSystemModal, setShowSystemModal] = useState<boolean>(false);
+  const [showTmdbConfigModal, setShowTmdbConfigModal] = useState<boolean>(false);
   const [relocateTarget, setRelocateTarget] = useState<MediaItem | null>(null);
   const [showTorrentModal, setShowTorrentModal] = useState<boolean>(false);
   const [playingTorrent, setPlayingTorrent] = useState<{ status: TorrentStatus; selectedFileIndex: number } | null>(null);
@@ -465,6 +467,7 @@ export default function App() {
         onOpenAddModal={handleOpenAddModal}
         onOpenSystemModal={() => setShowSystemModal(true)}
         onOpenTorrentModal={() => setShowTorrentModal(true)}
+        onOpenTmdbModal={() => setShowTmdbConfigModal(true)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         isPickingFolder={isPickingFolder}
@@ -624,6 +627,7 @@ export default function App() {
           onRemoveImportedSubtitle={handleRemoveImportedSubtitle}
           onSearchOnlineSubtitles={handleSearchOnlineSubtitles}
           onDownloadOnlineSubtitle={handleDownloadOnlineSubtitle}
+          onOpenTmdbModal={() => setShowTmdbConfigModal(true)}
         />
       )}
 
@@ -668,6 +672,18 @@ export default function App() {
       {showSystemModal && (
         <SystemModal
           onClose={() => setShowSystemModal(false)}
+          onRefreshLibrary={fetchLibrary}
+          onOpenTmdbModal={() => {
+            setShowSystemModal(false);
+            setShowTmdbConfigModal(true);
+          }}
+        />
+      )}
+
+      {/* Dedicated TMDb Configuration Modal */}
+      {showTmdbConfigModal && (
+        <TmdbConfigModal
+          onClose={() => setShowTmdbConfigModal(false)}
           onRefreshLibrary={fetchLibrary}
         />
       )}

@@ -5,11 +5,13 @@ import { SystemStatus } from '../types';
 interface SystemModalProps {
   onClose: () => void;
   onRefreshLibrary?: () => Promise<void>;
+  onOpenTmdbModal?: () => void;
 }
 
 export const SystemModal: React.FC<SystemModalProps> = ({
   onClose,
   onRefreshLibrary,
+  onOpenTmdbModal,
 }) => {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -401,9 +403,9 @@ export const SystemModal: React.FC<SystemModalProps> = ({
                 )}
               </form>
 
-              {/* Refresh all metadata button */}
-              {status?.tmdbConfigured && (
-                <div className="pt-1 border-t border-neutral-800/80 flex flex-wrap items-center justify-between gap-2">
+              {/* Refresh all metadata button & Open Dedicated Modal */}
+              <div className="pt-1 border-t border-neutral-800/80 flex flex-wrap items-center justify-between gap-2">
+                {status?.tmdbConfigured && (
                   <button
                     type="button"
                     onClick={handleRefreshAllMetadata}
@@ -414,11 +416,26 @@ export const SystemModal: React.FC<SystemModalProps> = ({
                     <RefreshCw className={`w-3.5 h-3.5 text-pink-400 ${isRefreshingMetadata ? 'animate-spin' : ''}`} />
                     <span>{isRefreshingMetadata ? 'Baixando capas...' : 'Buscar capas para todos os títulos'}</span>
                   </button>
-                  {metadataMessage && (
-                    <span className="text-[11px] text-emerald-400 font-medium">{metadataMessage}</span>
-                  )}
-                </div>
-              )}
+                )}
+
+                {onOpenTmdbModal && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenTmdbModal();
+                    }}
+                    className="px-3 py-1.5 rounded bg-pink-950/40 hover:bg-pink-900/50 border border-pink-700/50 text-pink-300 text-xs font-medium flex items-center space-x-1.5 transition-colors ml-auto"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Abrir Tela Completa do TMDb</span>
+                  </button>
+                )}
+
+                {metadataMessage && (
+                  <span className="text-[11px] text-emerald-400 font-medium w-full">{metadataMessage}</span>
+                )}
+              </div>
 
               {/* How to get TMDB Key Guide */}
               {!status?.tmdbConfigured && (

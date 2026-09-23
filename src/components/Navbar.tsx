@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio } from 'lucide-react';
+import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio, Sparkles } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface NavbarProps {
@@ -8,6 +8,7 @@ interface NavbarProps {
   onOpenAddModal: () => void;
   onOpenSystemModal: () => void;
   onOpenTorrentModal: () => void;
+  onOpenTmdbModal?: () => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   isPickingFolder?: boolean;
@@ -19,6 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAddModal,
   onOpenSystemModal,
   onOpenTorrentModal,
+  onOpenTmdbModal,
   searchQuery,
   onSearchChange,
   isPickingFolder = false,
@@ -181,6 +183,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Install PWA Button */}
           <PWAInstallButton />
+
+          {/* TMDb Config button */}
+          {onOpenTmdbModal && (
+            <button
+              id="tmdb-config-navbar-btn"
+              onClick={onOpenTmdbModal}
+              className="p-2 text-pink-400 hover:text-pink-300 rounded-md hover:bg-pink-500/15 transition-colors"
+              title="Configurar TMDb (Capas e Sinopses)"
+            >
+              <Sparkles className="w-5 h-5" />
+            </button>
+          )}
 
           {/* System & Storage status button */}
           <button
