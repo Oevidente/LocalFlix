@@ -57,8 +57,10 @@ interface OpenSubtitlesDownloadResponse {
 
 let cachedSession: OpenSubtitlesSession | null = null;
 
+const DEFAULT_API_KEY = 'neEqFAdRQC2PpeMiOZi06dw0qiKf6X5d';
+
 function getApiKey(): string | undefined {
-  return process.env.OPENSUBTITLES_API_KEY?.trim() || undefined;
+  return process.env.OPENSUBTITLES_API_KEY?.trim() || DEFAULT_API_KEY;
 }
 
 function getUsername(): string | undefined {
