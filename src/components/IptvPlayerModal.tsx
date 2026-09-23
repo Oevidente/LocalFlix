@@ -20,6 +20,12 @@ import {
   Layers,
   Search,
   Cast,
+  Download,
+  Copy,
+  Check,
+  Settings2,
+  SlidersHorizontal,
+  Globe,
 } from 'lucide-react';
 import { IptvChannel } from '../types';
 
@@ -31,6 +37,29 @@ interface IptvPlayerModalProps {
   onSelectChannel: (channel: IptvChannel) => void;
   onClose: () => void;
 }
+
+type StreamMode = 'proxy' | 'transmux' | 'direct';
+type UserAgentProfile = 'vlc' | 'appletv' | 'chrome' | 'kodi';
+type GeoProfile = 'auto' | 'BR' | 'PT' | 'US';
+
+const USER_AGENTS: Record<UserAgentProfile, { label: string; value: string }> = {
+  vlc: {
+    label: 'VLC Media Player (Recomendado)',
+    value: 'VLC/3.0.20 LibVLC/3.0.20 (Windows NT 10.0; Win64; x64)',
+  },
+  appletv: {
+    label: 'Apple TV / Safari HLS',
+    value: 'AppleCoreMedia/1.0.0.18E182 (Apple TV; U; CPU OS 14_4 like Mac OS X; en_us)',
+  },
+  chrome: {
+    label: 'Google Chrome',
+    value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  },
+  kodi: {
+    label: 'Kodi Media Center',
+    value: 'Kodi/20.0 (Windows NT 10.0; Win64; x64) App_Bitness/64 Version/20.0-Git:20230115',
+  },
+};
 
 export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
   channel,
@@ -50,7 +79,15 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [useProxy, setUseProxy] = useState<boolean>(false);
+  
+  // Stream connection settings
+  const [streamMode, setStreamMode] = useState<StreamMode>('proxy');
+  const [uaProfile, setUaProfile] = useState<UserAgentProfile>('vlc');
+  const [geoProfile, setGeoProfile] = useState<GeoProfile>('auto');
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [copiedUrl, setCopiedUrl] = useState<boolean>(false);
+
+  // Zapping & UI
   const [showChannelList, setShowChannelList] = useState<boolean>(false);
   const [channelSearch, setChannelSearch] = useState<string>('');
   const [controlsVisible, setControlsVisible] = useState<boolean>(true);
@@ -77,19 +114,29 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
     }
   };
 
-  // Build stream URL (direct or proxy)
+  // Build stream URL according to current mode & headers
   const getStreamUrl = useCallback(
-    (rawUrl: string, proxy: boolean) => {
-      if (proxy) {
+    (rawUrl: string, mode: StreamMode, ua: UserAgentProfile, geo: GeoProfile) => {
+      const selectedUa = channel.httpUserAgent || USER_AGENTS[ua].value;
+      const selectedReferrer = channel.httpReferrer || '';
+      const effectiveCountry = geo === 'auto' ? (channel.country || '') : geo;
+
+      if (mode === 'transmux') {
+        let transmuxUrl = `/api/iptv/transmux?url=${encodeURIComponent(rawUrl)}`;
+        if (selectedUa) transmuxUrl += `&userAgent=${encodeURIComponent(selectedUa)}`;
+        if (selectedReferrer) transmuxUrl += `&referrer=${encodeURIComponent(selectedReferrer)}`;
+        if (effectiveCountry) transmuxUrl += `&country=${encodeURIComponent(effectiveCountry)}`;
+        return transmuxUrl;
+      }
+
+      if (mode === 'proxy') {
         let proxyUrl = `/api/iptv/proxy?url=${encodeURIComponent(rawUrl)}`;
-        if (channel.httpUserAgent) {
-          proxyUrl += `&userAgent=${encodeURIComponent(channel.httpUserAgent)}`;
-        }
-        if (channel.httpReferrer) {
-          proxyUrl += `&referrer=${encodeURIComponent(channel.httpReferrer)}`;
-        }
+        if (selectedUa) proxyUrl += `&userAgent=${encodeURIComponent(selectedUa)}`;
+        if (selectedReferrer) proxyUrl += `&referrer=${encodeURIComponent(selectedReferrer)}`;
+        if (effectiveCountry) proxyUrl += `&country=${encodeURIComponent(effectiveCountry)}`;
         return proxyUrl;
       }
+
       return rawUrl;
     },
     [channel]
@@ -97,7 +144,7 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
 
   // Setup stream playback
   const loadStream = useCallback(
-    (streamUrl: string) => {
+    (streamUrl: string, targetMode: StreamMode = streamMode) => {
       setIsLoading(true);
       setErrorMsg(null);
 
@@ -109,17 +156,33 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
       const video = videoRef.current;
       if (!video) return;
 
-      const effectiveUrl = getStreamUrl(streamUrl, useProxy);
+      const effectiveUrl = getStreamUrl(streamUrl, targetMode, uaProfile, geoProfile);
 
+      // In transmux mode, we pipe fragmented MP4 directly to HTML5 video tag!
+      if (targetMode === 'transmux') {
+        video.src = effectiveUrl;
+        video
+          .play()
+          .then(() => {
+            setIsLoading(false);
+            setIsPlaying(true);
+          })
+          .catch((err) => {
+            console.warn('[FFmpeg Live Transmux play error]:', err);
+          });
+        return;
+      }
+
+      // In Proxy or Direct mode, try HLS.js first for .m3u8 streams
       if (Hls.isSupported()) {
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
           backBufferLength: 60,
-          manifestLoadingTimeOut: 15000,
-          manifestLoadingMaxRetry: 3,
-          levelLoadingTimeOut: 15000,
-          fragLoadingTimeOut: 20000,
+          manifestLoadingTimeOut: 12000,
+          manifestLoadingMaxRetry: 2,
+          levelLoadingTimeOut: 12000,
+          fragLoadingTimeOut: 15000,
         });
 
         hls.loadSource(effectiveUrl);
@@ -133,26 +196,20 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
         });
 
         hls.on(Hls.Events.ERROR, (_event, data) => {
-          console.warn('[HLS.js Live] Erro:', data);
+          console.warn('[HLS.js Live] Event Error:', data);
           if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                if (!useProxy) {
-                  console.log('Falha na conexão direta, tentando via Proxy CORS...');
-                  setUseProxy(true);
-                } else {
-                  setErrorMsg('Sinal do canal indisponível no momento ou bloqueado geograficamente.');
-                  setIsLoading(false);
-                }
-                break;
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                hls.recoverMediaError();
-                break;
-              default:
-                hls.destroy();
-                setErrorMsg('Erro na reprodução deste canal.');
-                setIsLoading(false);
-                break;
+            if (targetMode === 'proxy') {
+              console.log('[HLS Auto-Failover] Falha no HLS.js, ativando motor FFmpeg Transmux (compatível com VLC)...');
+              setStreamMode('transmux');
+              // Automatically fall back to transmux mode!
+              loadStream(streamUrl, 'transmux');
+            } else if (targetMode === 'direct') {
+              setStreamMode('proxy');
+              loadStream(streamUrl, 'proxy');
+            } else {
+              hls.destroy();
+              setErrorMsg('Sinal de transmissão indisponível na origem ou bloqueado geograficamente pelo servidor de transmissão.');
+              setIsLoading(false);
             }
           }
         });
@@ -167,11 +224,11 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
         video.play().catch(() => setIsPlaying(false));
       }
     },
-    [getStreamUrl, useProxy]
+    [getStreamUrl, streamMode, uaProfile, geoProfile]
   );
 
   useEffect(() => {
-    loadStream(channel.url);
+    loadStream(channel.url, streamMode);
 
     return () => {
       if (hlsRef.current) {
@@ -179,7 +236,7 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
         hlsRef.current = null;
       }
     };
-  }, [channel, useProxy, loadStream]);
+  }, [channel, streamMode, uaProfile, geoProfile, loadStream]);
 
   // Handle controls auto-hide
   const handleMouseMove = () => {
@@ -188,7 +245,7 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
       clearTimeout(controlsTimeoutRef.current);
     }
     controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying && !showChannelList) {
+      if (isPlaying && !showChannelList && !showSettings) {
         setControlsVisible(false);
       }
     }, 4000);
@@ -198,7 +255,9 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (showChannelList) {
+        if (showSettings) {
+          setShowSettings(false);
+        } else if (showChannelList) {
           setShowChannelList(false);
         } else {
           onClose();
@@ -223,7 +282,7 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showChannelList, isPlaying, isMuted, currentIndex, allChannels]);
+  }, [showChannelList, showSettings, isPlaying, isMuted, currentIndex, allChannels]);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -265,6 +324,22 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
     }
   };
 
+  const handleCopyStreamUrl = () => {
+    navigator.clipboard.writeText(channel.url).then(() => {
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 2500);
+    });
+  };
+
+  const handleDownloadM3u = () => {
+    const link = `/api/iptv/export-m3u?url=${encodeURIComponent(channel.url)}&name=${encodeURIComponent(
+      channel.name
+    )}&logo=${encodeURIComponent(channel.logo || '')}&group=${encodeURIComponent(
+      channel.group
+    )}&userAgent=${encodeURIComponent(channel.httpUserAgent || USER_AGENTS[uaProfile].value)}`;
+    window.location.href = link;
+  };
+
   const filteredChannelList = allChannels.filter(
     (c) =>
       c.name.toLowerCase().includes(channelSearch.toLowerCase()) ||
@@ -289,48 +364,93 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
           setIsLoading(false);
           setErrorMsg(null);
         }}
+        onError={() => {
+          if (streamMode !== 'transmux') {
+            setStreamMode('transmux');
+            loadStream(channel.url, 'transmux');
+          }
+        }}
         playsInline
       />
 
       {/* Loading Spinner */}
       {isLoading && !errorMsg && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-xs pointer-events-none z-20">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-xs pointer-events-none z-20">
           <div className="w-16 h-16 border-4 border-[#E50914] border-t-transparent rounded-full animate-spin mb-4 shadow-lg shadow-red-950/50"></div>
           <div className="flex items-center space-x-2 text-white font-medium text-lg">
             <Radio className="w-5 h-5 text-red-500 animate-pulse" />
             <span>Sintonizando {channel.name}...</span>
           </div>
-          <span className="text-neutral-400 text-xs mt-1">Conectando ao sinal ao vivo</span>
+          <span className="text-neutral-400 text-xs mt-1">
+            {streamMode === 'transmux'
+              ? 'Conectando via Motor FFmpeg (Modo VLC)...'
+              : streamMode === 'proxy'
+              ? 'Conectando via Proxy Anti-CORS & Emulação VLC...'
+              : 'Conectando via Conexão Direta...'}
+          </span>
         </div>
       )}
 
-      {/* Error Overlay */}
+      {/* Error Overlay with VLC fallback */}
       {errorMsg && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md z-25 p-6 text-center max-w-lg mx-auto">
-          <AlertCircle className="w-16 h-16 text-amber-500 mb-4 animate-bounce" />
-          <h3 className="text-xl font-bold text-white mb-2">Canal Temporariamente Indisponível</h3>
-          <p className="text-neutral-300 text-sm mb-6 leading-relaxed">{errorMsg}</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-25 p-6 text-center max-w-xl mx-auto">
+          <AlertCircle className="w-14 h-14 text-amber-500 mb-3 animate-bounce" />
+          <h3 className="text-xl font-bold text-white mb-2">Canal Indisponível no Navegador</h3>
+          <p className="text-neutral-300 text-sm mb-5 leading-relaxed">{errorMsg}</p>
+
+          {/* Quick Troubleshooting Options */}
+          <div className="bg-neutral-900/90 border border-neutral-800 rounded-xl p-4 w-full mb-5 text-left text-xs space-y-3">
+            <div className="font-semibold text-neutral-200 flex items-center space-x-1.5">
+              <SlidersHorizontal className="w-4 h-4 text-red-500" />
+              <span>Opções de Recuperação de Sinal:</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  setStreamMode('transmux');
+                  loadStream(channel.url, 'transmux');
+                }}
+                className="px-3 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white font-medium flex items-center space-x-2 transition-all border border-neutral-700 cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Modo FFmpeg (Estilo VLC)</span>
+              </button>
+              <button
+                onClick={() => {
+                  setStreamMode('proxy');
+                  setUaProfile('vlc');
+                  loadStream(channel.url, 'proxy');
+                }}
+                className="px-3 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white font-medium flex items-center space-x-2 transition-all border border-neutral-700 cursor-pointer"
+              >
+                <Shield className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Proxy + Headers VLC</span>
+              </button>
+            </div>
+            <div className="text-[11px] text-neutral-400 pt-1 border-t border-neutral-800/80">
+              💡 <strong>Nota:</strong> Canais com bloqueio geográfico estrito no servidor de transmissão exigem rede local ou IP permitido.
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
-              onClick={() => {
-                setUseProxy(!useProxy);
-                loadStream(channel.url);
-              }}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-amber-400 rounded-lg text-sm font-semibold flex items-center space-x-2 border border-zinc-700 transition-all cursor-pointer"
+              onClick={handleDownloadM3u}
+              className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-semibold flex items-center space-x-2 shadow-lg transition-all cursor-pointer"
+              title="Baixar arquivo .m3u para abrir direto no aplicativo VLC do seu computador"
             >
-              <Shield className="w-4 h-4" />
-              <span>{useProxy ? 'Tentar Conexão Direta' : 'Ativar Modo Proxy Seguro'}</span>
+              <Download className="w-4 h-4" />
+              <span>Abrir no VLC (.m3u)</span>
             </button>
             <button
-              onClick={() => loadStream(channel.url)}
-              className="px-4 py-2 bg-[#E50914] hover:bg-[#b80710] text-white rounded-lg text-sm font-semibold flex items-center space-x-2 shadow-lg transition-all cursor-pointer"
+              onClick={handleCopyStreamUrl}
+              className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-lg text-sm font-semibold flex items-center space-x-2 border border-neutral-700 transition-all cursor-pointer"
             >
-              <RefreshCw className="w-4 h-4" />
-              <span>Tentar Novamente</span>
+              {copiedUrl ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+              <span>{copiedUrl ? 'Link Copiado!' : 'Copiar Link'}</span>
             </button>
             <button
               onClick={handleNextChannel}
-              className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-lg text-sm font-semibold transition-all cursor-pointer"
+              className="px-4 py-2.5 bg-[#E50914] hover:bg-[#b80710] text-white rounded-lg text-sm font-semibold transition-all cursor-pointer"
             >
               Próximo Canal &rarr;
             </button>
@@ -372,7 +492,7 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
 
             <div>
               <div className="flex items-center space-x-2">
-                <h1 className="text-white text-base sm:text-lg font-bold truncate max-w-[200px] sm:max-w-md">
+                <h1 className="text-white text-base sm:text-lg font-bold truncate max-w-[180px] sm:max-w-md">
                   {channel.name}
                 </h1>
                 <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-red-600/90 text-white text-[10px] font-black uppercase tracking-wider animate-pulse">
@@ -390,11 +510,17 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
                   {channel.group}
                 </span>
                 {channel.country && <span>🏳️ {channel.country}</span>}
-                {useProxy && (
-                  <span className="text-emerald-400 font-mono text-[10px] flex items-center">
-                    <Shield className="w-3 h-3 mr-0.5 inline" /> Proxy Ativo
-                  </span>
-                )}
+                <span
+                  className={`font-mono text-[10px] px-1.5 py-0.5 rounded border ${
+                    streamMode === 'transmux'
+                      ? 'bg-purple-950/60 border-purple-800 text-purple-400'
+                      : streamMode === 'proxy'
+                      ? 'bg-emerald-950/60 border-emerald-800 text-emerald-400'
+                      : 'bg-neutral-800 border-neutral-700 text-neutral-400'
+                  }`}
+                >
+                  {streamMode === 'transmux' ? '⚡ FFmpeg Transmux' : streamMode === 'proxy' ? '🛡️ Proxy VLC' : 'Direto'}
+                </span>
               </div>
             </div>
           </div>
@@ -402,6 +528,18 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
 
         {/* Top Right Actions */}
         <div className="flex items-center space-x-2 sm:space-x-3">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className={`p-2.5 rounded-full transition-all cursor-pointer ${
+              showSettings
+                ? 'bg-[#E50914] text-white'
+                : 'bg-black/60 hover:bg-white/20 text-neutral-300 hover:text-white'
+            }`}
+            title="Configurações de Transmissão (VLC / Headers / Modos)"
+          >
+            <Settings2 className="w-5 h-5" />
+          </button>
+
           <button
             onClick={() => onToggleFavorite(channel.id)}
             className={`p-2.5 rounded-full transition-all cursor-pointer ${
@@ -436,6 +574,132 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Settings Flyout Panel */}
+      {showSettings && (
+        <div className="absolute top-20 right-4 sm:right-6 w-84 sm:w-96 bg-neutral-900/95 backdrop-blur-xl border border-neutral-800 rounded-2xl p-5 shadow-2xl z-40 text-left text-xs text-neutral-300 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+            <div className="flex items-center space-x-2 text-white font-bold text-sm">
+              <SlidersHorizontal className="w-4 h-4 text-[#E50914]" />
+              <span>Ajustes de Transmissão</span>
+            </div>
+            <button
+              onClick={() => setShowSettings(false)}
+              className="text-neutral-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Engine Mode */}
+          <div>
+            <label className="block text-neutral-400 font-semibold mb-1.5">Modo de Reprodução:</label>
+            <div className="grid grid-cols-3 gap-1.5 bg-black/60 p-1 rounded-lg border border-neutral-800">
+              <button
+                onClick={() => {
+                  setStreamMode('proxy');
+                  loadStream(channel.url, 'proxy');
+                }}
+                className={`py-1.5 px-2 rounded font-medium text-[11px] transition-all cursor-pointer ${
+                  streamMode === 'proxy'
+                    ? 'bg-emerald-600 text-white font-bold shadow'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                Proxy HLS
+              </button>
+              <button
+                onClick={() => {
+                  setStreamMode('transmux');
+                  loadStream(channel.url, 'transmux');
+                }}
+                className={`py-1.5 px-2 rounded font-medium text-[11px] transition-all cursor-pointer ${
+                  streamMode === 'transmux'
+                    ? 'bg-purple-600 text-white font-bold shadow'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                FFmpeg TS
+              </button>
+              <button
+                onClick={() => {
+                  setStreamMode('direct');
+                  loadStream(channel.url, 'direct');
+                }}
+                className={`py-1.5 px-2 rounded font-medium text-[11px] transition-all cursor-pointer ${
+                  streamMode === 'direct'
+                    ? 'bg-neutral-700 text-white font-bold shadow'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                Direto
+              </button>
+            </div>
+            <p className="text-[10px] text-neutral-400 mt-1">
+              * O modo <strong>FFmpeg TS</strong> converte fluxos MPEG-TS brutos diretamente em vídeo web compatível.
+            </p>
+          </div>
+
+          {/* User-Agent Emulation */}
+          <div>
+            <label className="block text-neutral-400 font-semibold mb-1.5">Identificação (User-Agent):</label>
+            <select
+              value={uaProfile}
+              onChange={(e) => {
+                const val = e.target.value as UserAgentProfile;
+                setUaProfile(val);
+                loadStream(channel.url);
+              }}
+              className="w-full bg-black/60 border border-neutral-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 cursor-pointer"
+            >
+              <option value="vlc">VLC Media Player 3.0 (Recomendado)</option>
+              <option value="appletv">Apple TV / Safari HLS</option>
+              <option value="chrome">Google Chrome</option>
+              <option value="kodi">Kodi Media Center</option>
+            </select>
+          </div>
+
+          {/* Geo-IP Simulation */}
+          <div>
+            <label className="block text-neutral-400 font-semibold mb-1.5 flex items-center space-x-1.5">
+              <Globe className="w-3.5 h-3.5 text-blue-400" />
+              <span>Simulação de Cabeçalho Regional:</span>
+            </label>
+            <select
+              value={geoProfile}
+              onChange={(e) => {
+                const val = e.target.value as GeoProfile;
+                setGeoProfile(val);
+                loadStream(channel.url);
+              }}
+              className="w-full bg-black/60 border border-neutral-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 cursor-pointer"
+            >
+              <option value="auto">Automático (Origem do canal: {channel.country || 'Global'})</option>
+              <option value="BR">Brasil 🇧🇷 (IP Forwarding BR)</option>
+              <option value="PT">Portugal 🇵🇹 (IP Forwarding PT)</option>
+              <option value="US">Estados Unidos 🇺🇸 (IP Forwarding US)</option>
+            </select>
+          </div>
+
+          {/* External VLC Launcher Actions */}
+          <div className="pt-2 border-t border-neutral-800 flex items-center space-x-2">
+            <button
+              onClick={handleDownloadM3u}
+              className="flex-1 py-2 px-3 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Baixar para VLC</span>
+            </button>
+            <button
+              onClick={handleCopyStreamUrl}
+              className="py-2 px-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer"
+            >
+              {copiedUrl ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedUrl ? 'Copiado' : 'Link'}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Controls Bar */}
       <div
@@ -495,23 +759,39 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
           </div>
         </div>
 
-        {/* Right Controls: Proxy Switcher, Fullscreen */}
+        {/* Right Controls: Mode Toggle, Fullscreen */}
         <div className="flex items-center space-x-3">
           <button
             onClick={() => {
-              setUseProxy(!useProxy);
-              loadStream(channel.url);
+              const nextMode: StreamMode =
+                streamMode === 'proxy' ? 'transmux' : streamMode === 'transmux' ? 'direct' : 'proxy';
+              setStreamMode(nextMode);
+              loadStream(channel.url, nextMode);
             }}
             className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition-all border cursor-pointer ${
-              useProxy
+              streamMode === 'transmux'
+                ? 'bg-purple-950/60 border-purple-700 text-purple-300'
+                : streamMode === 'proxy'
                 ? 'bg-emerald-950/60 border-emerald-700 text-emerald-400'
                 : 'bg-black/60 border-neutral-700 text-neutral-300 hover:text-white hover:bg-white/10'
             }`}
-            title="Alternar entre modo de conexão Direto ou Proxy Anti-CORS"
+            title="Clique para alternar entre Proxy HLS, FFmpeg TS e Conexão Direta"
           >
-            <Shield className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{useProxy ? 'Proxy Anti-CORS Ativado' : 'Conexão Direta'}</span>
-            <span className="sm:hidden">{useProxy ? 'Proxy' : 'Direto'}</span>
+            {streamMode === 'transmux' ? (
+              <RefreshCw className="w-3.5 h-3.5 text-purple-400 animate-spin" />
+            ) : (
+              <Shield className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden sm:inline">
+              {streamMode === 'transmux'
+                ? 'Motor FFmpeg (VLC)'
+                : streamMode === 'proxy'
+                ? 'Proxy Anti-CORS'
+                : 'Conexão Direta'}
+            </span>
+            <span className="sm:hidden">
+              {streamMode === 'transmux' ? 'FFmpeg' : streamMode === 'proxy' ? 'Proxy' : 'Direto'}
+            </span>
           </button>
 
           <button

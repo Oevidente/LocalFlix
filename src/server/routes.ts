@@ -1738,7 +1738,7 @@ apiRouter.post('/iptv/favorites', (req: Request, res: Response) => {
   res.json({ success: true, favorites: current });
 });
 
-// 6. IPTV Stream & M3U8 CORS Proxy
+// 6. IPTV Stream & M3U8 CORS Proxy (with VLC Header Emulation & Redirect Resolution)
 apiRouter.get('/iptv/proxy', async (req: Request, res: Response) => {
   const targetUrl = req.query.url as string;
   if (!targetUrl) {
@@ -1755,15 +1755,29 @@ apiRouter.get('/iptv/proxy', async (req: Request, res: Response) => {
     const parsedTarget = new URL(targetUrl);
     const userAgent =
       (req.query.userAgent as string) ||
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+      'VLC/3.0.20 LibVLC/3.0.20 (Windows NT 10.0; Win64; x64)';
     const referrer = (req.query.referrer as string) || parsedTarget.origin;
+    const country = (req.query.country as string) || '';
 
     const fetchHeaders: Record<string, string> = {
       'User-Agent': userAgent,
       Referer: referrer,
       Origin: parsedTarget.origin,
       Accept: '*/*',
+      Connection: 'keep-alive',
     };
+
+    // Forward country-specific IP simulation if country is provided
+    if (country === 'BR') {
+      fetchHeaders['X-Forwarded-For'] = '177.18.200.50';
+      fetchHeaders['Client-IP'] = '177.18.200.50';
+    } else if (country === 'PT') {
+      fetchHeaders['X-Forwarded-For'] = '188.82.100.20';
+      fetchHeaders['Client-IP'] = '188.82.100.20';
+    } else if (country === 'US') {
+      fetchHeaders['X-Forwarded-For'] = '198.51.100.42';
+      fetchHeaders['Client-IP'] = '198.51.100.42';
+    }
 
     if (req.headers.range) {
       fetchHeaders['Range'] = req.headers.range;
@@ -1779,14 +1793,16 @@ apiRouter.get('/iptv/proxy', async (req: Request, res: Response) => {
       return;
     }
 
+    // Base URL for relative segments must follow redirects!
+    const finalBaseUrl = response.url || targetUrl;
     const contentType = response.headers.get('content-type') || '';
     const isM3U8 =
       contentType.includes('mpegurl') ||
       contentType.includes('application/vnd.apple.mpegurl') ||
       contentType.includes('application/x-mpegurl') ||
-      targetUrl.includes('.m3u8') ||
-      targetUrl.includes('playlist') ||
-      targetUrl.includes('.m3u');
+      finalBaseUrl.includes('.m3u8') ||
+      finalBaseUrl.includes('playlist') ||
+      finalBaseUrl.includes('.m3u');
 
     if (isM3U8) {
       const text = await response.text();
@@ -1794,6 +1810,11 @@ apiRouter.get('/iptv/proxy', async (req: Request, res: Response) => {
       if (text.includes('#EXTM3U')) {
         const lines = text.split(/\r?\n/);
         const rewrittenLines: string[] = [];
+
+        const extraQueryParams =
+          (req.query.userAgent ? `&userAgent=${encodeURIComponent(req.query.userAgent as string)}` : '') +
+          (req.query.referrer ? `&referrer=${encodeURIComponent(req.query.referrer as string)}` : '') +
+          (req.query.country ? `&country=${encodeURIComponent(req.query.country as string)}` : '');
 
         for (let line of lines) {
           const trimmed = line.trim();
@@ -1806,8 +1827,8 @@ apiRouter.get('/iptv/proxy', async (req: Request, res: Response) => {
             // Rewrite URI="..." inside tags
             const rewrittenTag = trimmed.replace(/URI="([^"]+)"/g, (_, uri) => {
               try {
-                const absUrl = new URL(uri, targetUrl).href;
-                const proxyUrl = `/api/iptv/proxy?url=${encodeURIComponent(absUrl)}`;
+                const absUrl = new URL(uri, finalBaseUrl).href;
+                const proxyUrl = `/api/iptv/proxy?url=${encodeURIComponent(absUrl)}${extraQueryParams}`;
                 return `URI="${proxyUrl}"`;
               } catch {
                 return `URI="${uri}"`;
@@ -1819,8 +1840,8 @@ apiRouter.get('/iptv/proxy', async (req: Request, res: Response) => {
           } else {
             // It's a stream segment or variant playlist URI
             try {
-              const absUrl = new URL(trimmed, targetUrl).href;
-              const proxyUrl = `/api/iptv/proxy?url=${encodeURIComponent(absUrl)}`;
+              const absUrl = new URL(trimmed, finalBaseUrl).href;
+              const proxyUrl = `/api/iptv/proxy?url=${encodeURIComponent(absUrl)}${extraQueryParams}`;
               rewrittenLines.push(proxyUrl);
             } catch {
               rewrittenLines.push(line);
@@ -1854,7 +1875,6 @@ apiRouter.get('/iptv/proxy', async (req: Request, res: Response) => {
     res.status(response.status);
 
     if (response.body) {
-      // Stream chunks using standard web stream to node response
       const reader = response.body.getReader();
       const pump = async () => {
         try {
@@ -1882,4 +1902,97 @@ apiRouter.get('/iptv/proxy', async (req: Request, res: Response) => {
       res.status(502).send(`Falha ao conectar com o stream: ${proxyError.message}`);
     }
   }
+});
+
+// 7. FFmpeg Live Stream Transmuxer (converts raw TS / RTSP / HTTP to web-compatible fragmented MP4 on-the-fly)
+apiRouter.get('/iptv/transmux', (req: Request, res: Response) => {
+  const targetUrl = req.query.url as string;
+  if (!targetUrl) {
+    res.status(400).send('URL é obrigatória');
+    return;
+  }
+
+  const { ffmpeg } = getBinaries();
+  if (!ffmpeg) {
+    res.status(503).send('FFmpeg não encontrado no sistema para modo transmux');
+    return;
+  }
+
+  res.setHeader('Content-Type', 'video/mp4');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-cache, no-store');
+
+  const userAgent =
+    (req.query.userAgent as string) ||
+    'VLC/3.0.20 LibVLC/3.0.20 (Windows NT 10.0; Win64; x64)';
+  const referrer = (req.query.referrer as string) || '';
+
+  const args = [
+    '-reconnect', '1',
+    '-reconnect_at_eof', '1',
+    '-reconnect_streamed', '1',
+    '-reconnect_delay_max', '4',
+    '-user_agent', userAgent,
+  ];
+
+  if (referrer) {
+    args.push('-headers', `Referer: ${referrer}\r\n`);
+  }
+
+  args.push(
+    '-i', targetUrl,
+    '-c:v', 'copy',
+    '-c:a', 'aac',
+    '-b:a', '160k',
+    '-f', 'mp4',
+    '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
+    'pipe:1'
+  );
+
+  console.log(`[FFmpeg IPTV Transmux] Iniciando streaming de: ${targetUrl}`);
+  const proc = spawn(ffmpeg, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+
+  proc.stdout.pipe(res);
+
+  proc.stderr.on('data', (d) => {
+    // Optional debug log
+    const msg = d.toString();
+    if (msg.includes('Error') || msg.includes('fatal')) {
+      console.warn('[FFmpeg IPTV Transmux]', msg.trim());
+    }
+  });
+
+  const cleanup = () => {
+    try {
+      proc.kill('SIGKILL');
+    } catch {}
+  };
+
+  req.on('close', cleanup);
+  res.on('finish', cleanup);
+});
+
+// 8. Generate and download VLC M3U Launcher
+apiRouter.get('/iptv/export-m3u', (req: Request, res: Response) => {
+  const streamUrl = req.query.url as string;
+  const name = (req.query.name as string) || 'Canal IPTV';
+  const logo = (req.query.logo as string) || '';
+  const group = (req.query.group as string) || 'Geral';
+  const userAgent = req.query.userAgent as string;
+
+  if (!streamUrl) {
+    res.status(400).send('URL do stream é obrigatória');
+    return;
+  }
+
+  let m3uContent = '#EXTM3U\n';
+  m3uContent += `#EXTINF:-1 tvg-logo="${logo}" group-title="${group}",${name}\n`;
+  if (userAgent) {
+    m3uContent += `#EXTVLCOPT:http-user-agent=${userAgent}\n`;
+  }
+  m3uContent += `${streamUrl}\n`;
+
+  res.setHeader('Content-Type', 'audio/x-mpegurl');
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(name.replace(/[^a-zA-Z0-9_-]/g, '_'))}.m3u"`);
+  res.send(m3uContent);
 });
