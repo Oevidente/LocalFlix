@@ -18,7 +18,7 @@ process.on('unhandledRejection', (reason: any) => {
 
 async function startServer() {
   const app = express();
-  const DEFAULT_PORT = 3050;
+  const DEFAULT_PORT = 3000;
   const configuredPort = Number(process.env.PORT);
   const PORT = Number.isInteger(configuredPort) && configuredPort > 0 ? configuredPort : DEFAULT_PORT;
   const httpsRequested = process.env.HTTPS === 'true' || process.env.HTTPS === '1';
