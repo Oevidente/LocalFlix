@@ -12,12 +12,14 @@ import {
   toggleEpisodeWatched,
   relocateMediaFolder,
   updateMediaBanner,
+  updateMediaPoster,
+  updateTmdbSettings,
   getDataDir,
   updateTorrentProgressInLibrary,
   saveTorrentMediaItem,
 } from './storage';
 import { scanMediaFolder } from './scanner';
-import { enrichMediaWithTmdb, isTmdbConfigured } from './tmdb';
+import { enrichMediaWithTmdb, isTmdbConfigured, searchTmdb, getApiKey, getLanguage } from './tmdb';
 import {
   downloadOnlineSubtitle,
   isOpenSubtitlesConfigured,
@@ -28,6 +30,7 @@ import {
 import {
   getBinaries,
   generateThumbnail,
+  extractEmbeddedCover,
   isBrowserNativeDirectPlayable,
   isBitmapSubtitleCodec,
   streamSubtitlesToVtt,
@@ -119,10 +122,10 @@ apiRouter.post('/library/add', async (req: Request, res: Response) => {
       }
       mediaItem.lastWatchedEpisodeId = existing.lastWatchedEpisodeId;
       mediaItem.lastWatchedAt = existing.lastWatchedAt;
-      if (existing.backdropPath) {
+      if (existing.backdropPath && !mediaItem.backdropPath) {
         mediaItem.backdropPath = existing.backdropPath;
       }
-      if (existing.posterPath) {
+      if (existing.posterPath && !mediaItem.posterPath) {
         mediaItem.posterPath = existing.posterPath;
       }
       lib.items[existingIndex] = mediaItem;
@@ -184,10 +187,10 @@ apiRouter.post('/library/rescan/:id', async (req: Request, res: Response) => {
     updatedItem.rating = updatedItem.rating ?? media.rating;
     updatedItem.voteCount = updatedItem.voteCount ?? media.voteCount;
     updatedItem.cast = updatedItem.cast?.length ? updatedItem.cast : media.cast;
-    if (media.backdropPath) {
+    if (media.backdropPath && !updatedItem.backdropPath) {
       updatedItem.backdropPath = media.backdropPath;
     }
-    if (media.posterPath) {
+    if (media.posterPath && !updatedItem.posterPath) {
       updatedItem.posterPath = media.posterPath;
     }
 
@@ -200,11 +203,11 @@ apiRouter.post('/library/rescan/:id', async (req: Request, res: Response) => {
   }
 });
 
-// 3.1 Refresh metadata from TMDb without rescanning media files
+// 3.1 Refresh metadata from TMDb (supports optional search query or explicit TMDb ID)
 apiRouter.post('/library/metadata/:id', async (req: Request, res: Response) => {
   try {
     if (!isTmdbConfigured()) {
-      res.status(503).json({ error: 'TMDb não configurado. Defina TMDB_API_KEY ou TMDB_ACCESS_TOKEN.' });
+      res.status(503).json({ error: 'TMDb não configurado. Configure sua chave da API do TMDb no menu Status.' });
       return;
     }
 
@@ -214,7 +217,8 @@ apiRouter.post('/library/metadata/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    await enrichMediaWithTmdb(media);
+    const { query, tmdbId } = req.body || {};
+    await enrichMediaWithTmdb(media, query, tmdbId ? Number(tmdbId) : undefined);
     const library = readLibrary();
     const index = library.items.findIndex((item) => item.id === media.id);
     if (index < 0) {
@@ -222,10 +226,38 @@ apiRouter.post('/library/metadata/:id', async (req: Request, res: Response) => {
       return;
     }
     library.items[index] = media;
-    writeLibrary(library);
+    writeLibrary(library, true);
     res.json({ success: true, item: media });
   } catch (error: any) {
     res.status(500).json({ error: error?.message || 'Erro ao atualizar metadados' });
+  }
+});
+
+// 3.2 Refresh metadata for all library items
+apiRouter.post('/library/refresh-all-metadata', async (req: Request, res: Response) => {
+  try {
+    if (!isTmdbConfigured()) {
+      res.status(503).json({ error: 'TMDb não configurado. Configure sua chave da API do TMDb.' });
+      return;
+    }
+
+    const library = readLibrary();
+    let updatedCount = 0;
+
+    for (let i = 0; i < library.items.length; i++) {
+      const item = library.items[i];
+      try {
+        await enrichMediaWithTmdb(item);
+        updatedCount++;
+      } catch (err) {
+        console.warn(`[TMDb] Erro ao atualizar item ${item.title}:`, err);
+      }
+    }
+
+    writeLibrary(library, true);
+    res.json({ success: true, updatedCount, total: library.items.length });
+  } catch (error: any) {
+    res.status(500).json({ error: error?.message || 'Erro ao atualizar metadados da biblioteca' });
   }
 });
 
@@ -862,8 +894,21 @@ apiRouter.post('/media/:id/banner', (req: Request, res: Response) => {
   res.json({ success: true, media: updatedMedia });
 });
 
+// 9.6 Update media poster image by URL
+apiRouter.post('/media/:id/poster', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { posterUrl } = req.body;
+  const ok = updateMediaPoster(id, typeof posterUrl === 'string' ? posterUrl : '');
+  if (!ok) {
+    res.status(404).json({ error: 'Mídia não encontrada' });
+    return;
+  }
+  const updatedMedia = findMediaItem(id);
+  res.json({ success: true, media: updatedMedia });
+});
+
 // 10. Poster image
-apiRouter.get('/media/:mediaId/poster', (req: Request, res: Response) => {
+apiRouter.get('/media/:mediaId/poster', async (req: Request, res: Response) => {
   const { mediaId } = req.params;
   const media = findMediaItem(mediaId);
   if (!media) {
@@ -871,18 +916,47 @@ apiRouter.get('/media/:mediaId/poster', (req: Request, res: Response) => {
     return;
   }
 
-  // If posterPath is a remote URL, redirect
+  // 1. If posterPath is a remote URL, redirect
   if (media.posterPath && (media.posterPath.startsWith('http://') || media.posterPath.startsWith('https://'))) {
     res.redirect(media.posterPath);
     return;
   }
 
+  // 2. Local explicit posterPath
   if (media.posterPath && fs.existsSync(media.posterPath)) {
     res.sendFile(media.posterPath);
     return;
   }
 
-  // Fallback: try backdrop URL or file
+  // 3. Cached TMDb poster in data/metadata/{id}/poster.jpg
+  const cachedPoster = path.join(getDataDir(), 'metadata', mediaId, 'poster.jpg');
+  if (fs.existsSync(cachedPoster) && fs.statSync(cachedPoster).size > 1000) {
+    res.sendFile(cachedPoster);
+    return;
+  }
+
+  // 4. Try extracting embedded cover art from the first video file
+  const firstEp = media.seasons[0]?.episodes[0];
+  if (firstEp && fs.existsSync(firstEp.filePath)) {
+    try {
+      const embedded = await extractEmbeddedCover(firstEp.filePath);
+      if (embedded && fs.existsSync(embedded) && fs.statSync(embedded).size > 1000) {
+        res.sendFile(embedded);
+        return;
+      }
+    } catch {}
+
+    // 5. Fallback: generate high-quality vertical poster frame
+    try {
+      const thumbPath = await generateThumbnail(firstEp.filePath, 10, 'poster');
+      if (thumbPath && fs.existsSync(thumbPath)) {
+        res.sendFile(thumbPath);
+        return;
+      }
+    } catch {}
+  }
+
+  // 6. Fallback: try backdrop URL or file
   if (media.backdropPath && (media.backdropPath.startsWith('http://') || media.backdropPath.startsWith('https://'))) {
     res.redirect(media.backdropPath);
     return;
@@ -890,18 +964,6 @@ apiRouter.get('/media/:mediaId/poster', (req: Request, res: Response) => {
 
   if (media.backdropPath && fs.existsSync(media.backdropPath)) {
     res.sendFile(media.backdropPath);
-    return;
-  }
-
-  const firstEp = media.seasons[0]?.episodes[0];
-  if (firstEp && fs.existsSync(firstEp.filePath)) {
-    generateThumbnail(firstEp.filePath, 10).then((thumbPath) => {
-      if (thumbPath && fs.existsSync(thumbPath)) {
-        res.sendFile(thumbPath);
-      } else {
-        res.status(404).send('Poster não disponível');
-      }
-    });
     return;
   }
 
@@ -928,6 +990,13 @@ apiRouter.get(['/media/:mediaId/backdrop', '/media/:mediaId/banner'], (req: Requ
     return;
   }
 
+  // Check cached TMDb backdrop in data/metadata/{id}/backdrop.jpg
+  const cachedBackdrop = path.join(getDataDir(), 'metadata', mediaId, 'backdrop.jpg');
+  if (fs.existsSync(cachedBackdrop) && fs.statSync(cachedBackdrop).size > 1000) {
+    res.sendFile(cachedBackdrop);
+    return;
+  }
+
   // Fallback: try poster if available
   if (media.posterPath && (media.posterPath.startsWith('http://') || media.posterPath.startsWith('https://'))) {
     res.redirect(media.posterPath);
@@ -941,7 +1010,7 @@ apiRouter.get(['/media/:mediaId/backdrop', '/media/:mediaId/banner'], (req: Requ
 
   const firstEp = media.seasons[0]?.episodes[0];
   if (firstEp && fs.existsSync(firstEp.filePath)) {
-    generateThumbnail(firstEp.filePath, 15).then((thumbPath) => {
+    generateThumbnail(firstEp.filePath, 10, 'landscape').then((thumbPath) => {
       if (thumbPath && fs.existsSync(thumbPath)) {
         res.sendFile(thumbPath);
       } else {
@@ -1071,6 +1140,8 @@ apiRouter.get('/system/status', (req: Request, res: Response) => {
     totalItems: lib.items.length,
     platform: process.platform,
     tmdbConfigured: isTmdbConfigured(),
+    tmdbApiKeyConfigured: Boolean(getApiKey()),
+    tmdbLanguage: getLanguage(),
     openSubtitlesConfigured: isOpenSubtitlesConfigured(),
     openSubtitlesAccountConfigured: isOpenSubtitlesAccountConfigured(),
     openSubtitlesUsername: getOpenSubtitlesUsername(),
@@ -1078,6 +1149,38 @@ apiRouter.get('/system/status', (req: Request, res: Response) => {
   };
 
   res.json(status);
+});
+
+// 13.0.0.1 Save TMDb API settings
+apiRouter.post('/system/tmdb', (req: Request, res: Response) => {
+  const { apiKey, accessToken, language } = req.body;
+  updateTmdbSettings(apiKey, accessToken, language);
+  if (apiKey && typeof apiKey === 'string') {
+    process.env.TMDB_API_KEY = apiKey.trim();
+  }
+  if (accessToken && typeof accessToken === 'string') {
+    process.env.TMDB_ACCESS_TOKEN = accessToken.trim();
+  }
+  if (language && typeof language === 'string') {
+    process.env.TMDB_LANGUAGE = language.trim();
+  }
+  res.json({
+    success: true,
+    tmdbConfigured: isTmdbConfigured(),
+    tmdbLanguage: getLanguage(),
+  });
+});
+
+// 13.0.0.2 Search TMDb titles
+apiRouter.get('/system/tmdb/search', async (req: Request, res: Response) => {
+  if (!isTmdbConfigured()) {
+    res.status(503).json({ error: 'TMDb não configurado' });
+    return;
+  }
+  const query = typeof req.query.query === 'string' ? req.query.query : '';
+  const kind = req.query.kind === 'series' ? 'series' : 'movie';
+  const results = await searchTmdb(query, kind);
+  res.json({ results });
 });
 
 // 13.0.1 LAN addresses used by Chromecast to reach this local server

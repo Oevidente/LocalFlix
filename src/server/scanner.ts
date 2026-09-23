@@ -2,12 +2,24 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { MediaItem, Season, Episode, MediaKind, SubtitleTrackInfo } from '../types';
-import { probeMedia } from './ffmpeg';
+import { probeMedia, extractEmbeddedCover } from './ffmpeg';
 
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mkv', '.avi', '.webm', '.mov', '.m4v', '.ts', '.flv', '.wmv']);
 const SUBTITLE_EXTENSIONS = new Set(['.srt', '.vtt', '.ass', '.ssa']);
-const POSTER_NAMES = ['poster.jpg', 'poster.png', 'folder.jpg', 'folder.png', 'cover.jpg', 'cover.png'];
-const BACKDROP_NAMES = ['backdrop.jpg', 'backdrop.png', 'fanart.jpg', 'fanart.png', 'banner.jpg', 'banner.png'];
+const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+const POSTER_NAMES = [
+  'poster.jpg', 'poster.jpeg', 'poster.png', 'poster.webp',
+  'folder.jpg', 'folder.jpeg', 'folder.png', 'folder.webp',
+  'cover.jpg', 'cover.jpeg', 'cover.png', 'cover.webp',
+  'capa.jpg', 'capa.jpeg', 'capa.png', 'capa.webp',
+  'cartaz.jpg', 'cartaz.jpeg', 'cartaz.png', 'cartaz.webp',
+];
+const BACKDROP_NAMES = [
+  'backdrop.jpg', 'backdrop.jpeg', 'backdrop.png', 'backdrop.webp',
+  'fanart.jpg', 'fanart.jpeg', 'fanart.png', 'fanart.webp',
+  'banner.jpg', 'banner.jpeg', 'banner.png', 'banner.webp',
+  'fundo.jpg', 'fundo.jpeg', 'fundo.png', 'fundo.webp',
+];
 
 interface ParsedEpisodeInfo {
   seasonNumber: number;
@@ -185,7 +197,7 @@ export async function scanMediaFolder(folderPath: string, customTitle?: string):
     videoFiles = allVideoFiles;
   }
 
-  // Check for poster and backdrop
+  // Check for poster and backdrop in directory
   let posterPath: string | undefined;
   let backdropPath: string | undefined;
 
@@ -196,6 +208,42 @@ export async function scanMediaFolder(folderPath: string, customTitle?: string):
     }
     if (!backdropPath && BACKDROP_NAMES.includes(lowerName)) {
       backdropPath = file;
+    }
+  }
+
+  // If no standard poster name found, check for image matching video base name (e.g. "Filme.mp4" and "Filme.jpg")
+  if (!posterPath) {
+    for (const vFile of videoFiles) {
+      const vBase = path.basename(vFile, path.extname(vFile)).toLowerCase();
+      const matchedImage = allFiles.find((f) => {
+        const ext = path.extname(f).toLowerCase();
+        if (!IMAGE_EXTENSIONS.has(ext)) return false;
+        const imgBase = path.basename(f, ext).toLowerCase();
+        return (
+          imgBase === vBase ||
+          imgBase === `${vBase}-poster` ||
+          imgBase === `${vBase}-cover` ||
+          imgBase === `${vBase}-capa` ||
+          imgBase === `${vBase}.poster` ||
+          imgBase === `${vBase}.cover`
+        );
+      });
+      if (matchedImage) {
+        posterPath = matchedImage;
+        break;
+      }
+    }
+  }
+
+  // If still no poster, attempt to extract embedded cover art from the first video file via FFmpeg
+  if (!posterPath && videoFiles[0]) {
+    try {
+      const embedded = await extractEmbeddedCover(videoFiles[0]);
+      if (embedded) {
+        posterPath = embedded;
+      }
+    } catch {
+      // Ignored if extraction fails
     }
   }
 

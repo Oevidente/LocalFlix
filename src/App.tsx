@@ -323,6 +323,50 @@ export default function App() {
     }
   };
 
+  const handleUpdatePoster = async (mediaId: string, posterUrl: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/media/${mediaId}/poster`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ posterUrl }),
+      });
+      if (res.ok) {
+        await fetchLibrary();
+        setActiveMediaDetail((prev) => {
+          if (prev && prev.id === mediaId) {
+            return { ...prev, posterPath: posterUrl || undefined };
+          }
+          return prev;
+        });
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleRefreshMetadata = async (mediaId: string, query?: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/library/metadata/${mediaId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        await fetchLibrary();
+        if (data.item) {
+          setActiveMediaDetail(data.item);
+        }
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
   // Filtered Media Items
   const filteredItems = useMemo(() => {
     if (!library) return [];
@@ -574,6 +618,8 @@ export default function App() {
           onOpenRelocate={(m) => setRelocateTarget(m)}
           onDeleteMedia={handleDeleteMedia}
           onUpdateBanner={handleUpdateBanner}
+          onUpdatePoster={handleUpdatePoster}
+          onRefreshMetadata={handleRefreshMetadata}
           onImportSubtitle={handleImportSubtitle}
           onRemoveImportedSubtitle={handleRemoveImportedSubtitle}
           onSearchOnlineSubtitles={handleSearchOnlineSubtitles}
@@ -622,6 +668,7 @@ export default function App() {
       {showSystemModal && (
         <SystemModal
           onClose={() => setShowSystemModal(false)}
+          onRefreshLibrary={fetchLibrary}
         />
       )}
 

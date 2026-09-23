@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { CastMember, Episode, MediaItem } from '../types';
-import { getDataDir } from './storage';
+import { getDataDir, readLibrary } from './storage';
 
 const TMDB_API_BASE = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
@@ -54,22 +54,41 @@ interface TmdbSeasonResponse {
   }>;
 }
 
-function getApiKey(): string | undefined {
-  const key = process.env.TMDB_API_KEY?.trim();
-  return key || undefined;
+export function getApiKey(): string | undefined {
+  const envKey = process.env.TMDB_API_KEY?.trim();
+  if (envKey) return envKey;
+  try {
+    const lib = readLibrary();
+    const settingKey = lib.settings.tmdbApiKey?.trim();
+    if (settingKey) return settingKey;
+  } catch {}
+  return undefined;
 }
 
-function getAccessToken(): string | undefined {
-  const token = process.env.TMDB_ACCESS_TOKEN?.trim();
-  return token || undefined;
+export function getAccessToken(): string | undefined {
+  const envToken = process.env.TMDB_ACCESS_TOKEN?.trim();
+  if (envToken) return envToken;
+  try {
+    const lib = readLibrary();
+    const settingToken = lib.settings.tmdbAccessToken?.trim();
+    if (settingToken) return settingToken;
+  } catch {}
+  return undefined;
 }
 
 export function isTmdbConfigured(): boolean {
   return Boolean(getApiKey() || getAccessToken());
 }
 
-function getLanguage(): string {
-  return process.env.TMDB_LANGUAGE?.trim() || DEFAULT_LANGUAGE;
+export function getLanguage(): string {
+  const envLang = process.env.TMDB_LANGUAGE?.trim();
+  if (envLang) return envLang;
+  try {
+    const lib = readLibrary();
+    const settingLang = lib.settings.tmdbLanguage?.trim();
+    if (settingLang) return settingLang;
+  } catch {}
+  return DEFAULT_LANGUAGE;
 }
 
 function normalizeSearchTitle(title: string): string {
@@ -231,18 +250,42 @@ async function enrichSeriesEpisodes(media: MediaItem, tmdbId: number): Promise<v
   }));
 }
 
-export async function enrichMediaWithTmdb(media: MediaItem): Promise<MediaItem> {
+export async function searchTmdb(query: string, kind: MediaItem['kind'] = 'movie'): Promise<TmdbSearchResult[]> {
+  if (!isTmdbConfigured()) return [];
+  const cleanQuery = normalizeSearchTitle(query);
+  if (!cleanQuery) return [];
+
+  const endpoint = kind === 'movie' ? '/search/movie' : '/search/tv';
+  try {
+    const response = await requestTmdb<TmdbSearchResponse>(endpoint, { query: cleanQuery, include_adult: 'false' });
+    return response.results || [];
+  } catch (error) {
+    console.warn('[TMDb] Falha ao pesquisar títulos:', error instanceof Error ? error.message : error);
+    return [];
+  }
+}
+
+export async function enrichMediaWithTmdb(
+  media: MediaItem,
+  customQuery?: string,
+  explicitTmdbId?: number
+): Promise<MediaItem> {
   if (!isTmdbConfigured()) return media;
 
-  const query = media.customTitle || media.title || path.basename(media.folderPath);
+  const query = customQuery?.trim() || media.customTitle || media.title || path.basename(media.folderPath);
   try {
-    const searchResult = await findMedia(query, media.kind);
-    if (!searchResult) {
-      console.warn(`[TMDb] Nenhum resultado encontrado para "${query}"`);
-      return media;
+    let targetId = explicitTmdbId;
+
+    if (!targetId) {
+      const searchResult = await findMedia(query, media.kind);
+      if (!searchResult) {
+        console.warn(`[TMDb] Nenhum resultado encontrado para "${query}"`);
+        return media;
+      }
+      targetId = searchResult.id;
     }
 
-    const endpoint = media.kind === 'movie' ? `/movie/${searchResult.id}` : `/tv/${searchResult.id}`;
+    const endpoint = media.kind === 'movie' ? `/movie/${targetId}` : `/tv/${targetId}`;
     const detail = await requestTmdb<TmdbDetail>(endpoint, { append_to_response: 'credits' });
     applyMediaDetail(media, detail);
 
@@ -252,8 +295,13 @@ export async function enrichMediaWithTmdb(media: MediaItem): Promise<MediaItem> 
       cacheImage(media.id, 'poster', posterUrl),
       cacheImage(media.id, 'backdrop', backdropUrl),
     ]);
-    media.posterPath = media.posterPath || posterPath;
-    media.backdropPath = media.backdropPath || backdropPath;
+
+    if (posterPath) {
+      media.posterPath = posterPath;
+    }
+    if (backdropPath) {
+      media.backdropPath = backdropPath;
+    }
 
     if (media.kind === 'series') {
       await enrichSeriesEpisodes(media, detail.id);

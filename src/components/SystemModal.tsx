@@ -1,19 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { X, HardDrive, CheckCircle, AlertTriangle, Terminal, FileJson, Download, Loader2, Zap, Cpu, Smartphone, Subtitles } from 'lucide-react';
+import { X, HardDrive, CheckCircle, AlertTriangle, Terminal, FileJson, Download, Loader2, Zap, Cpu, Smartphone, Subtitles, Film, Key, RefreshCw, Sparkles, ExternalLink } from 'lucide-react';
 import { SystemStatus } from '../types';
 
 interface SystemModalProps {
   onClose: () => void;
+  onRefreshLibrary?: () => Promise<void>;
 }
 
 export const SystemModal: React.FC<SystemModalProps> = ({
   onClose,
+  onRefreshLibrary,
 }) => {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [installingFfmpeg, setInstallingFfmpeg] = useState(false);
   const [installMessage, setInstallMessage] = useState<string | null>(null);
   const [updatingHw, setUpdatingHw] = useState(false);
+
+  // TMDb API Configuration state
+  const [tmdbKeyInput, setTmdbKeyInput] = useState('');
+  const [isSavingTmdb, setIsSavingTmdb] = useState(false);
+  const [tmdbMessage, setTmdbMessage] = useState<string | null>(null);
+  const [isRefreshingMetadata, setIsRefreshingMetadata] = useState(false);
+  const [metadataMessage, setMetadataMessage] = useState<string | null>(null);
 
   const fetchStatus = () => {
     fetch('/api/system/status')
@@ -26,6 +35,53 @@ export const SystemModal: React.FC<SystemModalProps> = ({
   useEffect(() => {
     fetchStatus();
   }, []);
+
+  const handleSaveTmdbKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tmdbKeyInput.trim()) return;
+    setIsSavingTmdb(true);
+    setTmdbMessage(null);
+    try {
+      const res = await fetch('/api/system/tmdb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: tmdbKeyInput.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTmdbMessage('Chave do TMDb salva com sucesso!');
+        setTmdbKeyInput('');
+        fetchStatus();
+      } else {
+        setTmdbMessage(data.error || 'Erro ao salvar chave.');
+      }
+    } catch {
+      setTmdbMessage('Erro ao comunicar com o servidor.');
+    } finally {
+      setIsSavingTmdb(false);
+    }
+  };
+
+  const handleRefreshAllMetadata = async () => {
+    setIsRefreshingMetadata(true);
+    setMetadataMessage(null);
+    try {
+      const res = await fetch('/api/library/refresh-all-metadata', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setMetadataMessage(`${data.updatedCount} título(s) atualizados com novas capas!`);
+        if (onRefreshLibrary) {
+          await onRefreshLibrary();
+        }
+      } else {
+        setMetadataMessage(data.error || 'Falha ao buscar capas.');
+      }
+    } catch {
+      setMetadataMessage('Erro de conexão ao buscar capas.');
+    } finally {
+      setIsRefreshingMetadata(false);
+    }
+  };
 
   const handleSetHwMode = async (mode: 'auto' | 'software' | 'off') => {
     setUpdatingHw(true);
@@ -295,6 +351,98 @@ export const SystemModal: React.FC<SystemModalProps> = ({
               <p className="text-[11px] text-neutral-400 leading-relaxed">
                 O CineLocal pode ser instalado no seu navegador, desktop ou celular como aplicativo nativo, funcionando diretamente da rede local ou pendrive sem conexão com a internet externa.
               </p>
+            </div>
+
+            {/* TMDb Integration (Metadata & Covers) */}
+            <div className="p-3 rounded-lg bg-neutral-900 border border-neutral-800 space-y-2.5">
+              <div className="flex items-center justify-between text-neutral-200 font-semibold border-b border-neutral-800 pb-1.5">
+                <span className="flex items-center space-x-1.5">
+                  <Film className="w-4 h-4 text-pink-400" />
+                  <span>Capas e Metadados (TMDb)</span>
+                </span>
+                <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
+                  status?.tmdbConfigured
+                    ? 'bg-emerald-950/60 border border-emerald-700/60 text-emerald-400 font-bold'
+                    : 'bg-amber-950/60 border border-amber-700/60 text-amber-300 font-bold'
+                }`}>
+                  {status?.tmdbConfigured ? 'Conectado' : 'Não Configurado'}
+                </span>
+              </div>
+
+              <p className="text-[11px] text-neutral-400 leading-relaxed">
+                {status?.tmdbConfigured
+                  ? 'A API do TMDb está ativa. Novas pastas adicionadas terão capas oficiais (posters), banners, sinopses e elenco baixados automaticamente.'
+                  : 'O mecanismo automático de download de capas oficiais em alta definição, banners e sinopses necessita de uma chave gratuita do The Movie Database (TMDb). Sem essa chave, as capas automáticas da web ficam inativas.'}
+              </p>
+
+              {/* Form to insert/update TMDB key */}
+              <form onSubmit={handleSaveTmdbKey} className="space-y-2 pt-1">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Key className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+                    <input
+                      type="text"
+                      value={tmdbKeyInput}
+                      onChange={(e) => setTmdbKeyInput(e.target.value)}
+                      placeholder={status?.tmdbConfigured ? 'Substituir chave do TMDb (API Key)...' : 'Cole sua chave de API (v3) do TMDb...'}
+                      className="w-full bg-black/60 border border-neutral-700 focus:border-pink-500 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-neutral-500 font-mono outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isSavingTmdb || !tmdbKeyInput.trim()}
+                    className="px-3 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-700 disabled:opacity-50 text-white text-xs font-semibold transition-all shadow shrink-0 flex items-center space-x-1"
+                  >
+                    {isSavingTmdb ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>Salvar</span>}
+                  </button>
+                </div>
+                {tmdbMessage && (
+                  <p className="text-[11px] text-emerald-400 font-medium">{tmdbMessage}</p>
+                )}
+              </form>
+
+              {/* Refresh all metadata button */}
+              {status?.tmdbConfigured && (
+                <div className="pt-1 border-t border-neutral-800/80 flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={handleRefreshAllMetadata}
+                    disabled={isRefreshingMetadata}
+                    className="px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 border border-white/5 text-neutral-200 text-xs font-medium flex items-center space-x-1.5 transition-colors disabled:opacity-50"
+                    title="Baixar capas e sinopses do TMDb para todos os filmes e séries já escaneados"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-pink-400 ${isRefreshingMetadata ? 'animate-spin' : ''}`} />
+                    <span>{isRefreshingMetadata ? 'Baixando capas...' : 'Buscar capas para todos os títulos'}</span>
+                  </button>
+                  {metadataMessage && (
+                    <span className="text-[11px] text-emerald-400 font-medium">{metadataMessage}</span>
+                  )}
+                </div>
+              )}
+
+              {/* How to get TMDB Key Guide */}
+              {!status?.tmdbConfigured && (
+                <div className="p-2.5 rounded bg-amber-950/20 border border-amber-900/30 text-[11px] text-amber-200/90 space-y-1">
+                  <div className="font-semibold text-amber-300 flex items-center justify-between">
+                    <span>Como obter sua chave gratuita (2 minutos):</span>
+                    <a
+                      href="https://www.themoviedb.org/signup"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-pink-400 hover:underline flex items-center gap-0.5"
+                    >
+                      <span>themoviedb.org</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                  <ol className="list-decimal list-inside space-y-0.5 text-neutral-300">
+                    <li>Crie uma conta gratuita em <strong className="text-white">themoviedb.org</strong>.</li>
+                    <li>Vá em <strong>Configurações da Conta &gt; API</strong>.</li>
+                    <li>Clique em <strong>Criar / Solicitar chave de API</strong> (tipo: Desenvolvedor).</li>
+                    <li>Copie a <strong>Chave da API (v3 auth)</strong> e cole no campo acima ou no arquivo <code className="text-pink-300">.env</code> como <code className="text-pink-300">TMDB_API_KEY</code>.</li>
+                  </ol>
+                </div>
+              )}
             </div>
 
             {/* OpenSubtitles Integration */}

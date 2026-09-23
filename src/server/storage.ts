@@ -227,6 +227,31 @@ export function updateMediaBanner(mediaId: string, bannerUrl: string): boolean {
   return true;
 }
 
+export function updateMediaPoster(mediaId: string, posterUrl: string): boolean {
+  const lib = readLibrary();
+  const media = lib.items.find((i) => i.id === mediaId);
+  if (!media) return false;
+
+  media.posterPath = posterUrl && posterUrl.trim() ? posterUrl.trim() : undefined;
+  media.updatedAt = new Date().toISOString();
+  writeLibrary(lib, true);
+  return true;
+}
+
+export function updateTmdbSettings(apiKey?: string, accessToken?: string, language?: string): void {
+  const lib = readLibrary();
+  if (apiKey !== undefined) {
+    lib.settings.tmdbApiKey = apiKey.trim() || undefined;
+  }
+  if (accessToken !== undefined) {
+    lib.settings.tmdbAccessToken = accessToken.trim() || undefined;
+  }
+  if (language !== undefined) {
+    lib.settings.tmdbLanguage = language.trim() || undefined;
+  }
+  writeLibrary(lib, true);
+}
+
 const TORRENT_VIDEO_EXTS = new Set(['.mp4', '.mkv', '.avi', '.webm', '.mov', '.m4v', '.wmv', '.flv', '.ts']);
 
 export function saveTorrentMediaItem(params: {

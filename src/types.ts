@@ -125,6 +125,9 @@ export interface LibraryData {
     preferredSubtitleLanguage: string;
     autoPlayNext: boolean;
     relocateDriveLetterMap?: Record<string, string>;
+    tmdbApiKey?: string;
+    tmdbAccessToken?: string;
+    tmdbLanguage?: string;
   };
   items: MediaItem[];
 }
@@ -140,6 +143,8 @@ export interface SystemStatus {
   totalItems: number;
   platform: string;
   tmdbConfigured?: boolean;
+  tmdbApiKeyConfigured?: boolean;
+  tmdbLanguage?: string;
   openSubtitlesConfigured?: boolean;
   openSubtitlesAccountConfigured?: boolean;
   openSubtitlesUsername?: string;

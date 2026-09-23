@@ -530,17 +530,62 @@ export async function probeMedia(filePath: string): Promise<FFprobeData> {
   });
 }
 
-// Generate thumbnail at given second
-export async function generateThumbnail(filePath: string, timeSec: number = 10): Promise<string | null> {
+// Extract embedded cover art from MP4 / MKV video file if present
+export async function extractEmbeddedCover(filePath: string): Promise<string | null> {
   const { ffmpeg } = getBinaries();
   if (!ffmpeg || !fs.existsSync(filePath)) return null;
 
   const hash = Buffer.from(filePath).toString('base64url').slice(0, 32);
-  const outPath = path.join(getThumbnailDir(), `thumb_${hash}.jpg`);
+  const outPath = path.join(getThumbnailDir(), `cover_${hash}.jpg`);
+
+  if (fs.existsSync(outPath) && fs.statSync(outPath).size > 1500) {
+    return outPath;
+  }
+
+  return new Promise((resolve) => {
+    // Attempt 1: dump embedded video stream / attached_pic cover directly
+    const args = [
+      '-i', filePath,
+      '-map', '0:v',
+      '-map', '-0:V',
+      '-c', 'copy',
+      '-y',
+      outPath,
+    ];
+
+    execFile(ffmpeg, args, { timeout: 8000 }, (err) => {
+      if (!err && fs.existsSync(outPath) && fs.statSync(outPath).size > 1500) {
+        resolve(outPath);
+      } else {
+        if (fs.existsSync(outPath) && fs.statSync(outPath).size <= 1500) {
+          try { fs.unlinkSync(outPath); } catch {}
+        }
+        resolve(null);
+      }
+    });
+  });
+}
+
+// Generate thumbnail at given second with optional vertical poster ratio
+export async function generateThumbnail(
+  filePath: string,
+  timeSec: number = 10,
+  aspectRatio: 'landscape' | 'poster' = 'landscape'
+): Promise<string | null> {
+  const { ffmpeg } = getBinaries();
+  if (!ffmpeg || !fs.existsSync(filePath)) return null;
+
+  const prefix = aspectRatio === 'poster' ? 'poster_thumb' : 'thumb';
+  const hash = Buffer.from(filePath).toString('base64url').slice(0, 32);
+  const outPath = path.join(getThumbnailDir(), `${prefix}_${hash}.jpg`);
 
   if (fs.existsSync(outPath) && fs.statSync(outPath).size > 1000) {
     return outPath;
   }
+
+  const vfFilter = aspectRatio === 'poster'
+    ? 'scale=480:720:force_original_aspect_ratio=increase,crop=480:720'
+    : 'scale=640:-1';
 
   return new Promise((resolve) => {
     const args = [
@@ -548,7 +593,7 @@ export async function generateThumbnail(filePath: string, timeSec: number = 10):
       '-i', filePath,
       '-vframes', '1',
       '-q:v', '3',
-      '-vf', 'scale=640:-1',
+      '-vf', vfFilter,
       '-y',
       outPath,
     ];

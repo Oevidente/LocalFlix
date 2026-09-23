@@ -19,6 +19,8 @@ import {
   Download,
   Star,
   Radio,
+  Film,
+  Sparkles,
 } from 'lucide-react';
 import { MediaItem, Episode, OnlineSubtitleOption, Season } from '../types';
 import { formatTime, formatBytes } from '../utils';
@@ -32,6 +34,8 @@ interface MediaDetailModalProps {
   onOpenRelocate: (media: MediaItem) => void;
   onDeleteMedia: (mediaId: string) => void;
   onUpdateBanner?: (mediaId: string, bannerUrl: string) => Promise<boolean>;
+  onUpdatePoster?: (mediaId: string, posterUrl: string) => Promise<boolean>;
+  onRefreshMetadata?: (mediaId: string, query?: string) => Promise<boolean>;
   onImportSubtitle: (mediaId: string, episodeId: string, file: File) => Promise<void>;
   onRemoveImportedSubtitle: (mediaId: string, episodeId: string, trackIndex: number) => Promise<void>;
   onSearchOnlineSubtitles: (mediaId: string, episodeId: string) => Promise<OnlineSubtitleOption[]>;
@@ -47,6 +51,8 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   onOpenRelocate,
   onDeleteMedia,
   onUpdateBanner,
+  onUpdatePoster,
+  onRefreshMetadata,
   onImportSubtitle,
   onRemoveImportedSubtitle,
   onSearchOnlineSubtitles,
@@ -61,6 +67,18 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const [bannerUrlInput, setBannerUrlInput] = useState(media.backdropPath || '');
   const [isSavingBanner, setIsSavingBanner] = useState(false);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
+
+  // Poster URL State
+  const [showPosterInput, setShowPosterInput] = useState(false);
+  const [posterUrlInput, setPosterUrlInput] = useState(media.posterPath || '');
+  const [isSavingPoster, setIsSavingPoster] = useState(false);
+  const [posterMessage, setPosterMessage] = useState<string | null>(null);
+
+  // TMDb Search State
+  const [showTmdbSearch, setShowTmdbSearch] = useState(false);
+  const [tmdbSearchQuery, setTmdbSearchQuery] = useState(media.title || '');
+  const [isFetchingTmdb, setIsFetchingTmdb] = useState(false);
+  const [tmdbSearchMessage, setTmdbSearchMessage] = useState<string | null>(null);
   const [importingSubtitleEpisodeId, setImportingSubtitleEpisodeId] = useState<string | null>(null);
   const [removingSubtitleKey, setRemovingSubtitleKey] = useState<string | null>(null);
   const [subtitleMessage, setSubtitleMessage] = useState<{ episodeId: string; text: string; error?: boolean } | null>(null);
@@ -197,6 +215,71 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     }
   };
 
+  const handleSavePoster = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onUpdatePoster) return;
+    setIsSavingPoster(true);
+    setPosterMessage(null);
+    try {
+      const ok = await onUpdatePoster(media.id, posterUrlInput.trim());
+      if (ok) {
+        setPosterMessage('Capa atualizada com sucesso!');
+        setTimeout(() => {
+          setPosterMessage(null);
+          setShowPosterInput(false);
+        }, 1200);
+      } else {
+        setPosterMessage('Não foi possível atualizar a capa.');
+      }
+    } catch {
+      setPosterMessage('Erro ao atualizar capa.');
+    } finally {
+      setIsSavingPoster(false);
+    }
+  };
+
+  const handleRemovePoster = async () => {
+    if (!onUpdatePoster) return;
+    setIsSavingPoster(true);
+    setPosterMessage(null);
+    try {
+      const ok = await onUpdatePoster(media.id, '');
+      if (ok) {
+        setPosterUrlInput('');
+        setPosterMessage('Capa removida!');
+        setTimeout(() => {
+          setPosterMessage(null);
+          setShowPosterInput(false);
+        }, 1200);
+      }
+    } finally {
+      setIsSavingPoster(false);
+    }
+  };
+
+  const handleTriggerTmdbSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!onRefreshMetadata) return;
+    setIsFetchingTmdb(true);
+    setTmdbSearchMessage(null);
+    try {
+      const ok = await onRefreshMetadata(media.id, tmdbSearchQuery.trim());
+      if (ok) {
+        setTmdbSearchMessage('Metadados e capa atualizados pelo TMDb!');
+        setTimeout(() => {
+          setTmdbSearchMessage(null);
+          setShowTmdbSearch(false);
+        }, 1500);
+      } else {
+        setTmdbSearchMessage('Não foi possível obter dados no TMDb. Verifique se sua chave está configurada no menu Status.');
+      }
+    } catch (err: any) {
+      setTmdbSearchMessage(err?.message || 'Erro ao conectar ao TMDb.');
+    } finally {
+      setIsFetchingTmdb(false);
+    }
+  };
+
   const bannerUrl = media.backdropPath
     ? (media.backdropPath.startsWith('http') ? media.backdropPath : `/api/media/${media.id}/backdrop`)
     : (media.posterPath?.startsWith('http') ? media.posterPath : `/api/media/${media.id}/poster`);
@@ -326,7 +409,39 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {onRefreshMetadata && (
+              <button
+                id="detail-refresh-tmdb-btn"
+                onClick={() => setShowTmdbSearch(!showTmdbSearch)}
+                className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded font-medium transition-colors border ${
+                  showTmdbSearch
+                    ? 'bg-purple-950/80 border-purple-600/80 text-purple-200'
+                    : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-white/5'
+                }`}
+                title="Buscar capa, sinopse e detalhes oficiais no TMDb"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-pink-400" />
+                <span>Buscar no TMDb</span>
+              </button>
+            )}
+
+            {onUpdatePoster && (
+              <button
+                id="detail-edit-poster-btn"
+                onClick={() => setShowPosterInput(!showPosterInput)}
+                className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded font-medium transition-colors border ${
+                  showPosterInput
+                    ? 'bg-pink-950/70 border-pink-700/70 text-pink-300'
+                    : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-white/5'
+                }`}
+                title="Adicionar ou alterar imagem da capa (poster) através de URL"
+              >
+                <Film className="w-3.5 h-3.5 text-amber-400" />
+                <span>Capa (URL)</span>
+              </button>
+            )}
+
             {onUpdateBanner && (
               <button
                 id="detail-edit-banner-action-btn"
@@ -402,6 +517,145 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                 <span className="text-neutral-400">{member.name}</span>
               </React.Fragment>
             ))}
+          </div>
+        )}
+
+        {/* TMDb Search & Enriched Metadata Panel */}
+        {showTmdbSearch && (
+          <div className="p-4 bg-neutral-900 border-b border-neutral-800 animate-in fade-in duration-200">
+            <div className="max-w-2xl mx-auto space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-xs font-bold text-white">
+                  <Sparkles className="w-4 h-4 text-pink-400" />
+                  <span>Buscar Capa e Informações no TMDb</span>
+                </div>
+                {tmdbSearchMessage && (
+                  <span className="text-xs font-semibold text-emerald-400 flex items-center space-x-1">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{tmdbSearchMessage}</span>
+                  </span>
+                )}
+              </div>
+
+              <form onSubmit={handleTriggerTmdbSearch} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] text-neutral-400 mb-1">
+                    Nome do filme ou série a pesquisar no TMDb:
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+                      <input
+                        id="tmdb-search-input"
+                        type="text"
+                        value={tmdbSearchQuery}
+                        onChange={(e) => setTmdbSearchQuery(e.target.value)}
+                        placeholder="Ex: Resident Evil, Breaking Bad, O Poderoso Chefão..."
+                        className="w-full bg-black/50 border border-neutral-700 focus:border-purple-500 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-neutral-500 font-sans outline-none"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isFetchingTmdb || !tmdbSearchQuery.trim()}
+                      className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-50 text-white text-xs font-semibold transition-all shadow shrink-0 flex items-center space-x-1.5"
+                    >
+                      {isFetchingTmdb ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      <span>{isFetchingTmdb ? 'Buscando...' : 'Buscar e Aplicar'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowTmdbSearch(false)}
+                      className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400 text-xs font-medium transition-colors"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-neutral-500 mt-1.5">
+                    Isso fará o download da capa oficial, sinopse em português, ano, gêneros, avaliação e atores do TMDb para esta mídia.
+                  </p>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Poster URL Editor Panel */}
+        {showPosterInput && (
+          <div className="p-4 bg-neutral-900 border-b border-neutral-800 animate-in fade-in duration-200">
+            <div className="max-w-2xl mx-auto space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-xs font-bold text-white">
+                  <Film className="w-4 h-4 text-amber-400" />
+                  <span>Personalizar Capa (Poster Vertical por URL)</span>
+                </div>
+                {posterMessage && (
+                  <span className="text-xs font-semibold text-emerald-400 flex items-center space-x-1">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{posterMessage}</span>
+                  </span>
+                )}
+              </div>
+
+              <form onSubmit={handleSavePoster} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] text-neutral-400 mb-1">
+                    Insira a URL direta da capa (ex: link de imagem web ou poster TMDb):
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="poster-url-input"
+                      type="url"
+                      value={posterUrlInput}
+                      onChange={(e) => setPosterUrlInput(e.target.value)}
+                      placeholder="https://exemplo.com/poster.jpg"
+                      className="flex-1 bg-black/50 border border-neutral-700 focus:border-amber-500 rounded-lg px-3 py-1.5 text-xs text-white placeholder-neutral-500 font-mono outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSavingPoster || !posterUrlInput.trim()}
+                      className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-semibold transition-all shadow shrink-0 flex items-center space-x-1"
+                    >
+                      {isSavingPoster ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>Salvar Capa</span>}
+                    </button>
+                    {media.posterPath && (
+                      <button
+                        type="button"
+                        onClick={handleRemovePoster}
+                        disabled={isSavingPoster}
+                        className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-red-950/40 text-neutral-400 hover:text-red-400 text-xs font-medium transition-colors"
+                      >
+                        Remover
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowPosterInput(false)}
+                      className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400 text-xs font-medium transition-colors"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </div>
+
+                {/* Poster Live Preview */}
+                {posterUrlInput.trim() && (
+                  <div className="space-y-1">
+                    <div className="text-[11px] text-neutral-500">Prévia da Capa:</div>
+                    <div className="relative w-28 h-40 rounded-lg overflow-hidden bg-black border border-white/10">
+                      <img
+                        src={posterUrlInput.trim()}
+                        alt="Prévia da Capa"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </form>
+            </div>
           </div>
         )}
 
