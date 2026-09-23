@@ -56,6 +56,14 @@ import { BrowseItem, SystemStatus, TorrentStatus } from '../types';
 
 export const apiRouter = Router();
 
+// Disable caching for all API responses so state updates reflect immediately
+apiRouter.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 const IMPORTED_SUBTITLE_EXTENSIONS = new Set(['.srt', '.vtt', '.ass', '.ssa']);
 const MAX_IMPORTED_SUBTITLE_BYTES = 10 * 1024 * 1024;
 

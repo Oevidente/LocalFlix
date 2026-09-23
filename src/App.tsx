@@ -65,28 +65,27 @@ export default function App() {
   // Fetch library from local server
   const fetchLibrary = useCallback(async () => {
     try {
-      const res = await fetch('/api/library');
+      const res = await fetch('/api/library', { cache: 'no-store' });
       if (!res.ok) throw new Error('Falha ao obter biblioteca');
       const data: LibraryData = await res.json();
       setLibrary(data);
 
       // Keep active detail modal synced with new state if open
-      if (activeMediaDetail) {
-        const refreshed = data.items.find((i) => i.id === activeMediaDetail.id);
-        if (refreshed) {
-          setActiveMediaDetail(refreshed);
-        }
-      }
+      setActiveMediaDetail((prev) => {
+        if (!prev) return null;
+        const refreshed = data.items.find((i) => i.id === prev.id);
+        return refreshed || prev;
+      });
     } catch (err) {
       console.error('Erro carregando library.json:', err);
     } finally {
       setLoading(false);
     }
-  }, [activeMediaDetail]);
+  }, []);
 
   useEffect(() => {
     fetchLibrary();
-  }, []);
+  }, [fetchLibrary]);
 
   // Add folder handler
   const handleAddFolder = async (folderPath: string, title?: string) => {
@@ -99,10 +98,20 @@ export default function App() {
     if (!res.ok) {
       throw new Error(data.error || 'Erro ao adicionar pasta');
     }
-    await fetchLibrary();
     if (data.item) {
       setActiveMediaDetail(data.item);
+      setLibrary((prev) => {
+        if (!prev) return prev;
+        const exists = prev.items.some((i) => i.id === data.item.id);
+        return {
+          ...prev,
+          items: exists
+            ? prev.items.map((i) => (i.id === data.item.id ? data.item : i))
+            : [data.item, ...prev.items],
+        };
+      });
     }
+    await fetchLibrary();
   };
 
   // Rescan media folder
@@ -113,6 +122,16 @@ export default function App() {
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.error || 'Erro ao re-escanear pasta');
+    }
+    if (data.item) {
+      setActiveMediaDetail(data.item);
+      setLibrary((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          items: prev.items.map((i) => (i.id === mediaId ? data.item : i)),
+        };
+      });
     }
     await fetchLibrary();
   };
@@ -184,33 +203,103 @@ export default function App() {
     if (!res.ok) {
       throw new Error(data.error || 'Erro ao relocalizar pasta');
     }
+    if (data.item) {
+      setActiveMediaDetail(data.item);
+    }
     await fetchLibrary();
   };
 
-  // Toggle episode watched
+  // Toggle episode watched with instant optimistic update
   const handleToggleWatched = async (mediaId: string, episodeId: string, watched?: boolean) => {
+    // 1. Instant local update
+    setLibrary((prevLib) => {
+      if (!prevLib) return prevLib;
+      return {
+        ...prevLib,
+        items: prevLib.items.map((item) => {
+          if (item.id !== mediaId) return item;
+          let newLastWatched = item.lastWatchedEpisodeId;
+          const newSeasons = item.seasons.map((s) => ({
+            ...s,
+            episodes: s.episodes.map((ep) => {
+              if (ep.id === episodeId) {
+                const isWatched = typeof watched === 'boolean' ? watched : !ep.watched;
+                if (isWatched) newLastWatched = ep.id;
+                return {
+                  ...ep,
+                  watched: isWatched,
+                  progressSeconds: isWatched ? (ep.durationSeconds || ep.progressSeconds) : 0,
+                };
+              }
+              return ep;
+            }),
+          }));
+          return {
+            ...item,
+            lastWatchedEpisodeId: newLastWatched,
+            seasons: newSeasons,
+          };
+        }),
+      };
+    });
+
+    setActiveMediaDetail((prevDetail) => {
+      if (!prevDetail || prevDetail.id !== mediaId) return prevDetail;
+      let newLastWatched = prevDetail.lastWatchedEpisodeId;
+      const newSeasons = prevDetail.seasons.map((s) => ({
+        ...s,
+        episodes: s.episodes.map((ep) => {
+          if (ep.id === episodeId) {
+            const isWatched = typeof watched === 'boolean' ? watched : !ep.watched;
+            if (isWatched) newLastWatched = ep.id;
+            return {
+              ...ep,
+              watched: isWatched,
+              progressSeconds: isWatched ? (ep.durationSeconds || ep.progressSeconds) : 0,
+            };
+          }
+          return ep;
+        }),
+      }));
+      return {
+        ...prevDetail,
+        lastWatchedEpisodeId: newLastWatched,
+        seasons: newSeasons,
+      };
+    });
+
     try {
       await fetch('/api/library/mark-watched', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mediaId, episodeId, watched }),
       });
-      await fetchLibrary();
+      fetchLibrary();
     } catch (e) {
       console.error('Erro ao marcar episódio:', e);
+      fetchLibrary();
     }
   };
 
-  // Delete media item
+  // Delete media item with instant optimistic removal
   const handleDeleteMedia = async (mediaId: string) => {
+    setActiveMediaDetail(null);
+    setLibrary((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.filter((item) => item.id !== mediaId),
+      };
+    });
+
     try {
       await fetch(`/api/library/${mediaId}`, {
         method: 'DELETE',
       });
-      setActiveMediaDetail(null);
-      await fetchLibrary();
+      fetchLibrary();
     } catch (e) {
       console.error('Erro ao excluir mídia:', e);
+      fetchLibrary();
     }
   };
 
@@ -303,6 +392,21 @@ export default function App() {
   };
 
   const handleUpdateBanner = async (mediaId: string, bannerUrl: string): Promise<boolean> => {
+    // 1. Instant optimistic update
+    setActiveMediaDetail((prev) => {
+      if (prev && prev.id === mediaId) {
+        return { ...prev, backdropPath: bannerUrl || undefined };
+      }
+      return prev;
+    });
+    setLibrary((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map((i) => (i.id === mediaId ? { ...i, backdropPath: bannerUrl || undefined } : i)),
+      };
+    });
+
     try {
       const res = await fetch(`/api/media/${mediaId}/banner`, {
         method: 'POST',
@@ -310,22 +414,32 @@ export default function App() {
         body: JSON.stringify({ bannerUrl }),
       });
       if (res.ok) {
-        await fetchLibrary();
-        setActiveMediaDetail((prev) => {
-          if (prev && prev.id === mediaId) {
-            return { ...prev, backdropPath: bannerUrl || undefined };
-          }
-          return prev;
-        });
+        fetchLibrary();
         return true;
       }
       return false;
     } catch {
+      fetchLibrary();
       return false;
     }
   };
 
   const handleUpdatePoster = async (mediaId: string, posterUrl: string): Promise<boolean> => {
+    // 1. Instant optimistic update
+    setActiveMediaDetail((prev) => {
+      if (prev && prev.id === mediaId) {
+        return { ...prev, posterPath: posterUrl || undefined };
+      }
+      return prev;
+    });
+    setLibrary((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map((i) => (i.id === mediaId ? { ...i, posterPath: posterUrl || undefined } : i)),
+      };
+    });
+
     try {
       const res = await fetch(`/api/media/${mediaId}/poster`, {
         method: 'POST',
@@ -333,17 +447,12 @@ export default function App() {
         body: JSON.stringify({ posterUrl }),
       });
       if (res.ok) {
-        await fetchLibrary();
-        setActiveMediaDetail((prev) => {
-          if (prev && prev.id === mediaId) {
-            return { ...prev, posterPath: posterUrl || undefined };
-          }
-          return prev;
-        });
+        fetchLibrary();
         return true;
       }
       return false;
     } catch {
+      fetchLibrary();
       return false;
     }
   };
@@ -356,11 +465,17 @@ export default function App() {
         body: JSON.stringify({ query, tmdbId }),
       });
       const data = await res.json();
-      if (res.ok && data.success) {
-        await fetchLibrary();
-        if (data.item) {
-          setActiveMediaDetail(data.item);
-        }
+      if (res.ok && data.success && data.item) {
+        // 1. Instant synchronous update of active media and library list
+        setActiveMediaDetail(data.item);
+        setLibrary((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            items: prev.items.map((i) => (i.id === mediaId ? data.item : i)),
+          };
+        });
+        fetchLibrary();
         return { success: true };
       }
       return { success: false, error: data.error || 'Erro ao obter dados do TMDb.' };

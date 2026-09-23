@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Play,
@@ -99,6 +99,12 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const [onlineSubtitleOptions, setOnlineSubtitleOptions] = useState<Record<string, OnlineSubtitleOption[]>>({});
   const [searchingOnlineEpisodeId, setSearchingOnlineEpisodeId] = useState<string | null>(null);
   const [downloadingOnlineFileId, setDownloadingOnlineFileId] = useState<number | null>(null);
+
+  useEffect(() => {
+    setBannerUrlInput(media.backdropPath || '');
+    setPosterUrlInput(media.posterPath || '');
+    setTmdbSearchQuery(media.title || '');
+  }, [media.id, media.backdropPath, media.posterPath, media.title]);
 
   const selectedSeason: Season | undefined =
     media.seasons.find((s) => s.seasonNumber === selectedSeasonNumber) || media.seasons[0];
