@@ -9,3 +9,4 @@ coverage/
 !.env.example
 certs/
 data/library.json
+data/library.json

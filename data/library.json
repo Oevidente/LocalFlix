@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-22T23:06:01.875Z",
+  "updatedAt": "2026-09-23T01:14:51.116Z",
   "settings": {
     "preferredAudioLanguage": "por",
     "preferredSubtitleLanguage": "por",
@@ -44,9 +44,9 @@
                 }
               ],
               "subtitleTracks": [],
-              "watched": false,
-              "progressSeconds": 3,
-              "lastWatchedAt": "2026-09-22T17:26:17.590Z",
+              "watched": true,
+              "progressSeconds": 2973,
+              "lastWatchedAt": "2026-09-23T00:21:42.297Z",
               "selectedAudioIndex": 0,
               "selectedSubtitleIndex": -1
             },
@@ -59,7 +59,7 @@
               "filePath": "J:\\As Amigas do Clube 1ª Temporada Dub (2026)\\as-amigas-do-clube-S1EP02-dub.mp4",
               "extension": ".mp4",
               "sizeBytes": 512575997,
-              "durationSeconds": 2843,
+              "durationSeconds": 2843.84,
               "videoCodec": "h264",
               "pixFmt": "yuv420p",
               "resolution": "1280x720",
@@ -74,9 +74,11 @@
                 }
               ],
               "subtitleTracks": [],
-              "watched": false,
-              "progressSeconds": 1,
-              "lastWatchedAt": "2026-09-22T14:15:38.342Z"
+              "watched": true,
+              "progressSeconds": 2680,
+              "lastWatchedAt": "2026-09-23T01:14:06.797Z",
+              "selectedAudioIndex": 0,
+              "selectedSubtitleIndex": -1
             },
             {
               "id": "ep_s1e3_25ece23c152c",
@@ -103,7 +105,10 @@
               ],
               "subtitleTracks": [],
               "watched": false,
-              "progressSeconds": 0
+              "progressSeconds": 0,
+              "selectedAudioIndex": 0,
+              "selectedSubtitleIndex": -1,
+              "lastWatchedAt": "2026-09-23T01:14:51.116Z"
             },
             {
               "id": "ep_s1e4_1727509832af",
@@ -130,7 +135,10 @@
               ],
               "subtitleTracks": [],
               "watched": false,
-              "progressSeconds": 0
+              "progressSeconds": 0,
+              "selectedAudioIndex": 0,
+              "selectedSubtitleIndex": -1,
+              "lastWatchedAt": "2026-09-23T01:14:23.885Z"
             },
             {
               "id": "ep_s1e5_d2e71c3540a4",
@@ -217,9 +225,9 @@
         }
       ],
       "createdAt": "2026-09-22T16:07:28.903Z",
-      "updatedAt": "2026-09-22T17:26:17.590Z",
-      "lastWatchedEpisodeId": "ep_s1e1_864ab1bceee4",
-      "lastWatchedAt": "2026-09-22T17:26:17.590Z"
+      "updatedAt": "2026-09-23T01:14:51.116Z",
+      "lastWatchedEpisodeId": "ep_s1e3_25ece23c152c",
+      "lastWatchedAt": "2026-09-23T01:14:51.116Z"
     },
     {
       "id": "media_85dc7677874fba01",
@@ -2951,18 +2959,18 @@
                 }
               ],
               "watched": false,
-              "progressSeconds": 156,
+              "progressSeconds": 1680,
               "selectedAudioIndex": 0,
               "selectedSubtitleIndex": 0,
-              "lastWatchedAt": "2026-09-22T23:06:01.875Z"
+              "lastWatchedAt": "2026-09-22T23:31:34.275Z"
             }
           ]
         }
       ],
       "createdAt": "2026-09-22T22:42:52.531Z",
-      "updatedAt": "2026-09-22T23:06:01.875Z",
+      "updatedAt": "2026-09-22T23:31:34.275Z",
       "lastWatchedEpisodeId": "ep_s1e1_67e62a574442",
-      "lastWatchedAt": "2026-09-22T23:06:01.875Z"
+      "lastWatchedAt": "2026-09-22T23:31:34.275Z"
     },
     {
       "id": "media_b80327bde9b91970",
