@@ -206,7 +206,7 @@ function findExternalSubtitles(videoPath: string, allFiles: string[]): SubtitleT
 }
 
 // Regex to identify auxiliary / promotional / sample video files
-const AUXILIARY_VIDEO_REGEX = /(^|[\._\-\s])(vinheta|intro|abertura|sample|trailer|teaser|preview|featurette|extra|bonus)([\._\-\s]|$)/i;
+export const AUXILIARY_VIDEO_REGEX = /(^|[\._\-\s])(vinheta|intro|abertura|sample|trailer|teaser|preview|featurette|extra|bonus)([\._\-\s]|$)/i;
 
 export async function scanMediaFolder(folderPath: string, customTitle?: string): Promise<MediaItem> {
   const resolvedPath = path.resolve(folderPath);
@@ -227,6 +227,15 @@ export async function scanMediaFolder(folderPath: string, customTitle?: string):
     // If all were deemed auxiliary, retain them so the folder isn't rejected
     videoFiles = allVideoFiles;
   }
+
+  // Deduplicate videoFiles by realpath/absolute path
+  const seenPaths = new Set<string>();
+  videoFiles = videoFiles.filter((f) => {
+    const normalized = path.resolve(f);
+    if (seenPaths.has(normalized)) return false;
+    seenPaths.add(normalized);
+    return true;
+  });
 
   // Check for poster and backdrop in directory
   let posterPath: string | undefined;
@@ -283,16 +292,17 @@ export async function scanMediaFolder(folderPath: string, customTitle?: string):
   const kind: MediaKind = videoFiles.length <= 1 ? 'movie' : 'series';
 
   // Process each video file and probe its details
-  const parsedEpisodes: { ep: Episode; seasonNum: number }[] = [];
-  let epCounter = 1;
-
-  // Sort video files by natural name order
+  // Sort video files naturally
   videoFiles.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+  const rawEpisodes: { ep: Episode; seasonNum: number; rawEpNum: number }[] = [];
+  let epCounter = 1;
 
   for (const vFile of videoFiles) {
     const fileName = path.basename(vFile);
     const stats = fs.statSync(vFile);
-    const parsed = parseEpisodeInfo(fileName, epCounter++);
+    const relPath = path.relative(resolvedPath, vFile);
+    const parsed = parseEpisodeInfo(relPath || fileName, epCounter++);
 
     // ffprobe inspection
     const probe = await probeMedia(vFile);
@@ -323,29 +333,61 @@ export async function scanMediaFolder(folderPath: string, customTitle?: string):
       progressSeconds: 0,
     };
 
-    parsedEpisodes.push({ ep: episode, seasonNum: parsed.seasonNumber });
+    rawEpisodes.push({ ep: episode, seasonNum: parsed.seasonNumber, rawEpNum: parsed.episodeNumber });
   }
 
-  // Group into seasons
-  const seasonMap = new Map<number, Episode[]>();
-  for (const item of parsedEpisodes) {
+  // Group into seasons and resolve any episode collisions/duplicates
+  const seasonMap = new Map<number, typeof rawEpisodes>();
+  for (const item of rawEpisodes) {
     if (!seasonMap.has(item.seasonNum)) {
       seasonMap.set(item.seasonNum, []);
     }
-    seasonMap.get(item.seasonNum)!.push(item.ep);
+    seasonMap.get(item.seasonNum)!.push(item);
   }
 
   const sortedSeasonKeys = Array.from(seasonMap.keys()).sort((a, b) => a - b);
   const seasons: Season[] = sortedSeasonKeys.map((sNum) => {
-    const eps = seasonMap.get(sNum)!;
-    eps.sort((a, b) => a.episodeNumber - b.episodeNumber);
+    const items = seasonMap.get(sNum)!;
+    items.sort((a, b) => {
+      if (a.rawEpNum !== b.rawEpNum) return a.rawEpNum - b.rawEpNum;
+      return a.ep.fileName.localeCompare(b.ep.fileName, undefined, { numeric: true });
+    });
+
+    // Detect if there are duplicate episode numbers in the same season
+    const seenEpNumbers = new Set<number>();
+    let hasCollisions = false;
+    for (const it of items) {
+      if (seenEpNumbers.has(it.rawEpNum)) {
+        hasCollisions = true;
+        break;
+      }
+      seenEpNumbers.add(it.rawEpNum);
+    }
+
+    const resolvedEpisodes: Episode[] = [];
+    const usedNumbers = new Set<number>();
+
+    items.forEach((it, index) => {
+      let finalEpNum = it.rawEpNum;
+      if (hasCollisions || usedNumbers.has(finalEpNum) || finalEpNum <= 0) {
+        // Assign consecutive sequential number
+        finalEpNum = index + 1;
+      }
+      usedNumbers.add(finalEpNum);
+
+      it.ep.seasonNumber = sNum;
+      it.ep.episodeNumber = finalEpNum;
+      resolvedEpisodes.push(it.ep);
+    });
+
     return {
       seasonNumber: sNum,
       title: `Temporada ${sNum}`,
-      episodes: eps,
+      episodes: resolvedEpisodes,
     };
   });
 
+  const totalEpisodesCount = seasons.reduce((acc, s) => acc + s.episodes.length, 0);
   const mediaHash = crypto.createHash('md5').update(resolvedPath).digest('hex').slice(0, 16);
   const mediaId = `media_${mediaHash}`;
   const now = new Date().toISOString();
@@ -358,7 +400,7 @@ export async function scanMediaFolder(folderPath: string, customTitle?: string):
     folderPath: resolvedPath,
     posterPath,
     backdropPath,
-    totalEpisodes: videoFiles.length,
+    totalEpisodes: totalEpisodesCount,
     totalSeasons: seasons.length,
     seasons,
     createdAt: now,
