@@ -163,8 +163,7 @@ function saveSubtitleSize(size: SubtitleSize) {
 const SubtitleOverlay: React.FC<{
   text: string;
   isCasting: boolean;
-  controlsVisible: boolean;
-}> = ({ text, isCasting, controlsVisible }) => {
+}> = ({ text, isCasting }) => {
   const [subtitleSize, setSubtitleSize] =
     useState<SubtitleSize>(getSavedSubtitleSize);
 
@@ -184,9 +183,7 @@ const SubtitleOverlay: React.FC<{
   return (
     <div
       id="player-subtitle-overlay"
-      className={`absolute left-1/2 z-30 w-[min(92vw,90rem)] -translate-x-1/2 text-center text-white font-semibold leading-tight drop-shadow-[0_2px_2px_rgba(0,0,0,0.95)] pointer-events-none transition-[bottom] duration-300 ${
-        controlsVisible ? 'bottom-20 sm:bottom-24' : 'bottom-6 sm:bottom-8'
-      }`}
+      className="absolute bottom-8 left-1/2 z-50 w-[min(92vw,90rem)] -translate-x-1/2 text-center font-semibold leading-tight text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.95)] pointer-events-none sm:bottom-12"
       style={{ fontSize: SUBTITLE_SIZE_FONT_SIZES[subtitleSize] }}
       aria-live="polite"
     >
@@ -1996,11 +1993,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         playsInline
       />
 
-      <SubtitleOverlay
-        text={activeSubtitleText}
-        isCasting={isCasting}
-        controlsVisible={controlsVisible}
-      />
+      <SubtitleOverlay text={activeSubtitleText} isCasting={isCasting} />
 
       {isCasting && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center pointer-events-none">
