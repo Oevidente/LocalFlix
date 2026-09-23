@@ -100,3 +100,41 @@ export interface BrowseItem {
   isDirectory: boolean;
   hasMediaFiles?: boolean;
 }
+
+export interface TorrentFileItem {
+  index: number;
+  name: string;
+  path: string;
+  length: number;
+  isVideo: boolean;
+  isSubtitle: boolean;
+  extension: string;
+}
+
+export interface TorrentStatus {
+  infoHash: string;
+  magnetUri?: string;
+  name: string;
+  state: 'connecting' | 'metadata' | 'ready' | 'downloading' | 'error';
+  totalBytes: number;
+  downloadedBytes: number;
+  downloadSpeed: number;
+  uploadSpeed: number;
+  peers: number;
+  progress: number;
+  selectedFileIndex: number;
+  files: TorrentFileItem[];
+  errorMessage?: string;
+}
+
+export interface TorrentHistoryItem {
+  infoHash: string;
+  magnetUri: string;
+  name: string;
+  dateAdded: string;
+  lastWatchedAt?: string;
+  progressSeconds?: number;
+  durationSeconds?: number;
+  selectedFileIndex?: number;
+  totalBytes?: number;
+}

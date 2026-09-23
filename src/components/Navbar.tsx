@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Film, Plus, HardDrive, Search, Tv, Loader2 } from 'lucide-react';
+import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: 'all' | 'series' | 'movie' | 'continue';
   onTabChange: (tab: 'all' | 'series' | 'movie' | 'continue') => void;
   onOpenAddModal: () => void;
   onOpenSystemModal: () => void;
+  onOpenTorrentModal: () => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   isPickingFolder?: boolean;
@@ -16,6 +17,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onTabChange,
   onOpenAddModal,
   onOpenSystemModal,
+  onOpenTorrentModal,
   searchQuery,
   onSearchChange,
   isPickingFolder = false,
@@ -140,6 +142,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
             <span>Offline</span>
           </div>
+
+          {/* Torrent Magnet Player Button */}
+          <button
+            id="torrent-player-btn"
+            onClick={onOpenTorrentModal}
+            className="flex items-center space-x-1.5 px-3 py-1.5 sm:px-3 sm:py-2 rounded-md bg-zinc-800 hover:bg-zinc-700 text-amber-400 hover:text-amber-300 text-xs sm:text-sm font-semibold transition-all border border-zinc-700/80 shadow-md active:scale-95 cursor-pointer"
+            title="Abrir Player Torrent / Link Magnet"
+          >
+            <Radio className="w-4 h-4 text-amber-400" />
+            <span className="hidden sm:inline">Player Torrent</span>
+            <span className="sm:hidden">Torrent</span>
+          </button>
 
           {/* Add Folder Button */}
           <button

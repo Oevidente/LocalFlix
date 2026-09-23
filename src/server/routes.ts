@@ -24,7 +24,18 @@ import {
   downloadAndInstallFFmpeg,
 } from './ffmpeg';
 import { getOrCreateHlsSession, findActiveSession } from './hls';
-import { BrowseItem, SystemStatus } from '../types';
+import {
+  getOrCreateTorrentEngine,
+  getTorrentStatus,
+  getTorrentFile,
+  selectTorrentFile,
+  stopTorrent,
+  readTorrentHistory,
+  saveTorrentHistoryItem,
+  removeTorrentHistoryItem,
+  parseInfoHash,
+} from './torrent';
+import { BrowseItem, SystemStatus, TorrentStatus } from '../types';
 
 export const apiRouter = Router();
 
@@ -1150,4 +1161,204 @@ apiRouter.post('/system/generate-demo', async (req: Request, res: Response) => {
     console.error('Error generating demo:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ==========================================
+// TORRENT STREAMING API ENDPOINTS
+// ==========================================
+
+// 1. Start or connect to a torrent from Magnet URI or infoHash
+apiRouter.post('/torrent/start', async (req: Request, res: Response) => {
+  try {
+    const { magnetUri } = req.body;
+    if (!magnetUri || typeof magnetUri !== 'string') {
+      res.status(400).json({ error: 'Link magnet ou hash do torrent é obrigatório' });
+      return;
+    }
+
+    const record = await getOrCreateTorrentEngine(magnetUri);
+    const status = getTorrentStatus(record.infoHash);
+    res.json(status);
+  } catch (err: any) {
+    console.error('Erro ao iniciar torrent:', err);
+    res.status(500).json({ error: err?.message || 'Erro ao iniciar torrent' });
+  }
+});
+
+// 2. Get real-time status of a torrent
+apiRouter.get('/torrent/status/:infoHash', (req: Request, res: Response) => {
+  const { infoHash } = req.params;
+  const status = getTorrentStatus(infoHash);
+  res.json(status);
+});
+
+// 3. Select which file to prioritize for streaming
+apiRouter.post('/torrent/select', (req: Request, res: Response) => {
+  const { infoHash, fileIndex } = req.body;
+  if (!infoHash || typeof fileIndex !== 'number') {
+    res.status(400).json({ error: 'infoHash e fileIndex são obrigatórios' });
+    return;
+  }
+  const ok = selectTorrentFile(infoHash, fileIndex);
+  res.json({ success: ok });
+});
+
+// 4. Stream video file from torrent (HTTP Range 206 partial content + FFmpeg transcode support)
+apiRouter.get('/torrent/stream/:infoHash/:fileIndex', async (req: Request, res: Response) => {
+  const { infoHash, fileIndex } = req.params;
+  const parsedIdx = parseInt(fileIndex, 10);
+  const transcode = req.query.transcode === 'true' || req.query.transcode === '1';
+  const isCast = req.query.cast === 'true' || req.query.cast === '1';
+
+  const file = getTorrentFile(infoHash, isNaN(parsedIdx) ? 0 : parsedIdx);
+  if (!file) {
+    res.status(404).send('Arquivo do torrent não encontrado ou metadados ainda carregando.');
+    return;
+  }
+
+  const ext = path.extname(file.name).toLowerCase();
+  let contentType = 'video/mp4';
+  if (ext === '.webm') contentType = 'video/webm';
+  else if (ext === '.mkv') contentType = 'video/x-matroska';
+  else if (ext === '.avi') contentType = 'video/x-msvideo';
+  else if (ext === '.mov') contentType = 'video/quicktime';
+  else if (ext === '.ts') contentType = 'video/mp2t';
+  else if (ext === '.srt' || ext === '.vtt') contentType = 'text/plain; charset=utf-8';
+
+  const totalSize = file.length || 0;
+
+  // If live transcode requested for incompatible MKV/AVI/AC3 or Google Cast
+  if (transcode || (isCast && (ext === '.mkv' || ext === '.avi' || ext === '.wmv'))) {
+    const { ffmpeg } = getBinaries();
+    if (!ffmpeg) {
+      console.warn('[Torrent Stream] FFmpeg não encontrado para transcode.');
+    } else {
+      res.writeHead(200, {
+        'Content-Type': 'video/mp4',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Connection': 'keep-alive',
+      });
+
+      const inputStream = file.createReadStream();
+      const ffmpegProc = spawn(ffmpeg, [
+        '-i', 'pipe:0',
+        '-c:v', 'copy',
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        '-ac', '2',
+        '-movflags', 'frag_keyframe+default_base_moof',
+        '-f', 'mp4',
+        'pipe:1'
+      ]);
+
+      inputStream.pipe(ffmpegProc.stdin);
+      ffmpegProc.stdout.pipe(res);
+
+      ffmpegProc.on('error', (err) => {
+        console.error('Erro no FFmpeg transcode torrent:', err);
+      });
+
+      res.on('close', () => {
+        try {
+          inputStream.destroy();
+          ffmpegProc.kill('SIGKILL');
+        } catch {}
+      });
+      return;
+    }
+  }
+
+  // Standard HTTP Range 206 Streaming (Direct Play)
+  const range = req.headers.range;
+  if (!range) {
+    res.writeHead(200, {
+      'Content-Length': totalSize,
+      'Content-Type': contentType,
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'no-cache',
+    });
+    const stream = file.createReadStream();
+    stream.pipe(res);
+    res.on('close', () => {
+      try { stream.destroy(); } catch {}
+    });
+    return;
+  }
+
+  const parts = range.replace(/bytes=/, '').split('-');
+  const start = parseInt(parts[0], 10);
+  const end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
+
+  if (start >= totalSize || end >= totalSize || start > end) {
+    res.status(416).set('Content-Range', `bytes */${totalSize}`).end();
+    return;
+  }
+
+  const chunkSize = end - start + 1;
+  res.writeHead(206, {
+    'Content-Range': `bytes ${start}-${end}/${totalSize}`,
+    'Accept-Ranges': 'bytes',
+    'Content-Length': chunkSize,
+    'Content-Type': contentType,
+    'Cache-Control': 'no-cache',
+  });
+
+  const stream = file.createReadStream({ start, end });
+  stream.pipe(res);
+
+  stream.on('error', (err: any) => {
+    console.error('[Torrent Stream Read Error]:', err);
+    if (!res.headersSent) res.status(500).end();
+  });
+
+  res.on('close', () => {
+    try {
+      stream.destroy();
+    } catch {}
+  });
+});
+
+// 5. Get recent torrent history
+apiRouter.get('/torrent/history', (_req: Request, res: Response) => {
+  const history = readTorrentHistory();
+  res.json(history);
+});
+
+// 6. Save watch progress for a torrent
+apiRouter.post('/torrent/progress', (req: Request, res: Response) => {
+  const { infoHash, magnetUri, name, progressSeconds, durationSeconds, selectedFileIndex, totalBytes } = req.body;
+  if (!infoHash) {
+    res.status(400).json({ error: 'infoHash é obrigatório' });
+    return;
+  }
+
+  saveTorrentHistoryItem({
+    infoHash,
+    magnetUri: magnetUri || `magnet:?xt=urn:btih:${infoHash}`,
+    name,
+    progressSeconds: Math.floor(progressSeconds || 0),
+    durationSeconds: Math.floor(durationSeconds || 0),
+    selectedFileIndex: selectedFileIndex || 0,
+    totalBytes: totalBytes || 0,
+  });
+
+  res.json({ success: true });
+});
+
+// 7. Remove torrent from history
+apiRouter.delete('/torrent/history/:infoHash', (req: Request, res: Response) => {
+  const { infoHash } = req.params;
+  removeTorrentHistoryItem(infoHash);
+  res.json({ success: true });
+});
+
+// 8. Stop active torrent engine
+apiRouter.post('/torrent/stop', async (req: Request, res: Response) => {
+  const { infoHash, deleteCache } = req.body;
+  if (!infoHash) {
+    res.status(400).json({ error: 'infoHash é obrigatório' });
+    return;
+  }
+  const ok = await stopTorrent(infoHash, deleteCache === true);
+  res.json({ success: ok });
 });

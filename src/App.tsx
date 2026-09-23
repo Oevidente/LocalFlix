@@ -7,7 +7,9 @@ import { VideoPlayer } from './components/VideoPlayer';
 import { AddMediaModal } from './components/AddMediaModal';
 import { RelocateModal } from './components/RelocateModal';
 import { SystemModal } from './components/SystemModal';
-import { LibraryData, MediaItem, Episode } from './types';
+import { TorrentModal } from './components/TorrentModal';
+import { TorrentPlayer } from './components/TorrentPlayer';
+import { LibraryData, MediaItem, Episode, TorrentStatus } from './types';
 import { FolderPlus, Film, Tv, Play, HardDrive, RefreshCw } from 'lucide-react';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -34,6 +36,8 @@ export default function App() {
   const [isPickingFolder, setIsPickingFolder] = useState<boolean>(false);
   const [showSystemModal, setShowSystemModal] = useState<boolean>(false);
   const [relocateTarget, setRelocateTarget] = useState<MediaItem | null>(null);
+  const [showTorrentModal, setShowTorrentModal] = useState<boolean>(false);
+  const [playingTorrent, setPlayingTorrent] = useState<{ status: TorrentStatus; selectedFileIndex: number } | null>(null);
 
   const handleOpenAddModal = async () => {
     setIsPickingFolder(true);
@@ -364,6 +368,7 @@ export default function App() {
         onTabChange={setActiveTab}
         onOpenAddModal={handleOpenAddModal}
         onOpenSystemModal={() => setShowSystemModal(true)}
+        onOpenTorrentModal={() => setShowTorrentModal(true)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         isPickingFolder={isPickingFolder}
@@ -383,7 +388,7 @@ export default function App() {
 
           <p className="text-neutral-400 text-sm sm:text-base max-w-xl mb-8 leading-relaxed">
             Organize e assista aos seus filmes e séries armazenados no seu computador ou pendrive.
-            Zero nuvem, sem login e com reprodução nativa de MP4 e transcodificação MKV via FFmpeg.
+            Zero nuvem, sem login, com suporte a MP4 nativo, MKV via FFmpeg e player de Torrents P2P.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md">
@@ -404,6 +409,14 @@ export default function App() {
                   <span>Adicionar Pasta do PC</span>
                 </>
               )}
+            </button>
+
+            <button
+              id="empty-torrent-btn"
+              onClick={() => setShowTorrentModal(true)}
+              className="w-full flex items-center justify-center space-x-2 px-6 py-3.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-amber-400 font-bold transition-all shadow-xl active:scale-95 text-sm cursor-pointer"
+            >
+              <span>🧲 Abrir Link Magnet / Torrent</span>
             </button>
           </div>
 
@@ -555,6 +568,27 @@ export default function App() {
       {showSystemModal && (
         <SystemModal
           onClose={() => setShowSystemModal(false)}
+        />
+      )}
+
+      {/* Torrent & Magnet Modal */}
+      <TorrentModal
+        isOpen={showTorrentModal}
+        onClose={() => setShowTorrentModal(false)}
+        onPlayTorrent={(status, fileIndex) => {
+          setPlayingTorrent({ status, selectedFileIndex: fileIndex });
+        }}
+      />
+
+      {/* Torrent Player Modal */}
+      {playingTorrent && (
+        <TorrentPlayer
+          status={playingTorrent.status}
+          selectedFileIndex={playingTorrent.selectedFileIndex}
+          onClose={() => setPlayingTorrent(null)}
+          onSelectFile={(fileIndex) => {
+            setPlayingTorrent((prev) => (prev ? { ...prev, selectedFileIndex: fileIndex } : null));
+          }}
         />
       )}
     </div>
