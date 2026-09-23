@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 title CineLocal - Instalar dependencias
 cd /d "%~dp0"
 
@@ -105,6 +105,88 @@ if errorlevel 1 if not exist "%APP_DIR%bin\ffmpeg.exe" (
 
 echo.
 echo [OK] Dependencias instaladas com sucesso.
+
+if exist "%APP_DIR%EXTRAIA.rar" (
+    echo.
+    echo Extraindo EXTRAIA.rar sem criar nova pasta...
+    set "RAR_EXTRACTED=0"
+
+    :: 1. Tenta 7-Zip na pasta bin do app
+    if exist "%APP_DIR%bin\7z.exe" (
+        "%APP_DIR%bin\7z.exe" x -y "%APP_DIR%EXTRAIA.rar" -o"%APP_DIR%" >nul 2>&1
+        if not errorlevel 1 set "RAR_EXTRACTED=1"
+    )
+
+    :: 2. Tenta 7-Zip no PATH do sistema
+    if "!RAR_EXTRACTED!"=="0" (
+        where 7z >nul 2>&1
+        if not errorlevel 1 (
+            7z x -y "%APP_DIR%EXTRAIA.rar" -o"%APP_DIR%" >nul 2>&1
+            if not errorlevel 1 set "RAR_EXTRACTED=1"
+        )
+    )
+
+    :: 3. Tenta 7-Zip nas pastas padrao de instalacao
+    if "!RAR_EXTRACTED!"=="0" if exist "%ProgramFiles%\7-Zip\7z.exe" (
+        "%ProgramFiles%\7-Zip\7z.exe" x -y "%APP_DIR%EXTRAIA.rar" -o"%APP_DIR%" >nul 2>&1
+        if not errorlevel 1 set "RAR_EXTRACTED=1"
+    )
+    if "!RAR_EXTRACTED!"=="0" if exist "%ProgramFiles(x86)%\7-Zip\7z.exe" (
+        "%ProgramFiles(x86)%\7-Zip\7z.exe" x -y "%APP_DIR%EXTRAIA.rar" -o"%APP_DIR%" >nul 2>&1
+        if not errorlevel 1 set "RAR_EXTRACTED=1"
+    )
+
+    :: 4. Tenta WinRAR na pasta bin, PATH ou Program Files
+    if "!RAR_EXTRACTED!"=="0" if exist "%APP_DIR%bin\WinRAR.exe" (
+        "%APP_DIR%bin\WinRAR.exe" x -ibck -y -o+ "%APP_DIR%EXTRAIA.rar" "%APP_DIR%" >nul 2>&1
+        if not errorlevel 1 set "RAR_EXTRACTED=1"
+    )
+    if "!RAR_EXTRACTED!"=="0" (
+        where winrar >nul 2>&1
+        if not errorlevel 1 (
+            winrar x -ibck -y -o+ "%APP_DIR%EXTRAIA.rar" "%APP_DIR%" >nul 2>&1
+            if not errorlevel 1 set "RAR_EXTRACTED=1"
+        )
+    )
+    if "!RAR_EXTRACTED!"=="0" if exist "%ProgramFiles%\WinRAR\WinRAR.exe" (
+        "%ProgramFiles%\WinRAR\WinRAR.exe" x -ibck -y -o+ "%APP_DIR%EXTRAIA.rar" "%APP_DIR%" >nul 2>&1
+        if not errorlevel 1 set "RAR_EXTRACTED=1"
+    )
+    if "!RAR_EXTRACTED!"=="0" if exist "%ProgramFiles(x86)%\WinRAR\WinRAR.exe" (
+        "%ProgramFiles(x86)%\WinRAR\WinRAR.exe" x -ibck -y -o+ "%APP_DIR%EXTRAIA.rar" "%APP_DIR%" >nul 2>&1
+        if not errorlevel 1 set "RAR_EXTRACTED=1"
+    )
+
+    :: 5. Tenta UnRAR na pasta bin ou PATH
+    if "!RAR_EXTRACTED!"=="0" if exist "%APP_DIR%bin\unrar.exe" (
+        "%APP_DIR%bin\unrar.exe" x -y -o+ "%APP_DIR%EXTRAIA.rar" "%APP_DIR%" >nul 2>&1
+        if not errorlevel 1 set "RAR_EXTRACTED=1"
+    )
+    if "!RAR_EXTRACTED!"=="0" (
+        where unrar >nul 2>&1
+        if not errorlevel 1 (
+            unrar x -y -o+ "%APP_DIR%EXTRAIA.rar" "%APP_DIR%" >nul 2>&1
+            if not errorlevel 1 set "RAR_EXTRACTED=1"
+        )
+    )
+
+    :: 6. Tenta tar.exe (nativo no Windows 10/11)
+    if "!RAR_EXTRACTED!"=="0" (
+        where tar >nul 2>&1
+        if not errorlevel 1 (
+            tar -xf "%APP_DIR%EXTRAIA.rar" -C "%APP_DIR%" >nul 2>&1
+            if not errorlevel 1 set "RAR_EXTRACTED=1"
+        )
+    )
+
+    if "!RAR_EXTRACTED!"=="1" (
+        echo [OK] EXTRAIA.rar extraido com sucesso diretamente na pasta do aplicativo.
+    ) else (
+        echo [AVISO] O arquivo EXTRAIA.rar foi encontrado, mas nao foi possivel extrai-lo automaticamente.
+        echo Por favor, extraia o conteudo do arquivo EXTRAIA.rar manualmente para a raiz desta pasta sem criar uma nova pasta.
+    )
+)
+
 echo Agora voce pode executar o start.bat.
 pause
 exit /b 0

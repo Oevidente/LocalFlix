@@ -21,7 +21,8 @@ O script:
 - verifica Node.js e npm;
 - instala as dependências do projeto;
 - mantém o cache do npm em `.cache/npm` dentro da pasta do app;
-- anuncia se o FFmpeg não foi encontrado.
+- anuncia se o FFmpeg não foi encontrado;
+- extrai automaticamente o arquivo `EXTRAIA.rar` (caso exista) na raiz do projeto sem criar uma nova pasta.
 
 ## 3. Executar o projeto
 
