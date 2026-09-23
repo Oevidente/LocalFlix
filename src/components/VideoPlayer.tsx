@@ -19,7 +19,12 @@ import {
   Loader2,
   Download,
 } from 'lucide-react';
-import { MediaItem, Episode, AudioTrackInfo, SubtitleTrackInfo } from '../types';
+import {
+  MediaItem,
+  Episode,
+  AudioTrackInfo,
+  SubtitleTrackInfo,
+} from '../types';
 import { formatTime } from '../utils';
 import {
   getCastContext,
@@ -105,7 +110,8 @@ function createCastTextTrackStyle(mediaApi: any): any | undefined {
   style.edgeType = mediaApi.TextTrackEdgeType?.OUTLINE || 'OUTLINE';
   style.edgeColor = '#000000FF';
   style.fontScale = 1.0;
-  style.fontGenericFamily = mediaApi.TextTrackFontGenericFamily?.SANS_SERIF || 'SANS_SERIF';
+  style.fontGenericFamily =
+    mediaApi.TextTrackFontGenericFamily?.SANS_SERIF || 'SANS_SERIF';
   style.fontStyle = mediaApi.TextTrackFontStyle?.NORMAL || 'NORMAL';
   style.windowType = mediaApi.TextTrackWindowType?.NONE || 'NONE';
   return style;
@@ -149,7 +155,9 @@ function saveSubtitleSize(size: SubtitleSize) {
   } catch {
     // Keep the current-page setting usable when storage is blocked.
   }
-  window.dispatchEvent(new CustomEvent<SubtitleSize>(SUBTITLE_SIZE_EVENT, { detail: size }));
+  window.dispatchEvent(
+    new CustomEvent<SubtitleSize>(SUBTITLE_SIZE_EVENT, { detail: size }),
+  );
 }
 
 const SubtitleOverlay: React.FC<{
@@ -157,7 +165,8 @@ const SubtitleOverlay: React.FC<{
   isCasting: boolean;
   controlsVisible: boolean;
 }> = ({ text, isCasting, controlsVisible }) => {
-  const [subtitleSize, setSubtitleSize] = useState<SubtitleSize>(getSavedSubtitleSize);
+  const [subtitleSize, setSubtitleSize] =
+    useState<SubtitleSize>(getSavedSubtitleSize);
 
   useEffect(() => {
     const handleSubtitleSizeChange = (event: Event) => {
@@ -166,7 +175,8 @@ const SubtitleOverlay: React.FC<{
     };
 
     window.addEventListener(SUBTITLE_SIZE_EVENT, handleSubtitleSizeChange);
-    return () => window.removeEventListener(SUBTITLE_SIZE_EVENT, handleSubtitleSizeChange);
+    return () =>
+      window.removeEventListener(SUBTITLE_SIZE_EVENT, handleSubtitleSizeChange);
   }, []);
 
   if (!text || isCasting) return null;
@@ -196,7 +206,8 @@ const SubtitleSizeSettings: React.FC<SubtitleSizeSettingsProps> = ({
   subtitleOffsetSeconds,
   onSubtitleOffsetChange,
 }) => {
-  const [subtitleSize, setSubtitleSize] = useState<SubtitleSize>(getSavedSubtitleSize);
+  const [subtitleSize, setSubtitleSize] =
+    useState<SubtitleSize>(getSavedSubtitleSize);
 
   useEffect(() => {
     const handleSubtitleSizeChange = (event: Event) => {
@@ -205,7 +216,8 @@ const SubtitleSizeSettings: React.FC<SubtitleSizeSettingsProps> = ({
     };
 
     window.addEventListener(SUBTITLE_SIZE_EVENT, handleSubtitleSizeChange);
-    return () => window.removeEventListener(SUBTITLE_SIZE_EVENT, handleSubtitleSizeChange);
+    return () =>
+      window.removeEventListener(SUBTITLE_SIZE_EVENT, handleSubtitleSizeChange);
   }, []);
 
   return (
@@ -238,7 +250,8 @@ const SubtitleSizeSettings: React.FC<SubtitleSizeSettingsProps> = ({
             Sincronização
           </h4>
           <span className="text-[11px] text-neutral-400">
-            {subtitleOffsetSeconds > 0 ? '+' : ''}{subtitleOffsetSeconds}s
+            {subtitleOffsetSeconds > 0 ? '+' : ''}
+            {subtitleOffsetSeconds}s
           </span>
         </div>
         <div className="grid grid-cols-5 gap-1">
@@ -246,11 +259,14 @@ const SubtitleSizeSettings: React.FC<SubtitleSizeSettingsProps> = ({
             <button
               key={adjustment}
               type="button"
-              onClick={() => onSubtitleOffsetChange(subtitleOffsetSeconds + adjustment)}
+              onClick={() =>
+                onSubtitleOffsetChange(subtitleOffsetSeconds + adjustment)
+              }
               className="px-1 py-1.5 rounded text-xs text-neutral-300 hover:bg-neutral-700 transition-colors"
               title={`${adjustment > 0 ? 'Atrasar' : 'Adiantar'} legenda em ${Math.abs(adjustment)}s`}
             >
-              {adjustment > 0 ? '+' : ''}{adjustment}s
+              {adjustment > 0 ? '+' : ''}
+              {adjustment}s
             </button>
           ))}
           <button
@@ -292,7 +308,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(episode.durationSeconds || 0);
+  const [duration, setDuration] = useState<number>(
+    episode.durationSeconds || 0,
+  );
   const [volume, setVolume] = useState<number>(1);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -302,13 +320,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Audio & Subtitle Tracks
   const [selectedAudioIndex, setSelectedAudioIndex] = useState<number>(
-    episode.selectedAudioIndex !== undefined ? episode.selectedAudioIndex : 0
+    episode.selectedAudioIndex !== undefined ? episode.selectedAudioIndex : 0,
   );
   const selectedAudioIndexRef = useRef<number>(
-    episode.selectedAudioIndex !== undefined ? episode.selectedAudioIndex : 0
+    episode.selectedAudioIndex !== undefined ? episode.selectedAudioIndex : 0,
   );
   const [selectedSubtitleIndex, setSelectedSubtitleIndex] = useState<number>(
-    episode.selectedSubtitleIndex !== undefined ? episode.selectedSubtitleIndex : -1 // -1 = off
+    episode.selectedSubtitleIndex !== undefined
+      ? episode.selectedSubtitleIndex
+      : -1, // -1 = off
   );
   const [subtitleCues, setSubtitleCues] = useState<SubtitleCue[]>([]);
   const [activeSubtitleText, setActiveSubtitleText] = useState<string>('');
@@ -337,7 +357,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const castContextRef = useRef<any>(null);
   const castSessionRef = useRef<any>(null);
   const castMediaRef = useRef<any>(null);
-  const castMediaListenerRef = useRef<((isAlive: boolean) => void) | null>(null);
+  const castMediaListenerRef = useRef<((isAlive: boolean) => void) | null>(
+    null,
+  );
   const castStartTimeRef = useRef<number>(0);
   const castCurrentTimeRef = useRef<number>(0);
   const castStreamOffsetRef = useRef<number>(0);
@@ -345,7 +367,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const castActiveRef = useRef<boolean>(false);
   const castWasPlayingRef = useRef<boolean>(false);
   const castLastLoadedEpisodeIdRef = useRef<string | null>(null);
-  const isDirectMP4 = episode.extension === '.mp4' || episode.extension === '.webm';
+  const isDirectMP4 =
+    episode.extension === '.mp4' || episode.extension === '.webm';
   const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   const isAndroidMobile = /Android/i.test(userAgent);
   const isAppleMobile = /iPhone|iPad|iPod/i.test(userAgent);
@@ -364,7 +387,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       completed?: boolean,
       immediate = false,
       audioIndexOverride?: number,
-      subtitleIndexOverride?: number
+      subtitleIndexOverride?: number,
     ) => {
       if (timeSec < 0 || isNaN(timeSec)) return;
 
@@ -401,32 +424,63 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         saveProgressDebounceTimer.current = setTimeout(performSave, 1500);
       }
     },
-    [media.id, episode.id, duration, selectedAudioIndex, selectedSubtitleIndex]
+    [media.id, episode.id, duration, selectedAudioIndex, selectedSubtitleIndex],
   );
 
   const isConnectingCastRef = useRef<boolean>(false);
   const isDisconnectingCastRef = useRef<boolean>(false);
 
-  const getAbsolutePositionFromCast = useCallback((estimatedTime: number | null | undefined): number => {
-    const offset = castStartTimeRef.current || castStreamOffsetRef.current || 0;
-    if (typeof estimatedTime !== 'number' || !Number.isFinite(estimatedTime) || estimatedTime < 0) {
-      return castCurrentTimeRef.current > 0 ? castCurrentTimeRef.current : Math.max(0, offset);
-    }
-    if (offset > 0) {
-      // If estimatedTime is less than offset, it is definitely relative to the Chromecast start
-      if (estimatedTime < offset) {
+  const persistPlaybackState = useCallback(
+    (timeOverride?: number, completed = false) => {
+      const position =
+        typeof timeOverride === 'number'
+          ? timeOverride
+          : getLocalPlaybackTime();
+      saveProgress(
+        position,
+        duration,
+        completed,
+        true,
+        selectedAudioIndexRef.current,
+        selectedSubtitleIndex,
+      );
+    },
+    [duration, getLocalPlaybackTime, saveProgress, selectedSubtitleIndex],
+  );
+
+  const getAbsolutePositionFromCast = useCallback(
+    (estimatedTime: number | null | undefined): number => {
+      const offset =
+        castStartTimeRef.current || castStreamOffsetRef.current || 0;
+      if (
+        typeof estimatedTime !== 'number' ||
+        !Number.isFinite(estimatedTime) ||
+        estimatedTime < 0
+      ) {
+        return castCurrentTimeRef.current > 0
+          ? castCurrentTimeRef.current
+          : Math.max(0, offset);
+      }
+      if (offset > 0) {
+        // If estimatedTime is less than offset, it is definitely relative to the Chromecast start
+        if (estimatedTime < offset) {
+          return Math.max(0, offset + estimatedTime);
+        }
+        // If estimatedTime >= offset:
+        // Check whether estimatedTime is already the absolute timeline position
+        // (very close to castCurrentTimeRef.current) or if it's relative elapsed duration
+        if (
+          castCurrentTimeRef.current > offset &&
+          Math.abs(estimatedTime - castCurrentTimeRef.current) < 15
+        ) {
+          return Math.max(0, estimatedTime);
+        }
         return Math.max(0, offset + estimatedTime);
       }
-      // If estimatedTime >= offset:
-      // Check whether estimatedTime is already the absolute timeline position
-      // (very close to castCurrentTimeRef.current) or if it's relative elapsed duration
-      if (castCurrentTimeRef.current > offset && Math.abs(estimatedTime - castCurrentTimeRef.current) < 15) {
-        return Math.max(0, estimatedTime);
-      }
-      return Math.max(0, offset + estimatedTime);
-    }
-    return Math.max(0, estimatedTime);
-  }, []);
+      return Math.max(0, estimatedTime);
+    },
+    [],
+  );
 
   const registerCastMedia = useCallback(
     (session: any) => {
@@ -434,20 +488,32 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (!media || media === castMediaRef.current) return;
 
       if (castMediaRef.current && castMediaListenerRef.current) {
-        castMediaRef.current.removeUpdateListener?.(castMediaListenerRef.current);
+        castMediaRef.current.removeUpdateListener?.(
+          castMediaListenerRef.current,
+        );
       }
 
       const updateListener = () => {
         const estimatedTime = media.getEstimatedTime?.();
-        if (typeof estimatedTime !== 'number' || !Number.isFinite(estimatedTime)) return;
+        if (
+          typeof estimatedTime !== 'number' ||
+          !Number.isFinite(estimatedTime)
+        )
+          return;
 
         const absoluteTime = getAbsolutePositionFromCast(estimatedTime);
         castCurrentTimeRef.current = absoluteTime;
         setCurrentTime(absoluteTime);
 
-        if (media.playerState === 'PLAYING' || media.playerState === 'BUFFERING') {
+        if (
+          media.playerState === 'PLAYING' ||
+          media.playerState === 'BUFFERING'
+        ) {
           setIsPlaying(true);
-        } else if (media.playerState === 'PAUSED' || media.playerState === 'IDLE') {
+        } else if (
+          media.playerState === 'PAUSED' ||
+          media.playerState === 'IDLE'
+        ) {
           setIsPlaying(false);
         }
 
@@ -463,7 +529,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       media.addUpdateListener?.(updateListener);
       updateListener();
     },
-    [duration, getAbsolutePositionFromCast, saveProgress]
+    [duration, getAbsolutePositionFromCast, saveProgress],
   );
 
   const waitForCastMediaSession = useCallback(
@@ -477,15 +543,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
       return null;
     },
-    []
+    [],
   );
 
   const restoreLocalAfterCast = useCallback(() => {
     const position = Math.max(0, castCurrentTimeRef.current);
     const video = videoRef.current;
     const shouldResumeLocalPlayback = castWasPlayingRef.current;
-    const targetIsDirectMP4 = episode.extension === '.mp4' || episode.extension === '.webm';
-    const shouldUseHls = !targetIsDirectMP4 || isForceTranscode || (selectedAudioIndexRef.current || 0) > 0;
+    const targetIsDirectMP4 =
+      episode.extension === '.mp4' || episode.extension === '.webm';
+    const shouldUseHls =
+      !targetIsDirectMP4 ||
+      isForceTranscode ||
+      (selectedAudioIndexRef.current || 0) > 0;
 
     // Immediately persist the absolute progress to the library database so no progress is lost
     saveProgress(position, duration, false, true);
@@ -539,7 +609,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
 
       if (remoteMedia?.playerState) {
-        castWasPlayingRef.current = remoteMedia.playerState === 'PLAYING' || remoteMedia.playerState === 'BUFFERING';
+        castWasPlayingRef.current =
+          remoteMedia.playerState === 'PLAYING' ||
+          remoteMedia.playerState === 'BUFFERING';
       }
 
       restoreLocalAfterCast();
@@ -565,15 +637,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       session: any,
       targetMedia: MediaItem = media,
       targetEpisode: Episode = episode,
-      targetAudioIndex = targetEpisode.id === episode.id ? selectedAudioIndexRef.current : targetEpisode.selectedAudioIndex ?? 0,
+      targetAudioIndex = targetEpisode.id === episode.id
+        ? selectedAudioIndexRef.current
+        : (targetEpisode.selectedAudioIndex ?? 0),
       requestedPosition?: number,
-      requestedAutoplay?: boolean
+      requestedAutoplay?: boolean,
     ): Promise<boolean> => {
       if (!session) return false;
 
       const video = videoRef.current;
-      const position = requestedPosition ?? (isCasting ? castCurrentTimeRef.current : getLocalPlaybackTime());
-      const wasPlaying = requestedAutoplay ?? (isCasting ? isPlaying : !!video && !video.paused);
+      const position =
+        requestedPosition ??
+        (isCasting ? castCurrentTimeRef.current : getLocalPlaybackTime());
+      const wasPlaying =
+        requestedAutoplay ?? (isCasting ? isPlaying : !!video && !video.paused);
 
       // Immediately pause local video to freeze local playback and prevent double audio
       if (video && !video.paused) {
@@ -582,12 +659,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         } catch {}
       }
 
-      const targetIsDirectMP4 = targetEpisode.extension === '.mp4' || targetEpisode.extension === '.webm';
-      const shouldUseHls = !targetIsDirectMP4 || isForceTranscode || targetAudioIndex > 0;
+      const targetIsDirectMP4 =
+        targetEpisode.extension === '.mp4' ||
+        targetEpisode.extension === '.webm';
+      const shouldUseHls =
+        !targetIsDirectMP4 || isForceTranscode || targetAudioIndex > 0;
       const castStartOffset = shouldUseHls ? Math.max(0, position) : 0;
 
       castStartTimeRef.current = position;
-      castStreamOffsetRef.current = castStartOffset > 0 ? castStartOffset : position;
+      castStreamOffsetRef.current =
+        castStartOffset > 0 ? castStartOffset : position;
       castCurrentTimeRef.current = position;
       castWasPlayingRef.current = wasPlaying;
       castSessionRef.current = session;
@@ -596,12 +677,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       castLastLoadedEpisodeIdRef.current = targetEpisode.id;
 
       const device = session.getCastDevice?.();
-      setCastDeviceName(device?.friendlyName || device?.getFriendlyName?.() || 'Chromecast');
+      setCastDeviceName(
+        device?.friendlyName || device?.getFriendlyName?.() || 'Chromecast',
+      );
       setIsCasting(true);
 
       const streamPath = shouldUseHls
         ? `/api/media/${targetMedia.id}/episode/${targetEpisode.id}/hls/master.m3u8?audio=${targetAudioIndex}&cast=1${
-            castStartOffset > 0 ? `&seek=${encodeURIComponent(castStartOffset)}` : ''
+            castStartOffset > 0
+              ? `&seek=${encodeURIComponent(castStartOffset)}`
+              : ''
           }${isForceTranscode ? '&transcode=1' : ''}`
         : `/api/media/${targetMedia.id}/episode/${targetEpisode.id}/stream`;
       const contentType = shouldUseHls
@@ -620,7 +705,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       for (const baseUrl of baseUrls) {
         try {
-          const mediaInfo = new mediaApi.MediaInfo(`${baseUrl}${streamPath}`, contentType);
+          const mediaInfo = new mediaApi.MediaInfo(
+            `${baseUrl}${streamPath}`,
+            contentType,
+          );
           mediaInfo.streamType = mediaApi.StreamType.BUFFERED;
           const castTextTrackStyle = createCastTextTrackStyle(mediaApi);
           if (castTextTrackStyle) {
@@ -632,7 +720,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               mediaInfo.hlsSegmentFormat = mediaApi.HlsSegmentFormat.TS;
             }
             if (mediaApi.HlsVideoSegmentFormat?.MPEG2_TS) {
-              mediaInfo.hlsVideoSegmentFormat = mediaApi.HlsVideoSegmentFormat.MPEG2_TS;
+              mediaInfo.hlsVideoSegmentFormat =
+                mediaApi.HlsVideoSegmentFormat.MPEG2_TS;
             }
           }
 
@@ -654,16 +743,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           const targetSubtitleIndex =
             targetEpisode.id === episode.id
               ? selectedSubtitleIndex
-              : targetEpisode.selectedSubtitleIndex ?? -1;
+              : (targetEpisode.selectedSubtitleIndex ?? -1);
           const targetSubtitleOffset =
-            (targetEpisode.id === episode.id ? subtitleOffsetSeconds : 0) - castStartOffset;
+            (targetEpisode.id === episode.id ? subtitleOffsetSeconds : 0) -
+            castStartOffset;
           const selectedTargetSubtitle =
-            targetSubtitleIndex >= 0 ? targetEpisode.subtitleTracks[targetSubtitleIndex] : undefined;
+            targetSubtitleIndex >= 0
+              ? targetEpisode.subtitleTracks[targetSubtitleIndex]
+              : undefined;
 
           if (selectedTargetSubtitle) {
             try {
               await fetch(
-                `/api/media/${targetMedia.id}/episode/${targetEpisode.id}/subtitles/${selectedTargetSubtitle.index}?offset=${encodeURIComponent(targetSubtitleOffset)}`
+                `/api/media/${targetMedia.id}/episode/${targetEpisode.id}/subtitles/${selectedTargetSubtitle.index}?offset=${encodeURIComponent(targetSubtitleOffset)}`,
               );
             } catch {}
           }
@@ -671,18 +763,29 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           const textTrackType = mediaApi.TrackType?.TEXT || 'TEXT';
           if (targetEpisode.subtitleTracks.length > 0) {
             mediaInfo.tracks = targetEpisode.subtitleTracks.map((track) => {
-              const castTrack = new mediaApi.Track(track.index + 1, textTrackType);
+              const castTrack = new mediaApi.Track(
+                track.index + 1,
+                textTrackType,
+              );
               const subtitleOffsetQuery =
-                targetSubtitleOffset !== 0 ? `?offset=${encodeURIComponent(targetSubtitleOffset)}` : '';
+                targetSubtitleOffset !== 0
+                  ? `?offset=${encodeURIComponent(targetSubtitleOffset)}`
+                  : '';
               castTrack.trackContentId = `${baseUrl}/api/media/${targetMedia.id}/episode/${targetEpisode.id}/subtitles/${track.index}${subtitleOffsetQuery}`;
               castTrack.trackContentType = 'text/vtt';
-              castTrack.subtype = mediaApi.TextTrackType?.SUBTITLES || 'SUBTITLES';
+              castTrack.subtype =
+                mediaApi.TextTrackType?.SUBTITLES || 'SUBTITLES';
               castTrack.name = track.title || `Legenda ${track.index + 1}`;
               castTrack.language = track.language || 'pt';
               return castTrack;
             });
-            if (targetSubtitleIndex >= 0 && mediaInfo.tracks[targetSubtitleIndex]) {
-              loadRequest.activeTrackIds = [mediaInfo.tracks[targetSubtitleIndex].trackId];
+            if (
+              targetSubtitleIndex >= 0 &&
+              mediaInfo.tracks[targetSubtitleIndex]
+            ) {
+              loadRequest.activeTrackIds = [
+                mediaInfo.tracks[targetSubtitleIndex].trackId,
+              ];
             }
           }
 
@@ -692,11 +795,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
           const remoteMedia = await waitForCastMediaSession(session);
           if (!remoteMedia) {
-            throw new Error('O Chromecast carregou a mídia, mas a sessão de controle ainda não está disponível.');
+            throw new Error(
+              'O Chromecast carregou a mídia, mas a sessão de controle ainda não está disponível.',
+            );
           }
 
           const activeCastTrackId =
-            targetSubtitleIndex >= 0 ? mediaInfo.tracks?.[targetSubtitleIndex]?.trackId : undefined;
+            targetSubtitleIndex >= 0
+              ? mediaInfo.tracks?.[targetSubtitleIndex]?.trackId
+              : undefined;
           if (
             mediaInfo.tracks?.length > 0 &&
             mediaApi.EditTracksInfoRequest &&
@@ -704,18 +811,31 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           ) {
             const editTracksRequest = new mediaApi.EditTracksInfoRequest(
               activeCastTrackId ? [activeCastTrackId] : [],
-              castTextTrackStyle
+              castTextTrackStyle,
             );
             await new Promise<void>((resolve) => {
-              remoteMedia.editTracksInfo(editTracksRequest, () => resolve(), () => resolve());
+              remoteMedia.editTracksInfo(
+                editTracksRequest,
+                () => resolve(),
+                () => resolve(),
+              );
             });
           }
 
-          if (!shouldUseHls && position > 0 && mediaApi.SeekRequest && typeof remoteMedia.seek === 'function') {
+          if (
+            !shouldUseHls &&
+            position > 0 &&
+            mediaApi.SeekRequest &&
+            typeof remoteMedia.seek === 'function'
+          ) {
             const seekRequest = new mediaApi.SeekRequest();
             seekRequest.currentTime = position;
             await new Promise<void>((resolve) => {
-              remoteMedia.seek(seekRequest, () => resolve(), () => resolve());
+              remoteMedia.seek(
+                seekRequest,
+                () => resolve(),
+                () => resolve(),
+              );
             });
           }
 
@@ -728,7 +848,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
 
       if (!loaded) {
-        throw lastError || new Error('O Chromecast não conseguiu carregar esta mídia.');
+        throw (
+          lastError ||
+          new Error('O Chromecast não conseguiu carregar esta mídia.')
+        );
       }
 
       if (video && !video.paused) {
@@ -749,16 +872,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       selectedSubtitleIndex,
       subtitleOffsetSeconds,
       waitForCastMediaSession,
-    ]
+    ],
   );
 
   const handleCast = async (
     targetMedia: MediaItem = media,
     targetEpisode: Episode = episode,
-    targetAudioIndex = targetEpisode.id === episode.id ? selectedAudioIndexRef.current : targetEpisode.selectedAudioIndex ?? 0,
+    targetAudioIndex = targetEpisode.id === episode.id
+      ? selectedAudioIndexRef.current
+      : (targetEpisode.selectedAudioIndex ?? 0),
     requestedPosition?: number,
     requestedAutoplay?: boolean,
-    toggleConnection = true
+    toggleConnection = true,
   ) => {
     if (toggleConnection && (isCasting || castActiveRef.current)) {
       await disconnectCast();
@@ -768,14 +893,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const context = castContextRef.current || getCastContext();
     if (!context) {
       const hostname = window.location.hostname.toLowerCase();
-      const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]';
+      const isLocalHost =
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname === '::1' ||
+        hostname === '[::1]';
 
       if (isAppleMobile) {
-        setCastError('O Chrome no iPhone/iPad não oferece suporte ao Google Cast pela web. Use o Chrome em um celular Android ou um computador compatível.');
+        setCastError(
+          'O Chrome no iPhone/iPad não oferece suporte ao Google Cast pela web. Use o Chrome em um celular Android ou um computador compatível.',
+        );
       } else if (window.location.protocol !== 'https:' && !isLocalHost) {
-        setCastError('No celular, o Google Cast exige HTTPS. Abra o CineLocal por um endereço HTTPS na rede local para transmitir.');
+        setCastError(
+          'No celular, o Google Cast exige HTTPS. Abra o CineLocal por um endereço HTTPS na rede local para transmitir.',
+        );
       } else {
-        setCastError('O Google Cast não está disponível neste navegador. Use o Google Chrome e verifique se o Chromecast está na mesma rede.');
+        setCastError(
+          'O Google Cast não está disponível neste navegador. Use o Google Chrome e verifique se o Chromecast está na mesma rede.',
+        );
       }
       return;
     }
@@ -804,7 +939,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         targetEpisode,
         targetAudioIndex,
         requestedPosition,
-        requestedAutoplay
+        requestedAutoplay,
       );
     } catch (error) {
       setCastError(getCastErrorMessage(error));
@@ -830,7 +965,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       setCastAvailable(true);
       castContextRef.current = context;
-      const eventTypes = (window as any).cast?.framework?.CastContextEventType || {};
+      const eventTypes =
+        (window as any).cast?.framework?.CastContextEventType || {};
 
       const syncCastSession = () => {
         if (isDisconnectingCastRef.current) return;
@@ -839,7 +975,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         if (session) {
           castSessionRef.current = session;
           const device = session.getCastDevice?.();
-          setCastDeviceName(device?.friendlyName || device?.getFriendlyName?.() || 'Chromecast');
+          setCastDeviceName(
+            device?.friendlyName || device?.getFriendlyName?.() || 'Chromecast',
+          );
           const existingRemoteMedia = session.getMediaSession?.();
 
           if (existingRemoteMedia) {
@@ -858,12 +996,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             }
           } else if (!isConnectingCastRef.current && !castActiveRef.current) {
             // User connected to Cast via browser menu or outside our button, auto-load immediately
-            void handleCast(media, episode, selectedAudioIndexRef.current, getLocalPlaybackTime(), isPlaying, false);
+            void handleCast(
+              media,
+              episode,
+              selectedAudioIndexRef.current,
+              getLocalPlaybackTime(),
+              isPlaying,
+              false,
+            );
           }
         } else if (castActiveRef.current || isCasting) {
           const remoteMedia = castMediaRef.current;
           const estimatedTime = remoteMedia?.getEstimatedTime?.();
-          if (typeof estimatedTime === 'number' && Number.isFinite(estimatedTime)) {
+          if (
+            typeof estimatedTime === 'number' &&
+            Number.isFinite(estimatedTime)
+          ) {
             const absolutePosition = getAbsolutePositionFromCast(estimatedTime);
             castCurrentTimeRef.current = absolutePosition;
             setCurrentTime(absolutePosition);
@@ -893,7 +1041,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       unsubscribe();
       removeContextListeners();
     };
-  }, [episode, getAbsolutePositionFromCast, isPlaying, media, registerCastMedia, restoreLocalAfterCast]);
+  }, [
+    episode,
+    getAbsolutePositionFromCast,
+    isPlaying,
+    media,
+    registerCastMedia,
+    restoreLocalAfterCast,
+  ]);
 
   useEffect(() => {
     const nextAudioIndex = episode.selectedAudioIndex ?? 0;
@@ -902,7 +1057,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setSelectedSubtitleIndex(episode.selectedSubtitleIndex ?? -1);
     setSubtitleOffsetSeconds(0);
     setDuration(episode.durationSeconds || 0);
-    setCurrentTime(episode.progressSeconds > 10 && !episode.watched ? episode.progressSeconds : 0);
+    setCurrentTime(
+      episode.progressSeconds > 10 && !episode.watched
+        ? episode.progressSeconds
+        : 0,
+    );
     pendingReloadPositionRef.current = null;
     hlsStreamOffsetRef.current = 0;
   }, [media.id, episode.id]);
@@ -940,14 +1099,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         : episode.progressSeconds > 10 && !episode.watched
           ? episode.progressSeconds
           : 0;
-    const resumePlayback = requestedSeek === null || resumeAfterReloadRef.current;
+    const resumePlayback =
+      requestedSeek === null || resumeAfterReloadRef.current;
 
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
     }
 
-    const shouldUseHls = !isDirectMP4 || isForceTranscode || selectedAudioIndex > 0;
+    const shouldUseHls =
+      !isDirectMP4 || isForceTranscode || selectedAudioIndex > 0;
     const hlsStartOffset = shouldUseHls ? Math.max(0, initialSeek) : 0;
     hlsStreamOffsetRef.current = hlsStartOffset;
     if (shouldUseHls) setCurrentTime(hlsStartOffset);
@@ -981,7 +1142,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            if (!hlsStartOffset && initialSeek >= 0 && (initialSeek > 0 || requestedSeek !== null)) {
+          if (
+            !hlsStartOffset &&
+            initialSeek >= 0 &&
+            (initialSeek > 0 || requestedSeek !== null)
+          ) {
             try {
               video.currentTime = initialSeek;
             } catch (err) {
@@ -994,13 +1159,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         });
 
         hls.on(Hls.Events.LEVEL_LOADED, (_event, data) => {
-          if (data.details.totalduration && isFinite(data.details.totalduration)) {
+          if (
+            data.details.totalduration &&
+            isFinite(data.details.totalduration)
+          ) {
             if (data.details.live) {
               if (!episode.durationSeconds || episode.durationSeconds <= 0) {
-                setDuration((prev) => Math.max(prev, data.details.totalduration));
+                setDuration((prev) =>
+                  Math.max(prev, data.details.totalduration),
+                );
               }
             } else if (data.details.totalduration > 0) {
-              setDuration((prev) => Math.max(prev, hlsStartOffset + data.details.totalduration));
+              setDuration((prev) =>
+                Math.max(prev, hlsStartOffset + data.details.totalduration),
+              );
             }
           }
         });
@@ -1008,7 +1180,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         let networkErrorCount = 0;
         let lastStallRecovery = 0;
         hls.on(Hls.Events.ERROR, async (_event, data) => {
-          if (!data.fatal && data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+          if (
+            !data.fatal &&
+            data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR
+          ) {
             // A segment can still be completing on disk when Hls.js reaches
             // the current buffer edge. Ask the loader to continue from the
             // current position without seeking the video or changing speed.
@@ -1021,7 +1196,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           }
 
           if (data.fatal) {
-            console.error('[CineLocal HLS Erro Fatal]', data.type, data.details, data);
+            console.error(
+              '[CineLocal HLS Erro Fatal]',
+              data.type,
+              data.details,
+              data,
+            );
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                 networkErrorCount++;
@@ -1032,29 +1212,36 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     const sys = await res.json();
                     if (!sys.ffmpegFound) {
                       setPlaybackError(
-                        'O FFmpeg não foi encontrado no seu computador. Para reproduzir arquivos .MKV ou com múltiplos áudios, coloque o arquivo "ffmpeg.exe" dentro da pasta "bin" do aplicativo ou instale o FFmpeg no Windows.'
+                        'O FFmpeg não foi encontrado no seu computador. Para reproduzir arquivos .MKV ou com múltiplos áudios, coloque o arquivo "ffmpeg.exe" dentro da pasta "bin" do aplicativo ou instale o FFmpeg no Windows.',
                       );
                       return;
                     }
                   } catch {}
                   setPlaybackError(
-                    'Não foi possível inicializar o motor de reprodução do vídeo. Verifique se o arquivo existe e se o FFmpeg está instalado.'
+                    'Não foi possível inicializar o motor de reprodução do vídeo. Verifique se o arquivo existe e se o FFmpeg está instalado.',
                   );
                 } else {
                   hls.startLoad();
                 }
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
-                console.warn('[CineLocal HLS] Tentando recuperar erro de mídia...');
+                console.warn(
+                  '[CineLocal HLS] Tentando recuperar erro de mídia...',
+                );
                 hls.recoverMediaError();
                 break;
               default:
-                console.error('[CineLocal HLS] Erro fatal não recuperável:', data);
+                console.error(
+                  '[CineLocal HLS] Erro fatal não recuperável:',
+                  data,
+                );
                 hls.destroy();
                 if (!isForceTranscode) {
                   setIsForceTranscode(true);
                 } else {
-                  setPlaybackError('Não foi possível continuar a reprodução deste arquivo MKV.');
+                  setPlaybackError(
+                    'Não foi possível continuar a reprodução deste arquivo MKV.',
+                  );
                 }
                 break;
             }
@@ -1063,7 +1250,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = hlsUrl;
         const onLoaded = () => {
-          if (!hlsStartOffset && initialSeek >= 0 && (initialSeek > 0 || requestedSeek !== null)) {
+          if (
+            !hlsStartOffset &&
+            initialSeek >= 0 &&
+            (initialSeek > 0 || requestedSeek !== null)
+          ) {
             video.currentTime = initialSeek;
           }
           if (resumePlayback && !castActiveRef.current) {
@@ -1094,7 +1285,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         hlsRef.current = null;
       }
     };
-  }, [media.id, episode.id, isDirectMP4, isForceTranscode, selectedAudioIndex, hlsReloadVersion]);
+  }, [
+    media.id,
+    episode.id,
+    isDirectMP4,
+    isForceTranscode,
+    selectedAudioIndex,
+    hlsReloadVersion,
+  ]);
 
   // Periodic progress saving (every 5 seconds)
   useEffect(() => {
@@ -1113,7 +1311,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (videoRef.current) {
-        saveProgress(isCasting ? castCurrentTimeRef.current : getLocalPlaybackTime());
+        persistPlaybackState(
+          isCasting ? castCurrentTimeRef.current : getLocalPlaybackTime(),
+        );
       }
     };
 
@@ -1122,14 +1322,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       window.removeEventListener('beforeunload', handleBeforeUnload);
       handleBeforeUnload();
     };
-  }, [saveProgress, isCasting]);
+  }, [persistPlaybackState, getLocalPlaybackTime, isCasting]);
 
   // Load the selected subtitle as cues rendered by CineLocal itself. Native
   // browser text tracks can disappear when a custom player enters fullscreen.
   useEffect(() => {
     let cancelled = false;
 
-    if (selectedSubtitleIndex < 0 || !episode.subtitleTracks[selectedSubtitleIndex]) {
+    if (
+      selectedSubtitleIndex < 0 ||
+      !episode.subtitleTracks[selectedSubtitleIndex]
+    ) {
       setSubtitleCues([]);
       setActiveSubtitleText('');
       return () => {
@@ -1138,7 +1341,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
 
     const track = episode.subtitleTracks[selectedSubtitleIndex];
-    fetch(`/api/media/${media.id}/episode/${episode.id}/subtitles/${track.index}`)
+    fetch(
+      `/api/media/${media.id}/episode/${episode.id}/subtitles/${track.index}`,
+    )
       .then((response) => {
         if (!response.ok) throw new Error('Falha ao carregar a legenda');
         return response.text();
@@ -1157,7 +1362,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   useEffect(() => {
     const cue = subtitleCues.find(
-      (item) => currentTime >= item.start + subtitleOffsetSeconds && currentTime < item.end + subtitleOffsetSeconds
+      (item) =>
+        currentTime >= item.start + subtitleOffsetSeconds &&
+        currentTime < item.end + subtitleOffsetSeconds,
     );
     setActiveSubtitleText(cue?.text || '');
   }, [currentTime, subtitleCues, subtitleOffsetSeconds]);
@@ -1166,21 +1373,37 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // episode. The local video component stays mounted, while the receiver gets
   // a new LOAD request for the selected episode.
   useEffect(() => {
-    if (!isCasting || !castSessionRef.current || castLastLoadedEpisodeIdRef.current === episode.id) return;
-    void handleCast(media, episode, episode.selectedAudioIndex ?? 0, 0, true, false);
+    if (
+      !isCasting ||
+      !castSessionRef.current ||
+      castLastLoadedEpisodeIdRef.current === episode.id
+    )
+      return;
+    void handleCast(
+      media,
+      episode,
+      episode.selectedAudioIndex ?? 0,
+      0,
+      true,
+      false,
+    );
   }, [episode.id, isCasting, media.id]);
 
-  const sendCastMediaCommand = (methodName: 'play' | 'pause' | 'seek' | 'setVolume' | 'editTracksInfo', request?: any): boolean => {
+  const sendCastMediaCommand = (
+    methodName: 'play' | 'pause' | 'seek' | 'setVolume' | 'editTracksInfo',
+    request?: any,
+  ): boolean => {
     const remoteMedia = castMediaRef.current;
     const method = remoteMedia?.[methodName];
-    if (!isCasting || !remoteMedia || typeof method !== 'function') return false;
+    if (!isCasting || !remoteMedia || typeof method !== 'function')
+      return false;
 
     try {
       method.call(
         remoteMedia,
         request,
         () => {},
-        (error: unknown) => setCastError(getCastErrorMessage(error))
+        (error: unknown) => setCastError(getCastErrorMessage(error)),
       );
       return true;
     } catch (error) {
@@ -1204,8 +1427,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (!castMediaRef.current) return;
       const mediaApi = (window as any).chrome?.cast?.media;
       const request = isPlaying
-        ? mediaApi?.PauseRequest ? new mediaApi.PauseRequest() : undefined
-        : mediaApi?.PlayRequest ? new mediaApi.PlayRequest() : undefined;
+        ? mediaApi?.PauseRequest
+          ? new mediaApi.PauseRequest()
+          : undefined
+        : mediaApi?.PlayRequest
+          ? new mediaApi.PlayRequest()
+          : undefined;
       if (sendCastMediaCommand(isPlaying ? 'pause' : 'play', request)) {
         setIsPlaying(!isPlaying);
       }
@@ -1234,7 +1461,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setSelectedAudioIndex(index);
       selectedAudioIndexRef.current = index;
       setShowAudioSubModal(false);
-      saveProgress(position, duration, false, true, index, selectedSubtitleIndex);
+      saveProgress(
+        position,
+        duration,
+        false,
+        true,
+        index,
+        selectedSubtitleIndex,
+      );
       void handleCast(media, episode, index, position, isPlaying, false);
       return;
     }
@@ -1261,7 +1495,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       false,
       true,
       index,
-      selectedSubtitleIndex
+      selectedSubtitleIndex,
     );
   };
 
@@ -1273,23 +1507,47 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (isCasting) {
       if (!castMediaRef.current) return;
       const mediaApi = (window as any).chrome?.cast?.media;
-      const selectedTrack = index >= 0 ? episode.subtitleTracks[index] : undefined;
-      const trackId = selectedTrack ? (selectedTrack.index ?? index) + 1 : undefined;
+      const selectedTrack =
+        index >= 0 ? episode.subtitleTracks[index] : undefined;
+      const trackId = selectedTrack
+        ? (selectedTrack.index ?? index) + 1
+        : undefined;
       if (selectedTrack) {
-        const castStartSeconds = Number((castMediaRef.current as any)?.customData?.castStartSeconds) || 0;
+        const castStartSeconds =
+          Number((castMediaRef.current as any)?.customData?.castStartSeconds) ||
+          0;
         const offsetSeconds = subtitleOffsetSeconds - castStartSeconds;
-        void fetch(`/api/media/${media.id}/episode/${episode.id}/subtitles/${selectedTrack.index}?offset=${encodeURIComponent(offsetSeconds)}`).catch(() => {});
+        void fetch(
+          `/api/media/${media.id}/episode/${episode.id}/subtitles/${selectedTrack.index}?offset=${encodeURIComponent(offsetSeconds)}`,
+        ).catch(() => {});
       }
       const castTextTrackStyle = createCastTextTrackStyle(mediaApi);
       const request = mediaApi?.EditTracksInfoRequest
-        ? new mediaApi.EditTracksInfoRequest(trackId ? [trackId] : [], castTextTrackStyle)
+        ? new mediaApi.EditTracksInfoRequest(
+            trackId ? [trackId] : [],
+            castTextTrackStyle,
+          )
         : undefined;
       sendCastMediaCommand('editTracksInfo', request);
-      saveProgress(castCurrentTimeRef.current, duration, false, true, selectedAudioIndex, index);
+      saveProgress(
+        castCurrentTimeRef.current,
+        duration,
+        false,
+        true,
+        selectedAudioIndex,
+        index,
+      );
       return;
     }
 
-    saveProgress(getLocalPlaybackTime(), duration, false, true, selectedAudioIndex, index);
+    saveProgress(
+      getLocalPlaybackTime(),
+      duration,
+      false,
+      true,
+      selectedAudioIndex,
+      index,
+    );
   };
 
   // Handle seeking
@@ -1303,7 +1561,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setShowNextCountdown(false);
 
     isSeekingRef.current = true;
-    const clampedSec = Math.max(0, Math.min(targetSec, duration > 0 ? duration : targetSec));
+    const clampedSec = Math.max(
+      0,
+      Math.min(targetSec, duration > 0 ? duration : targetSec),
+    );
 
     if (isCasting) {
       if (!castMediaRef.current) {
@@ -1311,14 +1572,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         return;
       }
 
-      const castUsesOffsetStream = !isDirectMP4 || isForceTranscode || selectedAudioIndex > 0;
+      const castUsesOffsetStream =
+        !isDirectMP4 || isForceTranscode || selectedAudioIndex > 0;
       if (castUsesOffsetStream && clampedSec < castStreamOffsetRef.current) {
         // The current Chromecast HLS session starts at castStreamOffsetRef.
         // Seeking before that point requires a new HLS session with an earlier
         // input seek; a normal remote seek cannot reach it.
         castCurrentTimeRef.current = clampedSec;
         setCurrentTime(clampedSec);
-        void handleCast(media, episode, selectedAudioIndex, clampedSec, isPlaying, false);
+        void handleCast(
+          media,
+          episode,
+          selectedAudioIndex,
+          clampedSec,
+          isPlaying,
+          false,
+        );
         setTimeout(() => {
           isSeekingRef.current = false;
         }, 600);
@@ -1326,7 +1595,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
 
       const mediaApi = (window as any).chrome?.cast?.media;
-      const request = mediaApi?.SeekRequest ? new mediaApi.SeekRequest() : undefined;
+      const request = mediaApi?.SeekRequest
+        ? new mediaApi.SeekRequest()
+        : undefined;
       if (request) {
         request.currentTime = castUsesOffsetStream
           ? Math.max(0, clampedSec - castStreamOffsetRef.current)
@@ -1345,8 +1616,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (!video) return;
 
     const localPosition = getLocalPlaybackTime();
-    const shouldUseHls = !isDirectMP4 || isForceTranscode || selectedAudioIndex > 0;
-    const needsFastHlsRestart = shouldUseHls && Math.abs(clampedSec - localPosition) > 20;
+    const shouldUseHls =
+      !isDirectMP4 || isForceTranscode || selectedAudioIndex > 0;
+    const needsFastHlsRestart =
+      shouldUseHls && Math.abs(clampedSec - localPosition) > 20;
 
     if (needsFastHlsRestart) {
       pendingReloadPositionRef.current = clampedSec;
@@ -1380,8 +1653,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setIsFullscreen(!!document.fullscreenElement);
     };
     document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    return () =>
+      document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
+
+  const handleClosePlayer = useCallback(() => {
+    persistPlaybackState(
+      isCasting ? castCurrentTimeRef.current : getLocalPlaybackTime(),
+    );
+    onClose();
+  }, [getLocalPlaybackTime, isCasting, onClose, persistPlaybackState]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1460,7 +1741,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             document.exitFullscreen().catch(() => {});
             setIsFullscreen(false);
           } else {
-            onClose();
+            handleClosePlayer();
           }
           break;
       }
@@ -1468,7 +1749,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentTime, duration, isFullscreen, isCasting, isPlaying, volume, onClose, handleUserActivity]);
+  }, [
+    currentTime,
+    duration,
+    isFullscreen,
+    isCasting,
+    isPlaying,
+    volume,
+    handleClosePlayer,
+    handleUserActivity,
+  ]);
 
   // Fullscreen toggle
   const toggleFullscreen = () => {
@@ -1511,13 +1801,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const exact = Math.max(0, hlsStreamOffsetRef.current + video.currentTime);
     setCurrentTime(exact);
 
-    if (video.duration && !isNaN(video.duration) && isFinite(video.duration) && video.duration > 0) {
+    if (
+      video.duration &&
+      !isNaN(video.duration) &&
+      isFinite(video.duration) &&
+      video.duration > 0
+    ) {
       if (!episode.durationSeconds || episode.durationSeconds <= 0) {
         setDuration((prev) => Math.max(prev, video.duration));
       }
     }
 
-    const totalDur = (episode.durationSeconds && episode.durationSeconds > 0) ? episode.durationSeconds : duration;
+    const totalDur =
+      episode.durationSeconds && episode.durationSeconds > 0
+        ? episode.durationSeconds
+        : duration;
 
     // Reset countdown if user moved back before the final 15 seconds
     if (showNextCountdown && totalDur > 30 && exact < totalDur - 15) {
@@ -1529,7 +1827,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
 
     // Auto next episode countdown if within 15 seconds of completion
-    if (nextEpisode && totalDur > 30 && exact >= totalDur - 15 && !showNextCountdown) {
+    if (
+      nextEpisode &&
+      totalDur > 30 &&
+      exact >= totalDur - 15 &&
+      !showNextCountdown
+    ) {
       setShowNextCountdown(true);
       setCountdownSeconds(10);
       if (countdownInterval.current) clearInterval(countdownInterval.current);
@@ -1560,18 +1863,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         setIsRecovering(false);
       }, 800);
     },
-    [isRecovering]
+    [isRecovering],
   );
 
   const handleEnded = () => {
     if (isSeekingRef.current) return;
     const video = videoRef.current;
-    const exact = video ? Math.max(0, hlsStreamOffsetRef.current + video.currentTime) : currentTime;
-    const totalExpectedDuration = (episode.durationSeconds && episode.durationSeconds > 0) ? episode.durationSeconds : duration;
+    const exact = video
+      ? Math.max(0, hlsStreamOffsetRef.current + video.currentTime)
+      : currentTime;
+    const totalExpectedDuration =
+      episode.durationSeconds && episode.durationSeconds > 0
+        ? episode.durationSeconds
+        : duration;
 
     const isActuallyFinished =
       totalExpectedDuration > 30 && isFinite(totalExpectedDuration)
-        ? exact >= Math.max(totalExpectedDuration - 20, totalExpectedDuration * 0.9)
+        ? exact >=
+          Math.max(totalExpectedDuration - 20, totalExpectedDuration * 0.9)
         : false;
 
     if (isActuallyFinished) {
@@ -1581,7 +1890,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onPlayNextEpisode();
       }
     } else {
-      console.warn('[VideoPlayer] Playback ended prematurely at', exact, 'of', totalExpectedDuration);
+      console.warn(
+        '[VideoPlayer] Playback ended prematurely at',
+        exact,
+        'of',
+        totalExpectedDuration,
+      );
       handleStreamRecovery(true);
     }
   };
@@ -1593,7 +1907,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (!isForceTranscode) {
       handleStreamRecovery(true);
     } else {
-      setPlaybackError('Não foi possível continuar a reprodução deste formato diretamente.');
+      setPlaybackError(
+        'Não foi possível continuar a reprodução deste formato diretamente.',
+      );
     }
   };
 
@@ -1617,7 +1933,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     handleSeek(target);
   };
 
-  const progressPercent = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+  const progressPercent =
+    duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
   return (
     <div
@@ -1688,8 +2005,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       {isCasting && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center pointer-events-none">
           <CastIcon className="w-12 h-12 text-red-500 mb-4" />
-          <p className="text-white font-semibold">Transmitindo{castDeviceName ? ` para ${castDeviceName}` : ''}</p>
-          <p className="mt-1 text-sm text-neutral-400">Use os controles abaixo para pausar, avançar ou trocar o volume.</p>
+          <p className="text-white font-semibold">
+            Transmitindo{castDeviceName ? ` para ${castDeviceName}` : ''}
+          </p>
+          <p className="mt-1 text-sm text-neutral-400">
+            Use os controles abaixo para pausar, avançar ou trocar o volume.
+          </p>
         </div>
       )}
 
@@ -1700,7 +2021,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center z-30 pointer-events-none"
         >
           <Loader2 className="w-12 h-12 text-red-500 animate-spin mb-3" />
-          <p className="text-white text-sm font-medium tracking-wide">Sincronizando reprodução...</p>
+          <p className="text-white text-sm font-medium tracking-wide">
+            Sincronizando reprodução...
+          </p>
         </div>
       )}
 
@@ -1711,7 +2034,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           className="absolute top-20 left-1/2 -translate-x-1/2 z-50 max-w-[min(90vw,32rem)] rounded-lg border border-amber-500/40 bg-neutral-950/95 px-4 py-3 text-left text-xs text-amber-200 shadow-xl"
           title="Fechar aviso"
         >
-          <span className="font-semibold text-amber-300">Chromecast:</span> {castError}
+          <span className="font-semibold text-amber-300">Chromecast:</span>{' '}
+          {castError}
         </button>
       )}
 
@@ -1724,8 +2048,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <div className="w-14 h-14 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center mb-4 text-red-400">
             <AlertTriangle className="w-7 h-7" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">Falha na Reprodução</h3>
-          <p className="text-neutral-300 text-sm max-w-lg mb-6 leading-relaxed">{playbackError}</p>
+          <h3 className="text-xl font-bold text-white mb-2">
+            Falha na Reprodução
+          </h3>
+          <p className="text-neutral-300 text-sm max-w-lg mb-6 leading-relaxed">
+            {playbackError}
+          </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md mb-4">
             {playbackError.toLowerCase().includes('ffmpeg') && (
@@ -1737,17 +2065,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   setIsInstallingFfmpeg(true);
                   setInstallFfmpegMsg(null);
                   try {
-                    const res = await fetch('/api/system/install-ffmpeg', { method: 'POST' });
+                    const res = await fetch('/api/system/install-ffmpeg', {
+                      method: 'POST',
+                    });
                     const data = await res.json();
                     if (data.success) {
-                      setInstallFfmpegMsg('FFmpeg instalado! Reiniciando reprodução...');
+                      setInstallFfmpegMsg(
+                        'FFmpeg instalado! Reiniciando reprodução...',
+                      );
                       setTimeout(() => {
                         setPlaybackError(null);
                         setInstallFfmpegMsg(null);
                         handleStreamRecovery(true);
                       }, 1500);
                     } else {
-                      setInstallFfmpegMsg(data.message || 'Não foi possível baixar automaticamente. Baixe o ffmpeg.exe e coloque na pasta bin.');
+                      setInstallFfmpegMsg(
+                        data.message ||
+                          'Não foi possível baixar automaticamente. Baixe o ffmpeg.exe e coloque na pasta bin.',
+                      );
                     }
                   } catch {
                     setInstallFfmpegMsg('Erro ao contatar o servidor.');
@@ -1784,7 +2119,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </button>
             <button
               id="player-close-error-btn"
-              onClick={onClose}
+              onClick={handleClosePlayer}
               className="w-full sm:w-auto px-5 py-2.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-medium text-sm transition-colors"
             >
               Voltar
@@ -1792,7 +2127,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
 
           {installFfmpegMsg && (
-            <p className={`text-xs mt-2 font-medium ${installFfmpegMsg.includes('sucesso') || installFfmpegMsg.includes('instalado') ? 'text-emerald-400' : 'text-amber-400'}`}>
+            <p
+              className={`text-xs mt-2 font-medium ${installFfmpegMsg.includes('sucesso') || installFfmpegMsg.includes('instalado') ? 'text-emerald-400' : 'text-amber-400'}`}
+            >
               {installFfmpegMsg}
             </p>
           )}
@@ -1817,7 +2154,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <ArrowLeft className="w-6 h-6" />
           </button>
           <div>
-            <h2 className="text-white font-bold text-base sm:text-lg drop-shadow">{media.title}</h2>
+            <h2 className="text-white font-bold text-base sm:text-lg drop-shadow">
+              {media.title}
+            </h2>
             <div className="text-xs sm:text-sm text-neutral-300 drop-shadow">
               {media.kind === 'series'
                 ? `Temporada ${episode.seasonNumber} : Episódio ${episode.episodeNumber} - ${episode.title}`
@@ -1851,7 +2190,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         >
           <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
             <svg className="w-12 h-12 -rotate-90">
-              <circle cx="24" cy="24" r="20" stroke="#333" strokeWidth="4" fill="transparent" />
+              <circle
+                cx="24"
+                cy="24"
+                r="20"
+                stroke="#333"
+                strokeWidth="4"
+                fill="transparent"
+              />
               <circle
                 cx="24"
                 cy="24"
@@ -1864,16 +2210,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 className="transition-all duration-1000"
               />
             </svg>
-            <span className="absolute font-black text-white text-sm">{countdownSeconds}s</span>
+            <span className="absolute font-black text-white text-sm">
+              {countdownSeconds}s
+            </span>
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="text-xs text-neutral-400 uppercase font-semibold">Próximo Episódio</div>
-            <div className="text-sm font-bold text-white truncate">{nextEpisode.title}</div>
+            <div className="text-xs text-neutral-400 uppercase font-semibold">
+              Próximo Episódio
+            </div>
+            <div className="text-sm font-bold text-white truncate">
+              {nextEpisode.title}
+            </div>
             <div className="flex items-center space-x-2 mt-2">
               <button
                 onClick={() => {
-                  if (countdownInterval.current) clearInterval(countdownInterval.current);
+                  if (countdownInterval.current)
+                    clearInterval(countdownInterval.current);
                   if (onPlayNextEpisode) onPlayNextEpisode();
                 }}
                 className="px-3 py-1 bg-[#E50914] hover:bg-red-700 text-white text-xs font-bold rounded"
@@ -1883,7 +2236,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               <button
                 onClick={() => {
                   setShowNextCountdown(false);
-                  if (countdownInterval.current) clearInterval(countdownInterval.current);
+                  if (countdownInterval.current)
+                    clearInterval(countdownInterval.current);
                 }}
                 className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs rounded"
               >
@@ -1965,7 +2319,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             subtitleOffsetSeconds={subtitleOffsetSeconds}
             onSubtitleOffsetChange={setSubtitleOffsetSeconds}
           />
-
         </div>
       )}
 
@@ -2007,8 +2360,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
 
         {/* Buttons Row */}
-          <div className="flex items-center justify-between text-white min-w-0">
-            {/* Left Controls */}
+        <div className="flex items-center justify-between text-white min-w-0">
+          {/* Left Controls */}
           <div className="flex min-w-0 flex-1 items-center space-x-2 sm:space-x-4 overflow-x-auto no-scrollbar pr-2">
             {/* Previous Episode Button (shown when not the first episode) */}
             {prevEpisode && onPlayPrevEpisode && (
@@ -2031,7 +2384,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               className="p-1 text-white hover:text-red-500 transition-colors"
               title={isPlaying ? 'Pausar (Espaço)' : 'Reproduzir (Espaço)'}
             >
-              {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
+              {isPlaying ? (
+                <Pause className="w-6 h-6 fill-current" />
+              ) : (
+                <Play className="w-6 h-6 fill-current" />
+              )}
             </button>
 
             {/* Rewind 10s */}
@@ -2073,7 +2430,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 className="p-1 text-neutral-300 hover:text-white transition-colors"
                 title={isMuted ? 'Ativar Som (M)' : 'Silenciar (M)'}
               >
-                {isMuted || volume === 0 ? <VolumeX className="w-5 h-5 text-red-500" /> : <Volume2 className="w-5 h-5" />}
+                {isMuted || volume === 0 ? (
+                  <VolumeX className="w-5 h-5 text-red-500" />
+                ) : (
+                  <Volume2 className="w-5 h-5" />
+                )}
               </button>
               <input
                 type="range"
@@ -2113,9 +2474,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 onClick={() => void handleCast()}
                 disabled={isCastLoading}
                 className={`p-1 transition-colors ${
-                  isCasting ? 'text-red-500' : 'text-neutral-300 hover:text-white'
+                  isCasting
+                    ? 'text-red-500'
+                    : 'text-neutral-300 hover:text-white'
                 } disabled:cursor-wait disabled:opacity-60`}
-                title={isCasting ? `Transmitindo${castDeviceName ? ` para ${castDeviceName}` : ''}` : 'Transmitir para Chromecast'}
+                title={
+                  isCasting
+                    ? `Transmitindo${castDeviceName ? ` para ${castDeviceName}` : ''}`
+                    : 'Transmitir para Chromecast'
+                }
                 aria-label="Transmitir para Chromecast"
               >
                 <CastIcon className="w-5 h-5" />
@@ -2127,7 +2494,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               id="player-audio-sub-btn"
               onClick={() => setShowAudioSubModal(!showAudioSubModal)}
               className={`p-1 transition-colors ${
-                showAudioSubModal ? 'text-red-500' : 'text-neutral-300 hover:text-white'
+                showAudioSubModal
+                  ? 'text-red-500'
+                  : 'text-neutral-300 hover:text-white'
               }`}
               title="Áudio e Legendas"
             >
@@ -2142,7 +2511,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               title="Tela Cheia (F)"
               aria-label="Tela cheia"
             >
-              {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+              {isFullscreen ? (
+                <Minimize className="w-5 h-5" />
+              ) : (
+                <Maximize className="w-5 h-5" />
+              )}
             </button>
           </div>
         </div>
