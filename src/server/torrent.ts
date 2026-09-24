@@ -4,7 +4,7 @@ import os from 'os';
 // @ts-ignore
 import torrentStream from 'torrent-stream';
 import { TorrentStatus, TorrentFileItem, TorrentHistoryItem } from '../types';
-import { getDataDir, saveTorrentMediaItem, removeTorrentFromLibrary, updateTorrentProgressInLibrary, readLibrary, writeLibrary } from './storage';
+import { getDataDir, saveTorrentMediaItem, removeTorrentFromLibrary, updateTorrentProgressInLibrary, readLibrary, writeLibrary, normalizeSearchTitle } from './storage';
 import { enrichMediaWithTmdb, isTmdbConfigured } from './tmdb';
 
 const TORRENT_CACHE_DIR = path.join(getDataDir(), 'torrent-cache');
@@ -144,24 +144,36 @@ export function removeTorrentHistoryItem(infoHash: string): void {
 
 export function syncExistingTorrentHistoryToLibrary(): void {
   try {
+    const library = readLibrary();
     const history = readTorrentHistory();
     for (const item of history) {
-      if (item.infoHash && item.magnetUri) {
-        saveTorrentMediaItem({
-          infoHash: item.infoHash,
-          magnetUri: item.magnetUri,
-          name: item.name,
-          totalBytes: item.totalBytes,
-          selectedFileIndex: item.selectedFileIndex,
-        });
-        if (item.progressSeconds) {
-          updateTorrentProgressInLibrary(
-            item.infoHash,
-            item.selectedFileIndex || 0,
-            item.progressSeconds,
-            item.durationSeconds
-          );
-        }
+      if (!item.infoHash || !item.magnetUri) continue;
+
+      const cleanHash = item.infoHash.toLowerCase();
+      const historyTitleKey = normalizeSearchTitle(item.name || '');
+      const alreadyExists = library.items.some((libraryItem) => {
+        if (libraryItem.infoHash && libraryItem.infoHash.toLowerCase() === cleanHash) return true;
+        const libraryTitleKey = normalizeSearchTitle(libraryItem.title || '');
+        return !!(libraryTitleKey && historyTitleKey && libraryTitleKey === historyTitleKey);
+      });
+
+      if (alreadyExists) continue;
+
+      saveTorrentMediaItem({
+        infoHash: item.infoHash,
+        magnetUri: item.magnetUri,
+        name: item.name,
+        totalBytes: item.totalBytes,
+        selectedFileIndex: item.selectedFileIndex,
+      });
+
+      if (item.progressSeconds) {
+        updateTorrentProgressInLibrary(
+          item.infoHash,
+          item.selectedFileIndex || 0,
+          item.progressSeconds,
+          item.durationSeconds
+        );
       }
     }
   } catch (err) {
