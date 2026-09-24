@@ -93,13 +93,15 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 
           {continueEpisode ? (
             <div className="text-[11px] text-red-400 font-medium line-clamp-1 mb-2">
-              T{continueEpisode.seasonNumber}:E{continueEpisode.episodeNumber} - {continueEpisode.title}
+              {media.kind === 'series'
+                ? `T${continueEpisode.seasonNumber}:E${continueEpisode.episodeNumber} - ${continueEpisode.title}`
+                : `Parou em ${formatTime(continueEpisode.progressSeconds)}`}
             </div>
           ) : (
             <div className="text-[11px] text-neutral-400 line-clamp-1 mb-2">
               {media.kind === 'series'
                 ? `${media.totalSeasons} Temp · ${media.totalEpisodes} eps`
-                : `${media.seasons[0]?.episodes[0]?.resolution || 'HD'}`}
+                : (activeEp?.durationSeconds ? formatTime(activeEp.durationSeconds) : (activeEp?.resolution || 'Filme'))}
             </div>
           )}
 

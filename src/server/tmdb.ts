@@ -356,6 +356,16 @@ export async function enrichMediaWithTmdb(
     for (const season of media.seasons) {
       season.title = `Temporada ${season.seasonNumber}`;
     }
+  } else {
+    // Filmes NÃO têm temporadas
+    media.totalSeasons = 0;
+    for (const season of media.seasons) {
+      season.seasonNumber = 0;
+      season.title = '';
+      if (season.episodes[0] && (!season.episodes[0].title || season.episodes[0].title.startsWith('Episódio') || season.episodes[0].title.startsWith('Vídeo'))) {
+        season.episodes[0].title = media.title;
+      }
+    }
   }
 
   return media;

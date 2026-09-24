@@ -406,12 +406,27 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                     MAGNET / TORRENT
                   </span>
                 )}
-                <span className="text-neutral-400">·</span>
-                <span>{media.totalEpisodes} Episódio{media.totalEpisodes > 1 ? 's' : ''}</span>
-                {media.totalSeasons > 1 && (
+                {media.kind === 'series' ? (
                   <>
                     <span className="text-neutral-400">·</span>
-                    <span>{media.totalSeasons} Temporadas</span>
+                    <span>{media.totalEpisodes} Episódio{media.totalEpisodes > 1 ? 's' : ''}</span>
+                    {media.totalSeasons > 0 && (
+                      <>
+                        <span className="text-neutral-400">·</span>
+                        <span>{media.totalSeasons} Temporada{media.totalSeasons > 1 ? 's' : ''}</span>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span className="text-neutral-400">·</span>
+                    <span>Filme</span>
+                    {selectedSeason?.episodes[0]?.durationSeconds ? (
+                      <>
+                        <span className="text-neutral-400">·</span>
+                        <span>{formatTime(selectedSeason.episodes[0].durationSeconds)}</span>
+                      </>
+                    ) : null}
                   </>
                 )}
               </div>
@@ -446,7 +461,7 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                 className="shrink-0 flex items-center space-x-2 px-6 py-2.5 rounded bg-white text-black font-bold hover:bg-neutral-200 transition-all shadow-lg active:scale-95"
               >
                 <Play className="w-5 h-5 fill-black" />
-                <span>Reproduzir</span>
+                <span>{media.kind === 'movie' ? 'Assistir Filme' : 'Reproduzir'}</span>
               </button>
             )}
           </div>
@@ -902,7 +917,7 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
 
         {/* Season Selector & Episode List */}
         <div className="p-6">
-          {media.seasons.length > 1 && (
+          {media.kind === 'series' && media.seasons.length > 1 && (
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-2">
                 <Layers className="w-4 h-4 text-neutral-400" />
@@ -915,7 +930,7 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
               >
                 {media.seasons.map((season) => (
                   <option key={season.seasonNumber} value={season.seasonNumber}>
-                    {season.title} ({season.episodes.length} episódios)
+                    {season.title || `Temporada ${season.seasonNumber}`} ({season.episodes.length} episódios)
                   </option>
                 ))}
               </select>
@@ -970,11 +985,13 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                     {/* Metadata */}
                     <div className="min-w-0">
                       <div className="flex items-center space-x-2">
-                        <span className="text-xs font-bold text-red-500">
-                          E{ep.episodeNumber.toString().padStart(2, '0')}
-                        </span>
+                        {media.kind === 'series' && (
+                          <span className="text-xs font-bold text-red-500">
+                            E{ep.episodeNumber.toString().padStart(2, '0')}
+                          </span>
+                        )}
                         <h4 className="text-sm font-semibold text-white truncate group-hover:text-red-400 transition-colors">
-                          {ep.title}
+                          {media.kind === 'movie' ? (media.title || ep.title) : ep.title}
                         </h4>
                       </div>
 

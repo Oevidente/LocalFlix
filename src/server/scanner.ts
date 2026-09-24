@@ -336,7 +336,41 @@ export async function scanMediaFolder(folderPath: string, customTitle?: string):
     rawEpisodes.push({ ep: episode, seasonNum: parsed.seasonNumber, rawEpNum: parsed.episodeNumber });
   }
 
-  // Group into seasons and resolve any episode collisions/duplicates
+  // If movie (1 video file), films DO NOT have seasons
+  if (kind === 'movie') {
+    const singleEp = rawEpisodes[0]?.ep;
+    if (singleEp) {
+      singleEp.seasonNumber = 0;
+      singleEp.episodeNumber = 1;
+      singleEp.title = title;
+    }
+    const movieSeasons: Season[] = singleEp ? [{
+      seasonNumber: 0,
+      title: '',
+      episodes: [singleEp],
+    }] : [];
+
+    const mediaHash = crypto.createHash('md5').update(resolvedPath).digest('hex').slice(0, 16);
+    const mediaId = `media_${mediaHash}`;
+    const now = new Date().toISOString();
+
+    return {
+      id: mediaId,
+      title,
+      customTitle: customTitle?.trim() || undefined,
+      kind: 'movie',
+      folderPath: resolvedPath,
+      posterPath,
+      backdropPath,
+      totalEpisodes: movieSeasons.length,
+      totalSeasons: 0,
+      seasons: movieSeasons,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  // SÉRIE: Group into seasons and resolve any episode collisions/duplicates
   const seasonMap = new Map<number, typeof rawEpisodes>();
   for (const item of rawEpisodes) {
     if (!seasonMap.has(item.seasonNum)) {
@@ -396,7 +430,7 @@ export async function scanMediaFolder(folderPath: string, customTitle?: string):
     id: mediaId,
     title,
     customTitle: customTitle?.trim() || undefined,
-    kind,
+    kind: 'series',
     folderPath: resolvedPath,
     posterPath,
     backdropPath,

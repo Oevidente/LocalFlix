@@ -281,10 +281,8 @@ export const TorrentModal: React.FC<TorrentModalProps> = ({
   const videoFiles = useMemo(() => status?.files?.filter((f) => f.isVideo) || [], [status?.files]);
 
   const isSeries = useMemo(() => {
-    if (videoFiles.length > 1) return true;
-    if (status && /[Ss]\d{1,2}|Season\s*\d+|Temporada\s*\d+|Complete/i.test(status.name)) return true;
-    return false;
-  }, [videoFiles.length, status]);
+    return videoFiles.length > 1;
+  }, [videoFiles.length]);
 
   // Parse files into episodes
   const parsedEpisodes: ParsedTorrentEpisode[] = useMemo(() => {

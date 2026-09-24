@@ -98,6 +98,13 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
             )}
           </div>
         )}
+        {targetEpisode && media.kind === 'movie' && isContinue && (
+          <div className="text-sm sm:text-base text-neutral-300 font-medium mb-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-neutral-400">
+              (Parou em {formatTime(targetEpisode.progressSeconds)})
+            </span>
+          </div>
+        )}
 
         {/* Progress bar if partially watched */}
         {targetEpisode && targetEpisode.durationSeconds > 0 && targetEpisode.progressSeconds > 0 && (

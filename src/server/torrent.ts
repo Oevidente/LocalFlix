@@ -143,31 +143,22 @@ export function removeTorrentHistoryItem(infoHash: string): void {
 }
 
 export function syncExistingTorrentHistoryToLibrary(): void {
+  // Do NOT re-create or insert items into library.json from history on startup.
+  // Library.json is the source of truth for media library items.
+  // We only sync watch progress for items that ALREADY exist in the library.
   try {
     const library = readLibrary();
     const history = readTorrentHistory();
+
     for (const item of history) {
-      if (!item.infoHash || !item.magnetUri) continue;
-
+      if (!item.infoHash || !item.progressSeconds) continue;
       const cleanHash = item.infoHash.toLowerCase();
-      const historyTitleKey = normalizeSearchTitle(item.name || '');
-      const alreadyExists = library.items.some((libraryItem) => {
-        if (libraryItem.infoHash && libraryItem.infoHash.toLowerCase() === cleanHash) return true;
-        const libraryTitleKey = normalizeSearchTitle(libraryItem.title || '');
-        return !!(libraryTitleKey && historyTitleKey && libraryTitleKey === historyTitleKey);
-      });
 
-      if (alreadyExists) continue;
+      const existsInLibrary = library.items.some(
+        (i) => (i.infoHash && i.infoHash.toLowerCase() === cleanHash) || i.id === `torrent_${cleanHash}`
+      );
 
-      saveTorrentMediaItem({
-        infoHash: item.infoHash,
-        magnetUri: item.magnetUri,
-        name: item.name,
-        totalBytes: item.totalBytes,
-        selectedFileIndex: item.selectedFileIndex,
-      });
-
-      if (item.progressSeconds) {
+      if (existsInLibrary) {
         updateTorrentProgressInLibrary(
           item.infoHash,
           item.selectedFileIndex || 0,
