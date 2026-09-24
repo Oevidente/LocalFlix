@@ -4,7 +4,6 @@ import fs from 'fs';
 import http from 'http';
 import https from 'https';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { apiRouter } from './src/server/routes';
 
 // Global error handlers to ensure child process or async errors never crash the Node server
@@ -61,27 +60,45 @@ async function startServer() {
   });
 
   // Vite middleware in dev / Static files in prod
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        // The app already owns the HTTP server. Do not open Vite's separate
-        // HMR WebSocket (which defaults to port 24678).
-        hmr: false,
-        ws: false,
-        watch: {
-          ignored: ['**/data/**', '**/data/library.json', '**/.git/**', '**/cinelocal_hls/**', '**/tmp/**', '**/*.ts', '**/*.m3u8'],
-        },
-      },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
+  const distPath = path.join(process.cwd(), 'dist');
+  const distHtmlExists = fs.existsSync(path.join(distPath, 'index.html'));
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (isProduction && distHtmlExists) {
+    console.log('[CineLocal] Servindo interface compilada a partir de dist/');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
+  } else {
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: {
+          middlewareMode: true,
+          // The app already owns the HTTP server. Do not open Vite's separate
+          // HMR WebSocket (which defaults to port 24678).
+          hmr: false,
+          ws: false,
+          watch: {
+            ignored: ['**/data/**', '**/data/library.json', '**/.git/**', '**/cinelocal_hls/**', '**/tmp/**', '**/*.ts', '**/*.m3u8'],
+          },
+        },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch (viteErr: any) {
+      console.warn('[CineLocal] Falha ao carregar Vite dev middleware (binding nativo ou modulo ausente):', viteErr?.message || viteErr);
+      if (distHtmlExists) {
+        console.log('[CineLocal] Fallback ativado com sucesso: Servindo frontend a partir da pasta dist/');
+        app.use(express.static(distPath));
+        app.get('*', (req, res) => {
+          res.sendFile(path.join(distPath, 'index.html'));
+        });
+      } else {
+        throw viteErr;
+      }
+    }
   }
 
   const primaryProtocol = useHttps ? 'https' : 'http';

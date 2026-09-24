@@ -41,7 +41,8 @@ CineLocal/
 ### Dependências no modo portátil
 
 - O arquivo `instalar dependências.bat` executa `npm install --include=dev` e mantém o cache do npm dentro de `.cache/npm`, no mesmo disco do CineLocal.
-- O Windows precisa ter Node.js LTS e npm disponíveis. Para um pacote totalmente portátil, inclua uma distribuição completa do Node (incluindo `node.exe` e `npm.cmd`) dentro da pasta `bin`.
+- **Não tem Node.js instalado no PC?** Ao executar `instalar dependências.bat`, o script detecta isso e oferece o download automático do Node.js LTS portátil oficial diretamente para a pasta `bin\`.
+- Para um pacote totalmente portátil, a distribuição do Node (incluindo `node.exe` e `npm.cmd`) dentro de `bin\` roda em qualquer computador sem precisar de instalação ou privilégios de administrador.
 - Depois que `node_modules` for instalado, a pasta inteira pode ser copiada para o pendrive e usada sem reinstalar as dependências em cada execução.
 - O FFmpeg é separado das dependências JavaScript. Para MKV, coloque `ffmpeg.exe` e `ffprobe.exe` em `bin` ou use o instalador disponível dentro do CineLocal.
 

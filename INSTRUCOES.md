@@ -13,12 +13,13 @@ Este guia reúne os passos essenciais para configurar e executar o projeto em um
 
 1. Abra a pasta do projeto.
 2. Execute o arquivo `instalar dependências.bat`.
-3. Aguarde a instalação do `npm install --include=dev`.
-4. Se o Node.js não estiver no PATH, o script também tenta usar uma versão portátil em `bin/node.exe` e `bin/npm.cmd`.
+3. **Se a máquina não tiver Node.js instalado**, o próprio script detecta a ausência e pergunta se você deseja baixar a versão portátil oficial automaticamente para a pasta `bin/`. Basta pressionar Enter (`S`)!
+4. Aguarde a instalação do `npm install --include=dev`.
+5. Se o Node.js não estiver no PATH do Windows, o script utiliza a versão portátil em `bin/node.exe` e `bin/npm.cmd`.
 
 O script:
 - valida se o `package.json` existe;
-- verifica Node.js e npm;
+- verifica Node.js e npm (com opção de download portátil automático);
 - instala as dependências do projeto;
 - mantém o cache do npm em `.cache/npm` dentro da pasta do app;
 - anuncia se o FFmpeg não foi encontrado;

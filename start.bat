@@ -90,8 +90,15 @@ if %ERRORLEVEL% NEQ 0 (
 :: Abre o navegador automaticamente apos 3 segundos
 start "" cmd /c "timeout /t 3 >nul 2>&1 & start https://localhost:%PORT%"
 
-:: Executa o CineLocal diretamente pelo npm run dev
-call npm run dev
+:: Define modo de producao para usar a interface compilada de forma rapida, leve e estavel
+set "NODE_ENV=production"
+
+:: Executa o CineLocal (preferindo dist/server.cjs compilado ou tsx server.ts)
+if exist "%~dp0dist\server.cjs" if exist "%~dp0dist\index.html" (
+    node "%~dp0dist\server.cjs"
+) else (
+    call npm run dev
+)
 
 echo.
 echo Servidor encerrado.

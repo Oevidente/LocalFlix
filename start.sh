@@ -6,6 +6,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$DIR"
 
 export PORT="${PORT:-3050}"
+export NODE_ENV="${NODE_ENV:-production}"
 export HLS_CACHE_DIR="${HLS_CACHE_DIR:-$DIR/.cache/hls}"
 export HLS_CACHE_MAX_MB="${HLS_CACHE_MAX_MB:-4096}"
 

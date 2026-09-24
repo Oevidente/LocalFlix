@@ -31,6 +31,27 @@ if not exist "%APP_DIR%package.json" (
     exit /b 1
 )
 
+:: Verifica se o Node.js esta presente (portatil ou no sistema)
+if not exist "%PORTABLE_NODE%" (
+    where node >nul 2>&1
+    if errorlevel 1 (
+        echo [AVISO] Node.js nao foi detectado no sistema nem na pasta bin\.
+        echo.
+        echo O CineLocal pode baixar e configurar o Node.js LTS portatil automaticamente
+        echo diretamente na pasta bin\, tornando o aplicativo 100%% portatil para pendrive
+        echo sem necessidade de instalador do Windows ou permissoes de administrador.
+        echo.
+        set "AUTO_NODE="
+        set /p "AUTO_NODE=Deseja baixar o Node.js portatil automaticamente agora? [S/N] (Padrao: S): "
+        if "!AUTO_NODE!"=="" set "AUTO_NODE=S"
+        if /i "!AUTO_NODE!"=="S" (
+            echo.
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%APP_DIR%scripts\install-portable-node.ps1" -TargetDir "%APP_DIR%bin"
+            echo.
+        )
+    )
+)
+
 if exist "%PORTABLE_NODE%" (
     set "NODE_CMD=%PORTABLE_NODE%"
 ) else (
@@ -38,10 +59,13 @@ if exist "%PORTABLE_NODE%" (
     if errorlevel 1 (
         echo [ERRO] Node.js nao foi encontrado.
         echo.
-        echo Instale o Node.js LTS no computador ou coloque node.exe em:
-        echo        %APP_DIR%bin\node.exe
+        echo Para resolver, utilize uma das opcoes abaixo:
+        echo  1. Execute este arquivo novamente e aceite o download automatico do Node portatil.
+        echo  2. Baixe o instalador oficial LTS em: https://nodejs.org/
+        echo  3. Ou instale via terminal Windows: winget install OpenJS.NodeJS.LTS
+        echo  4. Ou coloque os executaveis node.exe e npm na pasta:
+        echo     %APP_DIR%bin\
         echo.
-        echo O node.exe portatil pode acompanhar o CineLocal no pendrive.
         pause
         exit /b 1
     )
@@ -54,7 +78,8 @@ if exist "%PORTABLE_NPM%" (
     where npm.cmd >nul 2>&1
     if errorlevel 1 (
         echo [ERRO] npm nao foi encontrado.
-        echo O npm acompanha a instalacao normal do Node.js LTS.
+        echo O npm acompanha a distribuicao oficial do Node.js LTS.
+        echo Execute este arquivo e aceite o download automatico para obter o npm na pasta bin\.
         pause
         exit /b 1
     )
