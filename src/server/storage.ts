@@ -263,6 +263,7 @@ export function normalizeSearchTitle(title: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[\[\(].*?[\]\)]/g, ' ')
     .replace(/(?:[Ss]\d{1,2}(?:-[Ss]\d{1,2})?|[Ss]eason\s*\d+|[Tt]emporada\s*\d+|[Cc]omplete\s*[Ss]eries|[Cc]omplete|[Ee]pisode\s*\d+(?:\s*[-x]\s*\d+)?|[Ee]pisodio\s*\d+(?:\s*[-x]\s*\d+)?|[Ee]\d{1,3}(?:\s*[-xEe]\s*\d{1,3})*)/gi, ' ')
+    .replace(/\b\d+\s*[ªº]/gi, ' ')
     .replace(/(?:2160p|1080p|720p|480p|4k|bluray|brrip|webrip|web-dl|webdl|hdtv|x264|x265|hevc|avc|aac|dts|ddp|ac3|yify|yts|eztv|tgx|rarbg|galaxytv|dual|dublado|legendado|multi)/gi, ' ')
     .replace(/[^a-z0-9]/g, ' ')
     .replace(/\s+/g, ' ')
