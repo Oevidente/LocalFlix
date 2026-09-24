@@ -76,9 +76,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             : 'bg-gradient-to-b from-black/95 via-black/60 to-transparent py-3 sm:py-4'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex items-center justify-between w-full min-w-0 gap-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-5 lg:px-8 flex items-center justify-between w-full min-w-0 gap-2 md:gap-3 lg:gap-4">
           {/* Left: Brand Logo + Desktop Navigation / Expanding Search Bar */}
-          <div className="flex items-center flex-1 min-w-0 mr-2 sm:mr-4">
+          <div className="flex items-center flex-1 min-w-0 mr-1 sm:mr-2 lg:mr-4">
             {/* Brand Logo */}
             <div
               id="brand-logo"
@@ -86,26 +86,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onTabChange('all');
                 setShowMobileMenu(false);
               }}
-              className="cursor-pointer flex items-center space-x-2 shrink-0 group select-none mr-4 lg:mr-8"
+              className="cursor-pointer flex items-center space-x-1.5 sm:space-x-2 shrink-0 group select-none mr-2 sm:mr-4 md:mr-3 lg:mr-6"
             >
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-[#E50914] flex items-center justify-center font-black text-white text-lg sm:text-xl tracking-tighter shadow-lg shadow-red-950/40">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-[#E50914] flex items-center justify-center font-black text-white text-base sm:text-xl tracking-tighter shadow-lg shadow-red-950/40 shrink-0">
                 C
               </div>
-              <span className="text-lg sm:text-2xl font-black tracking-wider text-[#E50914] uppercase drop-shadow-md">
+              <span className="text-base sm:text-xl lg:text-2xl font-black tracking-wider text-[#E50914] uppercase drop-shadow-md">
                 Cine<span className="text-white">Local</span>
               </span>
             </div>
 
             {/* Desktop Navigation Links (Smoothly fades out and collapses when search expands) */}
             <nav
-              className={`hidden md:flex items-center space-x-4 lg:space-x-6 text-sm font-medium transition-all duration-300 ${
+              className={`hidden md:flex items-center space-x-1.5 md:space-x-2 lg:space-x-4 xl:space-x-6 text-xs lg:text-sm font-medium transition-all duration-300 shrink-0 ${
                 isExpanded ? 'opacity-0 scale-95 pointer-events-none w-0 overflow-hidden' : 'opacity-100 scale-100'
               }`}
             >
               <button
                 id="nav-tab-all"
                 onClick={() => onTabChange('all')}
-                className={`transition-colors cursor-pointer whitespace-nowrap ${
+                className={`px-1.5 lg:px-2 py-1 rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                   activeTab === 'all' ? 'text-white font-semibold' : 'text-neutral-400 hover:text-neutral-200'
                 }`}
               >
@@ -114,35 +114,36 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="nav-tab-series"
                 onClick={() => onTabChange('series')}
-                className={`transition-colors flex items-center space-x-1 cursor-pointer whitespace-nowrap ${
+                className={`px-1.5 lg:px-2 py-1 rounded-md transition-colors flex items-center space-x-1 cursor-pointer whitespace-nowrap ${
                   activeTab === 'series' ? 'text-white font-semibold' : 'text-neutral-400 hover:text-neutral-200'
                 }`}
               >
-                <Tv className="w-3.5 h-3.5 mr-1 inline" />
+                <Tv className="w-3.5 h-3.5 mr-1 inline shrink-0" />
                 Séries
               </button>
               <button
                 id="nav-tab-movie"
                 onClick={() => onTabChange('movie')}
-                className={`transition-colors flex items-center space-x-1 cursor-pointer whitespace-nowrap ${
+                className={`px-1.5 lg:px-2 py-1 rounded-md transition-colors flex items-center space-x-1 cursor-pointer whitespace-nowrap ${
                   activeTab === 'movie' ? 'text-white font-semibold' : 'text-neutral-400 hover:text-neutral-200'
                 }`}
               >
-                <Film className="w-3.5 h-3.5 mr-1 inline" />
+                <Film className="w-3.5 h-3.5 mr-1 inline shrink-0" />
                 Filmes
               </button>
               <button
                 id="nav-tab-channels"
                 onClick={() => onTabChange('channels')}
-                className={`transition-all flex items-center space-x-1.5 px-2.5 py-1 rounded-full cursor-pointer whitespace-nowrap ${
+                className={`transition-all flex items-center space-x-1.5 px-2 lg:px-2.5 py-1 rounded-full cursor-pointer whitespace-nowrap shrink-0 ${
                   activeTab === 'channels'
                     ? 'bg-red-600/30 text-red-400 border border-red-500/50 font-bold shadow-sm shadow-red-950/50'
                     : 'text-neutral-400 hover:text-red-400 hover:bg-red-950/20'
                 }`}
               >
-                <Radio className="w-3.5 h-3.5 text-red-500 animate-pulse" />
-                <span>Canais Ao Vivo</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                <Radio className="w-3.5 h-3.5 text-red-500 animate-pulse shrink-0" />
+                <span className="hidden xl:inline">Canais </span>
+                <span>Ao Vivo</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
               </button>
             </nav>
 
@@ -155,8 +156,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'w-0 opacity-0 pointer-events-none overflow-hidden'
               }`}
             >
-              <div className="relative flex items-center w-full bg-[#181818]/95 border border-neutral-700/80 hover:border-neutral-600 focus-within:border-neutral-400 focus-within:ring-1 focus-within:ring-neutral-400/20 rounded-full px-4 py-2 text-sm transition-all shadow-inner">
-                <Search className="w-4 h-4 text-neutral-400 mr-2.5 shrink-0" />
+              <div className="relative flex items-center w-full bg-[#181818]/95 border border-neutral-700/80 hover:border-neutral-600 focus-within:border-neutral-400 focus-within:ring-1 focus-within:ring-neutral-400/20 rounded-full px-3.5 py-1.5 lg:py-2 text-xs lg:text-sm transition-all shadow-inner">
+                <Search className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-neutral-400 mr-2 shrink-0" />
                 <input
                   ref={desktopSearchInputRef}
                   id="search-input"
@@ -164,7 +165,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   value={searchQuery}
                   onChange={(e) => onSearchChange(e.target.value)}
                   placeholder="Buscar filmes, séries, atores, diretores..."
-                  className="bg-transparent border-none text-white focus:outline-none w-full text-xs sm:text-sm placeholder-neutral-400"
+                  className="bg-transparent border-none text-white focus:outline-none w-full text-xs lg:text-sm placeholder-neutral-400"
                   onKeyDown={(e) => {
                     if (e.key === 'Escape') {
                       onSearchChange('');
@@ -181,7 +182,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="text-neutral-400 hover:text-white p-1 rounded-full hover:bg-neutral-800 transition-colors ml-1 shrink-0 cursor-pointer"
                     title="Limpar e fechar busca"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
                   </button>
                 ) : (
                   <button
@@ -189,15 +190,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="text-neutral-500 hover:text-neutral-300 p-1 rounded-full hover:bg-neutral-800/60 transition-colors ml-1 shrink-0 cursor-pointer"
                     title="Fechar busca"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-3 h-3 lg:w-3.5 lg:h-3.5" />
                   </button>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Right: Actions on Desktop */}
-          <div className="hidden md:flex items-center space-x-3 sm:space-x-4 shrink-0">
+          {/* Right: Actions on Desktop & Tablet */}
+          <div className="hidden md:flex items-center gap-1.5 md:gap-2 lg:gap-2.5 xl:gap-3 shrink-0">
             {/* Search Toggle Button (Lupa) - When clicked, hides links and expands search bar */}
             {!isExpanded && (
               <button
@@ -205,10 +206,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => {
                   setIsSearchOpen(true);
                 }}
-                className="p-2 text-neutral-300 hover:text-white transition-colors rounded-full hover:bg-white/10 cursor-pointer flex items-center justify-center"
+                className="p-1.5 lg:p-2 text-neutral-300 hover:text-white transition-colors rounded-full hover:bg-white/10 cursor-pointer flex items-center justify-center shrink-0"
                 title="Buscar filmes, séries, atores, diretores..."
               >
-                <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Search className="w-4 h-4 lg:w-5 lg:h-5" />
               </button>
             )}
 
@@ -216,11 +217,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="torrent-player-btn"
               onClick={onOpenTorrentModal}
-              className="h-9 flex items-center gap-1.5 px-3 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 text-amber-400 hover:text-amber-300 text-xs sm:text-sm font-medium transition-all border border-neutral-700/80 hover:border-amber-500/50 shadow-sm active:scale-95 cursor-pointer shrink-0"
+              className="h-8 lg:h-9 flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 lg:px-3 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 text-amber-400 hover:text-amber-300 text-xs lg:text-sm font-medium transition-all border border-neutral-700/80 hover:border-amber-500/50 shadow-sm active:scale-95 cursor-pointer shrink-0"
               title="Abrir Player Torrent / Link Magnet"
             >
-              <Radio className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>Player Torrent</span>
+              <Radio className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-amber-400 shrink-0" />
+              <span className="hidden xl:inline">Player </span>
+              <span>Torrent</span>
             </button>
 
             {/* Add Folder Button */}
@@ -228,18 +230,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="add-folder-btn"
               onClick={onOpenAddModal}
               disabled={isPickingFolder}
-              className="h-9 flex items-center gap-1.5 px-3.5 rounded-lg bg-[#E50914] hover:bg-[#b80710] text-white text-xs sm:text-sm font-medium transition-all shadow-md hover:shadow-red-600/20 active:scale-95 disabled:opacity-75 cursor-pointer shrink-0"
+              className="h-8 lg:h-9 flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 lg:px-3.5 rounded-lg bg-[#E50914] hover:bg-[#b80710] text-white text-xs lg:text-sm font-medium transition-all shadow-md hover:shadow-red-600/20 active:scale-95 disabled:opacity-75 cursor-pointer shrink-0"
               title="Adicionar pasta do PC pelo explorador nativo"
             >
               {isPickingFolder ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                  <span>Explorador...</span>
+                  <Loader2 className="w-3.5 h-3.5 lg:w-4 lg:h-4 animate-spin shrink-0" />
+                  <span className="text-xs lg:text-sm">Explorador...</span>
                 </>
               ) : (
                 <>
-                  <Plus className="w-4 h-4 shrink-0" />
-                  <span>Adicionar Pasta PC</span>
+                  <Plus className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" />
+                  <span className="hidden xl:inline">Adicionar </span>
+                  <span>Pasta</span>
+                  <span className="hidden 2xl:inline"> PC</span>
                 </>
               )}
             </button>
@@ -252,10 +256,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="tmdb-config-navbar-btn"
                 onClick={onOpenTmdbModal}
-                className="p-2 text-pink-400 hover:text-pink-300 rounded-md hover:bg-pink-500/15 transition-colors cursor-pointer"
+                className="p-1.5 lg:p-2 text-pink-400 hover:text-pink-300 rounded-md hover:bg-pink-500/15 transition-colors cursor-pointer shrink-0"
                 title="Configurar TMDb (Capas e Sinopses)"
               >
-                <Sparkles className="w-5 h-5" />
+                <Sparkles className="w-4 h-4 lg:w-5 lg:h-5" />
               </button>
             )}
 
@@ -263,10 +267,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="system-status-btn"
               onClick={onOpenSystemModal}
-              className="p-2 text-neutral-300 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1.5 lg:p-2 text-neutral-300 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer shrink-0"
               title="Status do Sistema e Portabilidade"
             >
-              <HardDrive className="w-5 h-5" />
+              <HardDrive className="w-4 h-4 lg:w-5 lg:h-5" />
             </button>
           </div>
 

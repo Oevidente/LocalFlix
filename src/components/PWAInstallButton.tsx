@@ -16,11 +16,12 @@ export const PWAInstallButton: React.FC = () => {
     return (
       <button
         onClick={install}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#E50914] hover:bg-red-700 text-white text-xs font-semibold shadow-md hover:shadow-red-600/20 transition active:scale-95 cursor-pointer"
+        className="flex items-center gap-1 md:gap-1.5 h-8 lg:h-9 px-2 md:px-2.5 lg:px-3 rounded-lg bg-[#E50914] hover:bg-red-700 text-white text-xs lg:text-sm font-semibold shadow-md hover:shadow-red-600/20 transition active:scale-95 cursor-pointer shrink-0"
         title="Instalar CineLocal no dispositivo"
       >
-        <Download className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">Instalar App</span>
+        <Download className="w-3.5 h-3.5 shrink-0" />
+        <span className="hidden xl:inline">Instalar App</span>
+        <span className="hidden sm:inline xl:hidden">Instalar</span>
       </button>
     );
   }
@@ -31,10 +32,10 @@ export const PWAInstallButton: React.FC = () => {
       <>
         <button
           onClick={() => setShowIOSGuide(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-800/80 hover:bg-neutral-700 text-neutral-200 border border-white/10 text-xs font-semibold transition active:scale-95 cursor-pointer"
+          className="flex items-center gap-1 md:gap-1.5 h-8 lg:h-9 px-2 md:px-2.5 lg:px-3 rounded-lg bg-neutral-800/80 hover:bg-neutral-700 text-neutral-200 border border-white/10 text-xs lg:text-sm font-semibold transition active:scale-95 cursor-pointer shrink-0"
           title="Instalar CineLocal no iOS"
         >
-          <Smartphone className="w-3.5 h-3.5 text-red-500" />
+          <Smartphone className="w-3.5 h-3.5 text-red-500 shrink-0" />
           <span className="hidden sm:inline">Instalar</span>
         </button>
 
