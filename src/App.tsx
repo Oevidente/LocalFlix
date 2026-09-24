@@ -775,7 +775,7 @@ export default function App() {
           <main className={`relative z-20 ${heroMedia && !searchQuery ? 'mt-3 sm:mt-6 lg:mt-8' : 'pt-28 sm:pt-32 lg:pt-36'}`}>
             {/* Mobile Access Instruction Banner on Home Screen */}
             {!searchQuery && activeTab === 'all' && (
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 sm:mb-8">
+              <div className="px-4 sm:px-6 lg:px-8 mb-6 sm:mb-8">
                 <MobileAccessBanner />
               </div>
             )}

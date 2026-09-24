@@ -76,7 +76,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             : 'bg-gradient-to-b from-black/95 via-black/60 to-transparent py-3 sm:py-4'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-5 lg:px-8 flex items-center justify-between w-full min-w-0 gap-2 md:gap-3 lg:gap-4">
+        <div className="px-4 sm:px-6 lg:px-8 flex items-center justify-between w-full min-w-0 gap-2 md:gap-3 lg:gap-4">
           {/* Left: Brand Logo + Desktop Navigation / Expanding Search Bar */}
           <div className="flex items-center flex-1 min-w-0 mr-1 sm:mr-2 lg:mr-4">
             {/* Brand Logo */}
