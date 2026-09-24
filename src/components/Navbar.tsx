@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio, Sparkles, Home, History, MoreVertical, X, FolderPlus, Smartphone } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio, Sparkles, Home, History, MoreVertical, X, FolderPlus } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface NavbarProps {
@@ -26,8 +26,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   isPickingFolder = false,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const desktopSearchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  const isExpanded = isSearchOpen || Boolean(searchQuery && searchQuery.trim().length > 0);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -37,27 +41,52 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Auto focus input whenever search opens
+  useEffect(() => {
+    if (isSearchOpen) {
+      setTimeout(() => {
+        desktopSearchInputRef.current?.focus();
+      }, 50);
+    }
+  }, [isSearchOpen]);
+
+  // Handle clicking outside of search bar to close if empty
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node) &&
+        !searchQuery
+      ) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [searchQuery]);
+
   return (
     <>
       {/* Top Header Navbar */}
       <header
         id="navbar"
-        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 w-full max-w-full overflow-hidden ${
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 w-full ${
           isScrolled
             ? 'bg-[#141414]/95 backdrop-blur-md shadow-2xl py-2.5 sm:py-3 border-b border-white/5'
             : 'bg-gradient-to-b from-black/95 via-black/60 to-transparent py-3 sm:py-4'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex items-center justify-between w-full min-w-0">
-          {/* Left: Brand Logo + Desktop Navigation */}
-          <div className="flex items-center space-x-4 sm:space-x-8 shrink-0 min-w-0">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex items-center justify-between w-full min-w-0 gap-3">
+          {/* Left: Brand Logo + Desktop Navigation / Expanding Search Bar */}
+          <div className="flex items-center flex-1 min-w-0 mr-2 sm:mr-4">
+            {/* Brand Logo */}
             <div
               id="brand-logo"
               onClick={() => {
                 onTabChange('all');
                 setShowMobileMenu(false);
               }}
-              className="cursor-pointer flex items-center space-x-2 shrink-0 group select-none"
+              className="cursor-pointer flex items-center space-x-2 shrink-0 group select-none mr-4 lg:mr-8"
             >
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-[#E50914] flex items-center justify-center font-black text-white text-lg sm:text-xl tracking-tighter shadow-lg shadow-red-950/40">
                 C
@@ -67,12 +96,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
 
-            {/* Desktop Nav Links */}
-            <nav className="hidden md:flex items-center space-x-5 text-sm font-medium">
+            {/* Desktop Navigation Links (Smoothly fades out and collapses when search expands) */}
+            <nav
+              className={`hidden md:flex items-center space-x-4 lg:space-x-6 text-sm font-medium transition-all duration-300 ${
+                isExpanded ? 'opacity-0 scale-95 pointer-events-none w-0 overflow-hidden' : 'opacity-100 scale-100'
+              }`}
+            >
               <button
                 id="nav-tab-all"
                 onClick={() => onTabChange('all')}
-                className={`transition-colors cursor-pointer ${
+                className={`transition-colors cursor-pointer whitespace-nowrap ${
                   activeTab === 'all' ? 'text-white font-semibold' : 'text-neutral-400 hover:text-neutral-200'
                 }`}
               >
@@ -81,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="nav-tab-series"
                 onClick={() => onTabChange('series')}
-                className={`transition-colors flex items-center space-x-1 cursor-pointer ${
+                className={`transition-colors flex items-center space-x-1 cursor-pointer whitespace-nowrap ${
                   activeTab === 'series' ? 'text-white font-semibold' : 'text-neutral-400 hover:text-neutral-200'
                 }`}
               >
@@ -91,7 +124,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="nav-tab-movie"
                 onClick={() => onTabChange('movie')}
-                className={`transition-colors flex items-center space-x-1 cursor-pointer ${
+                className={`transition-colors flex items-center space-x-1 cursor-pointer whitespace-nowrap ${
                   activeTab === 'movie' ? 'text-white font-semibold' : 'text-neutral-400 hover:text-neutral-200'
                 }`}
               >
@@ -101,7 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="nav-tab-continue"
                 onClick={() => onTabChange('continue')}
-                className={`transition-colors cursor-pointer ${
+                className={`transition-colors cursor-pointer whitespace-nowrap ${
                   activeTab === 'continue' ? 'text-white font-semibold' : 'text-neutral-400 hover:text-neutral-200'
                 }`}
               >
@@ -110,7 +143,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="nav-tab-channels"
                 onClick={() => onTabChange('channels')}
-                className={`transition-all flex items-center space-x-1.5 px-2.5 py-1 rounded-full cursor-pointer ${
+                className={`transition-all flex items-center space-x-1.5 px-2.5 py-1 rounded-full cursor-pointer whitespace-nowrap ${
                   activeTab === 'channels'
                     ? 'bg-red-600/30 text-red-400 border border-red-500/50 font-bold shadow-sm shadow-red-950/50'
                     : 'text-neutral-400 hover:text-red-400 hover:bg-red-950/20'
@@ -121,83 +154,81 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
               </button>
             </nav>
+
+            {/* Expanded Search Bar filling space dynamically right after CineLocal logo */}
+            <div
+              ref={searchContainerRef}
+              className={`hidden md:flex items-center transition-all duration-300 ease-out ${
+                isExpanded
+                  ? 'flex-1 opacity-100 max-w-full'
+                  : 'w-0 opacity-0 pointer-events-none overflow-hidden'
+              }`}
+            >
+              <div className="relative flex items-center w-full bg-[#181818]/95 border border-neutral-700/80 hover:border-neutral-600 focus-within:border-neutral-400 focus-within:ring-1 focus-within:ring-neutral-400/20 rounded-full px-4 py-2 text-sm transition-all shadow-inner">
+                <Search className="w-4 h-4 text-neutral-400 mr-2.5 shrink-0" />
+                <input
+                  ref={desktopSearchInputRef}
+                  id="search-input"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  placeholder="Buscar filmes, séries, atores, diretores..."
+                  className="bg-transparent border-none text-white focus:outline-none w-full text-xs sm:text-sm placeholder-neutral-400"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      onSearchChange('');
+                      setIsSearchOpen(false);
+                    }
+                  }}
+                />
+                {searchQuery ? (
+                  <button
+                    onClick={() => {
+                      onSearchChange('');
+                      setIsSearchOpen(false);
+                    }}
+                    className="text-neutral-400 hover:text-white p-1 rounded-full hover:bg-neutral-800 transition-colors ml-1 shrink-0 cursor-pointer"
+                    title="Limpar e fechar busca"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setIsSearchOpen(false)}
+                    className="text-neutral-500 hover:text-neutral-300 p-1 rounded-full hover:bg-neutral-800/60 transition-colors ml-1 shrink-0 cursor-pointer"
+                    title="Fechar busca"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Right: Actions on Desktop */}
-          <div className="hidden md:flex items-center space-x-3 sm:space-x-4">
-            {/* Search input desktop */}
-            <div className="relative flex items-center">
-              {showSearch ? (
-                <div className="flex items-center bg-black/60 border border-neutral-700 rounded-full px-3 py-1.5 text-sm transition-all w-44 sm:w-64">
-                  <Search className="w-4 h-4 text-neutral-400 mr-2 shrink-0" />
-                  <input
-                    id="search-input"
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    placeholder="Buscar títulos..."
-                    className="bg-transparent border-none text-white focus:outline-none w-full text-xs sm:text-sm"
-                    autoFocus
-                    onBlur={() => {
-                      if (!searchQuery) setShowSearch(false);
-                    }}
-                  />
-                  {searchQuery && (
-                    <button onClick={() => onSearchChange('')} className="text-neutral-400 hover:text-white p-0.5">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <button
-                  id="search-toggle-btn"
-                  onClick={() => setShowSearch(true)}
-                  className="p-2 text-neutral-300 hover:text-white transition-colors rounded-full hover:bg-white/10 cursor-pointer"
-                  title="Buscar títulos"
-                >
-                  <Search className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              )}
-            </div>
-
-            {/* Offline Badge */}
-            <div
-              id="offline-status-badge"
-              onClick={onOpenSystemModal}
-              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 text-xs font-mono cursor-pointer hover:bg-emerald-900/30 transition-colors"
-              title="100% Offline - Rodando no seu computador / pendrive"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Offline</span>
-            </div>
-
-            {/* Mobile Access Button */}
-            <button
-              id="mobile-access-nav-btn"
-              onClick={() => {
-                onTabChange('all');
-                setTimeout(() => {
-                  const banner = document.getElementById('mobile-access-banner');
-                  if (banner) {
-                    banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }
-                }, 100);
-              }}
-              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 text-xs font-mono cursor-pointer hover:bg-emerald-900/50 transition-colors shadow-sm"
-              title="Acessar no celular / tablet (Exibir IP e QR Code)"
-            >
-              <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Acesso Celular</span>
-            </button>
+          <div className="hidden md:flex items-center space-x-3 sm:space-x-4 shrink-0">
+            {/* Search Toggle Button (Lupa) - When clicked, hides links and expands search bar */}
+            {!isExpanded && (
+              <button
+                id="search-toggle-btn"
+                onClick={() => {
+                  setIsSearchOpen(true);
+                }}
+                className="p-2 text-neutral-300 hover:text-white transition-colors rounded-full hover:bg-white/10 cursor-pointer flex items-center justify-center"
+                title="Buscar filmes, séries, atores, diretores..."
+              >
+                <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            )}
 
             {/* Torrent Player Button */}
             <button
               id="torrent-player-btn"
               onClick={onOpenTorrentModal}
-              className="flex items-center space-x-1.5 px-3 py-1.5 sm:px-3 sm:py-2 rounded-md bg-zinc-800 hover:bg-zinc-700 text-amber-400 hover:text-amber-300 text-xs sm:text-sm font-semibold transition-all border border-zinc-700/80 shadow-md active:scale-95 cursor-pointer"
+              className="h-9 flex items-center gap-1.5 px-3 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 text-amber-400 hover:text-amber-300 text-xs sm:text-sm font-medium transition-all border border-neutral-700/80 hover:border-amber-500/50 shadow-sm active:scale-95 cursor-pointer shrink-0"
               title="Abrir Player Torrent / Link Magnet"
             >
-              <Radio className="w-4 h-4 text-amber-400" />
+              <Radio className="w-4 h-4 text-amber-400 shrink-0" />
               <span>Player Torrent</span>
             </button>
 
@@ -206,17 +237,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="add-folder-btn"
               onClick={onOpenAddModal}
               disabled={isPickingFolder}
-              className="flex items-center space-x-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-md bg-[#E50914] hover:bg-[#b80710] text-white text-xs sm:text-sm font-semibold transition-all shadow-md active:scale-95 disabled:opacity-75 cursor-pointer"
+              className="h-9 flex items-center gap-1.5 px-3.5 rounded-lg bg-[#E50914] hover:bg-[#b80710] text-white text-xs sm:text-sm font-medium transition-all shadow-md hover:shadow-red-600/20 active:scale-95 disabled:opacity-75 cursor-pointer shrink-0"
               title="Adicionar pasta do PC pelo explorador nativo"
             >
               {isPickingFolder ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                   <span>Explorador...</span>
                 </>
               ) : (
                 <>
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 shrink-0" />
                   <span>Adicionar Pasta PC</span>
                 </>
               )}
@@ -248,12 +279,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </div>
 
-          {/* Right: Actions on Mobile (Streamlined, guaranteed no horizontal overflow) */}
+          {/* Right: Actions on Mobile */}
           <div className="flex md:hidden items-center space-x-1 sm:space-x-2 shrink-0">
             {/* Search Toggle Icon */}
             <button
               id="mobile-search-toggle"
-              onClick={() => setShowSearch(true)}
+              onClick={() => setIsSearchOpen(true)}
               className="p-2 text-neutral-200 hover:text-white active:bg-white/10 rounded-full transition-colors cursor-pointer"
               title="Buscar"
             >
@@ -294,8 +325,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Mobile Fullscreen Header Search Bar Overlay */}
-        {showSearch && (
-          <div className="absolute inset-0 bg-[#141414] px-3 sm:px-6 flex items-center justify-between z-50 animate-in fade-in duration-150 border-b border-neutral-800">
+        {isExpanded && (
+          <div className="md:hidden absolute inset-0 bg-[#141414] px-3 sm:px-6 flex items-center justify-between z-50 animate-in fade-in duration-150 border-b border-neutral-800">
             <div className="flex items-center flex-1 bg-neutral-900 border border-neutral-700 rounded-full px-3 py-1.5 text-sm mr-2">
               <Search className="w-4 h-4 text-neutral-400 mr-2 shrink-0" />
               <input
@@ -303,7 +334,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Buscar filmes, séries, títulos..."
+                placeholder="Buscar filmes, séries, atores, diretores..."
                 className="bg-transparent border-none text-white focus:outline-none w-full text-xs sm:text-sm"
                 autoFocus
               />
@@ -318,7 +349,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
             <button
               onClick={() => {
-                setShowSearch(false);
+                setIsSearchOpen(false);
+                onSearchChange('');
               }}
               className="text-xs font-semibold text-neutral-300 hover:text-white px-3 py-1.5 rounded-lg bg-neutral-800 shrink-0 cursor-pointer"
             >
@@ -449,81 +481,59 @@ export const Navbar: React.FC<NavbarProps> = ({
         id="mobile-bottom-nav"
         className="fixed bottom-0 left-0 right-0 z-40 bg-[#141414]/95 backdrop-blur-xl border-t border-white/10 md:hidden px-2 py-1.5 flex items-center justify-around shadow-2xl"
       >
-        {/* Tab 1: Início */}
         <button
-          id="mobile-tab-all"
           onClick={() => onTabChange('all')}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer active:scale-95 ${
-            activeTab === 'all'
-              ? 'text-[#E50914] font-bold scale-105'
-              : 'text-neutral-400 hover:text-neutral-200'
+          className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer ${
+            activeTab === 'all' ? 'text-[#E50914] font-semibold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
           <Home className="w-5 h-5 mb-0.5" />
-          <span className="text-[10px] tracking-tight font-medium">Início</span>
+          <span className="text-[10px]">Início</span>
         </button>
 
-        {/* Tab 2: Séries */}
         <button
-          id="mobile-tab-series"
           onClick={() => onTabChange('series')}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer active:scale-95 ${
-            activeTab === 'series'
-              ? 'text-[#E50914] font-bold scale-105'
-              : 'text-neutral-400 hover:text-neutral-200'
+          className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer ${
+            activeTab === 'series' ? 'text-[#E50914] font-semibold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
           <Tv className="w-5 h-5 mb-0.5" />
-          <span className="text-[10px] tracking-tight font-medium">Séries</span>
+          <span className="text-[10px]">Séries</span>
         </button>
 
-        {/* Tab 3: Filmes */}
         <button
-          id="mobile-tab-movie"
           onClick={() => onTabChange('movie')}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer active:scale-95 ${
-            activeTab === 'movie'
-              ? 'text-[#E50914] font-bold scale-105'
-              : 'text-neutral-400 hover:text-neutral-200'
+          className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer ${
+            activeTab === 'movie' ? 'text-[#E50914] font-semibold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
           <Film className="w-5 h-5 mb-0.5" />
-          <span className="text-[10px] tracking-tight font-medium">Filmes</span>
+          <span className="text-[10px]">Filmes</span>
         </button>
 
-        {/* Tab 4: Continuar */}
         <button
-          id="mobile-tab-continue"
           onClick={() => onTabChange('continue')}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer active:scale-95 ${
-            activeTab === 'continue'
-              ? 'text-[#E50914] font-bold scale-105'
-              : 'text-neutral-400 hover:text-neutral-200'
+          className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer ${
+            activeTab === 'continue' ? 'text-[#E50914] font-semibold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
           <History className="w-5 h-5 mb-0.5" />
-          <span className="text-[10px] tracking-tight font-medium">Continuar</span>
+          <span className="text-[10px]">Continuar</span>
         </button>
 
-        {/* Tab 5: Canais Ao Vivo */}
         <button
-          id="mobile-tab-channels"
           onClick={() => onTabChange('channels')}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer active:scale-95 ${
-            activeTab === 'channels'
-              ? 'text-red-400 font-bold scale-105'
-              : 'text-neutral-400 hover:text-neutral-200'
+          className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer relative ${
+            activeTab === 'channels' ? 'text-red-500 font-bold' : 'text-neutral-400 hover:text-red-400'
           }`}
         >
           <div className="relative">
-            <Radio className={`w-5 h-5 mb-0.5 ${activeTab === 'channels' ? 'text-red-500 animate-pulse' : ''}`} />
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></span>
+            <Radio className="w-5 h-5 mb-0.5" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
           </div>
-          <span className="text-[10px] tracking-tight font-medium">Canais</span>
+          <span className="text-[10px]">Ao Vivo</span>
         </button>
       </nav>
     </>
   );
 };
-
