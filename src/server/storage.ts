@@ -375,7 +375,7 @@ export function saveTorrentMediaItem(params: {
   });
 
   const displayFiles = videoFiles.length > 0 ? videoFiles : rawFiles;
-  const isSeries = displayFiles.length > 1;
+  const hasMultipleFiles = displayFiles.length > 1;
 
   const rawTitle = params.name || `Torrent ${cleanHash.slice(0, 8)}`;
   const cleanTitle =
@@ -393,7 +393,7 @@ export function saveTorrentMediaItem(params: {
   let existingIndex = lib.items.findIndex((item) => {
     if (item.id === mediaId) return true;
     if (item.infoHash && item.infoHash.toLowerCase() === cleanHash) return true;
-    if (isSeries || item.kind === 'series') {
+    if (hasMultipleFiles || item.kind === 'series') {
       const itemNorm = normalizeSearchTitle(item.title);
       if (normalizedTitleKey && itemNorm && itemNorm === normalizedTitleKey) return true;
     }
@@ -401,10 +401,6 @@ export function saveTorrentMediaItem(params: {
   });
 
   const existing = existingIndex >= 0 ? lib.items[existingIndex] : undefined;
-
-  if (displayFiles.length === 0 && existing) {
-    return existing;
-  }
 
   // Working seasons array
   let seasons: Season[] = existing?.seasons ? [...existing.seasons] : [];
@@ -511,6 +507,7 @@ export function saveTorrentMediaItem(params: {
 
   const totalEpisodes = seasons.reduce((acc, s) => acc + s.episodes.length, 0);
   const totalSeasons = seasons.length;
+  const isSeries = totalEpisodes > 1;
 
   let itemToReturn: MediaItem;
 
@@ -520,7 +517,7 @@ export function saveTorrentMediaItem(params: {
     existing.magnetUri = params.magnetUri || existing.magnetUri;
     existing.infoHash = cleanHash;
     existing.isTorrent = true;
-    existing.kind = totalEpisodes > 1 ? 'series' : 'movie';
+    existing.kind = isSeries ? 'series' : 'movie';
     existing.seasons = seasons;
     existing.totalEpisodes = totalEpisodes;
     existing.totalSeasons = totalSeasons;
@@ -530,7 +527,7 @@ export function saveTorrentMediaItem(params: {
     itemToReturn = {
       id: mediaId,
       title: cleanTitle,
-      kind: totalEpisodes > 1 ? 'series' : 'movie',
+      kind: isSeries ? 'series' : 'movie',
       folderPath: `torrent://${cleanHash}`,
       isTorrent: true,
       magnetUri: params.magnetUri,
