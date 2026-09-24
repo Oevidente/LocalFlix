@@ -131,140 +131,84 @@ if errorlevel 1 if not exist "%APP_DIR%bin\ffmpeg.exe" (
 echo.
 echo [OK] Dependencias instaladas com sucesso.
 
-:: ======================================================
-:: Verificacao e extracao automatica de EXTRAIA.rar / EXTRAIR.rar
-:: ======================================================
-set "FOUND_RAR="
-set "RAR_TARGET="
-
-:: 1. Primeiro verifica se existe dentro da pasta bin (preferencial)
-if exist "%APP_DIR%bin\EXTRAIA.rar" (
-    set "FOUND_RAR=%APP_DIR%bin\EXTRAIA.rar"
-    set "RAR_TARGET=%APP_DIR%bin"
-) else if exist "%APP_DIR%bin\EXTRAIR.rar" (
-    set "FOUND_RAR=%APP_DIR%bin\EXTRAIR.rar"
-    set "RAR_TARGET=%APP_DIR%bin"
-) else if exist "%APP_DIR%EXTRAIA.rar" (
-    set "FOUND_RAR=%APP_DIR%EXTRAIA.rar"
-    set "RAR_TARGET=%APP_DIR%"
-) else if exist "%APP_DIR%EXTRAIR.rar" (
-    set "FOUND_RAR=%APP_DIR%EXTRAIR.rar"
-    set "RAR_TARGET=%APP_DIR%"
-)
-
-if defined FOUND_RAR (
+if exist "%APP_DIR%EXTRAIA.rar" (
     echo.
-    echo ======================================================
-    echo Localizado: !FOUND_RAR!
-    echo Extraindo diretamente em: !RAR_TARGET! (sem gerar nova pasta)...
-    echo ======================================================
+    echo Extraindo EXTRAIA.rar sem criar nova pasta...
     set "RAR_EXTRACTED=0"
-
-    set "CLEAN_TARGET=!RAR_TARGET!"
-    if "!CLEAN_TARGET:~-1!"=="\" set "CLEAN_TARGET=!CLEAN_TARGET:~0,-1!"
-
-    pushd "!CLEAN_TARGET!"
 
     :: 1. Tenta 7-Zip na pasta bin do app
     if exist "%APP_DIR%bin\7z.exe" (
-        "%APP_DIR%bin\7z.exe" x -y "!FOUND_RAR!" >nul 2>&1
+        "%APP_DIR%bin\7z.exe" x -y "%APP_DIR%EXTRAIA.rar" -o"%APP_DIR%" >nul 2>&1
         if not errorlevel 1 set "RAR_EXTRACTED=1"
     )
 
-    :: 2. Tenta UnRAR na pasta bin do app
-    if "!RAR_EXTRACTED!"=="0" if exist "%APP_DIR%bin\unrar.exe" (
-        "%APP_DIR%bin\unrar.exe" x -y -o+ "!FOUND_RAR!" >nul 2>&1
-        if not errorlevel 1 set "RAR_EXTRACTED=1"
-    )
-
-    :: 3. Tenta WinRAR na pasta bin do app
-    if "!RAR_EXTRACTED!"=="0" if exist "%APP_DIR%bin\WinRAR.exe" (
-        "%APP_DIR%bin\WinRAR.exe" x -ibck -y -o+ "!FOUND_RAR!" >nul 2>&1
-        if not errorlevel 1 set "RAR_EXTRACTED=1"
-    )
-
-    :: 4. Tenta 7-Zip no PATH do sistema
+    :: 2. Tenta 7-Zip no PATH do sistema
     if "!RAR_EXTRACTED!"=="0" (
         where 7z >nul 2>&1
         if not errorlevel 1 (
-            7z x -y "!FOUND_RAR!" >nul 2>&1
+            7z x -y "%APP_DIR%EXTRAIA.rar" -o"%APP_DIR%" >nul 2>&1
             if not errorlevel 1 set "RAR_EXTRACTED=1"
         )
     )
 
-    :: 5. Tenta 7-Zip nas pastas padrao de instalacao do Windows
+    :: 3. Tenta 7-Zip nas pastas padrao de instalacao
     if "!RAR_EXTRACTED!"=="0" if exist "%ProgramFiles%\7-Zip\7z.exe" (
-        "%ProgramFiles%\7-Zip\7z.exe" x -y "!FOUND_RAR!" >nul 2>&1
+        "%ProgramFiles%\7-Zip\7z.exe" x -y "%APP_DIR%EXTRAIA.rar" -o"%APP_DIR%" >nul 2>&1
         if not errorlevel 1 set "RAR_EXTRACTED=1"
     )
     if "!RAR_EXTRACTED!"=="0" if exist "%ProgramFiles(x86)%\7-Zip\7z.exe" (
-        "%ProgramFiles(x86)%\7-Zip\7z.exe" x -y "!FOUND_RAR!" >nul 2>&1
-        if not errorlevel 1 set "RAR_EXTRACTED=1"
-    )
-    if "!RAR_EXTRACTED!"=="0" if exist "%LOCALAPPDATA%\Programs\7-Zip\7z.exe" (
-        "%LOCALAPPDATA%\Programs\7-Zip\7z.exe" x -y "!FOUND_RAR!" >nul 2>&1
+        "%ProgramFiles(x86)%\7-Zip\7z.exe" x -y "%APP_DIR%EXTRAIA.rar" -o"%APP_DIR%" >nul 2>&1
         if not errorlevel 1 set "RAR_EXTRACTED=1"
     )
 
-    :: 6. Tenta WinRAR / UnRAR no PATH ou em Program Files
+    :: 4. Tenta WinRAR na pasta bin, PATH ou Program Files
+    if "!RAR_EXTRACTED!"=="0" if exist "%APP_DIR%bin\WinRAR.exe" (
+        "%APP_DIR%bin\WinRAR.exe" x -ibck -y -o+ "%APP_DIR%EXTRAIA.rar" "%APP_DIR%" >nul 2>&1
+        if not errorlevel 1 set "RAR_EXTRACTED=1"
+    )
     if "!RAR_EXTRACTED!"=="0" (
         where winrar >nul 2>&1
         if not errorlevel 1 (
-            winrar x -ibck -y -o+ "!FOUND_RAR!" >nul 2>&1
-            if not errorlevel 1 set "RAR_EXTRACTED=1"
-        )
-    )
-    if "!RAR_EXTRACTED!"=="0" (
-        where unrar >nul 2>&1
-        if not errorlevel 1 (
-            unrar x -y -o+ "!FOUND_RAR!" >nul 2>&1
+            winrar x -ibck -y -o+ "%APP_DIR%EXTRAIA.rar" "%APP_DIR%" >nul 2>&1
             if not errorlevel 1 set "RAR_EXTRACTED=1"
         )
     )
     if "!RAR_EXTRACTED!"=="0" if exist "%ProgramFiles%\WinRAR\WinRAR.exe" (
-        "%ProgramFiles%\WinRAR\WinRAR.exe" x -ibck -y -o+ "!FOUND_RAR!" >nul 2>&1
+        "%ProgramFiles%\WinRAR\WinRAR.exe" x -ibck -y -o+ "%APP_DIR%EXTRAIA.rar" "%APP_DIR%" >nul 2>&1
         if not errorlevel 1 set "RAR_EXTRACTED=1"
     )
     if "!RAR_EXTRACTED!"=="0" if exist "%ProgramFiles(x86)%\WinRAR\WinRAR.exe" (
-        "%ProgramFiles(x86)%\WinRAR\WinRAR.exe" x -ibck -y -o+ "!FOUND_RAR!" >nul 2>&1
-        if not errorlevel 1 set "RAR_EXTRACTED=1"
-    )
-    if "!RAR_EXTRACTED!"=="0" if exist "%ProgramFiles%\WinRAR\UnRAR.exe" (
-        "%ProgramFiles%\WinRAR\UnRAR.exe" x -y -o+ "!FOUND_RAR!" >nul 2>&1
-        if not errorlevel 1 set "RAR_EXTRACTED=1"
-    )
-    if "!RAR_EXTRACTED!"=="0" if exist "%ProgramFiles(x86)%\WinRAR\UnRAR.exe" (
-        "%ProgramFiles(x86)%\WinRAR\UnRAR.exe" x -y -o+ "!FOUND_RAR!" >nul 2>&1
+        "%ProgramFiles(x86)%\WinRAR\WinRAR.exe" x -ibck -y -o+ "%APP_DIR%EXTRAIA.rar" "%APP_DIR%" >nul 2>&1
         if not errorlevel 1 set "RAR_EXTRACTED=1"
     )
 
-    :: 7. Tenta tar.exe nativo
+    :: 5. Tenta UnRAR na pasta bin ou PATH
+    if "!RAR_EXTRACTED!"=="0" if exist "%APP_DIR%bin\unrar.exe" (
+        "%APP_DIR%bin\unrar.exe" x -y -o+ "%APP_DIR%EXTRAIA.rar" "%APP_DIR%" >nul 2>&1
+        if not errorlevel 1 set "RAR_EXTRACTED=1"
+    )
     if "!RAR_EXTRACTED!"=="0" (
-        where tar >nul 2>&1
+        where unrar >nul 2>&1
         if not errorlevel 1 (
-            tar -xf "!FOUND_RAR!" >nul 2>&1
+            unrar x -y -o+ "%APP_DIR%EXTRAIA.rar" "%APP_DIR%" >nul 2>&1
             if not errorlevel 1 set "RAR_EXTRACTED=1"
         )
     )
 
-    :: 8. Script auxiliar PowerShell com suporte a caminhos longos
+    :: 6. Tenta tar.exe (nativo no Windows 10/11)
     if "!RAR_EXTRACTED!"=="0" (
-        powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%APP_DIR%scripts\extract-rar.ps1" -RarPath "!FOUND_RAR!" -TargetDir "!CLEAN_TARGET!"
-        if not errorlevel 1 set "RAR_EXTRACTED=1"
+        where tar >nul 2>&1
+        if not errorlevel 1 (
+            tar -xf "%APP_DIR%EXTRAIA.rar" -C "%APP_DIR%" >nul 2>&1
+            if not errorlevel 1 set "RAR_EXTRACTED=1"
+        )
     )
 
-    popd
-
     if "!RAR_EXTRACTED!"=="1" (
-        echo [OK] !FOUND_RAR! extraido com sucesso em !CLEAN_TARGET!\ sem criar nova pasta.
-        if exist "%APP_DIR%bin\ffmpeg.exe" (
-            echo [OK] FFmpeg detectado em: %APP_DIR%bin\ffmpeg.exe
-        )
+        echo [OK] EXTRAIA.rar extraido com sucesso diretamente na pasta do aplicativo.
     ) else (
-        echo [AVISO] O arquivo !FOUND_RAR! foi encontrado, mas nao foi possivel extrai-lo automaticamente.
-        echo Por favor, instale o WinRAR/7-Zip ou extraia o conteudo de !FOUND_RAR!
-        echo diretamente para a pasta: !CLEAN_TARGET!\
-        echo sem criar uma subpasta.
+        echo [AVISO] O arquivo EXTRAIA.rar foi encontrado, mas nao foi possivel extrai-lo automaticamente.
+        echo Por favor, extraia o conteudo do arquivo EXTRAIA.rar manualmente para a raiz desta pasta sem criar uma nova pasta.
     )
 )
 
