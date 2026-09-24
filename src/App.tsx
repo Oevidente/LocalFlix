@@ -29,7 +29,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 export default function App() {
   const [library, setLibrary] = useState<LibraryData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'all' | 'series' | 'movie' | 'continue' | 'channels'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'series' | 'movie' | 'channels'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Modals & Player State
@@ -763,7 +763,7 @@ export default function App() {
         /* Populated Library View */
         <>
           {/* Hero Spotlight */}
-          {heroMedia && activeTab !== 'continue' && !searchQuery && (
+          {heroMedia && !searchQuery && (
             <HeroBanner
               media={heroMedia}
               onPlayEpisode={handlePlayEpisode}
@@ -792,7 +792,7 @@ export default function App() {
             )}
 
             {/* 2. Séries Row */}
-            {seriesItems.length > 0 && activeTab !== 'movie' && activeTab !== 'continue' && (
+            {seriesItems.length > 0 && activeTab !== 'movie' && (
               <MediaRow
                 id="row-series"
                 title="Séries de TV"
@@ -804,7 +804,7 @@ export default function App() {
             )}
 
             {/* 3. Filmes Row */}
-            {movieItems.length > 0 && activeTab !== 'series' && activeTab !== 'continue' && (
+            {movieItems.length > 0 && activeTab !== 'series' && (
               <MediaRow
                 id="row-movies"
                 title="Filmes"
@@ -816,7 +816,7 @@ export default function App() {
             )}
 
             {/* 4. Todos os Títulos */}
-            {(activeTab === 'all' || activeTab === 'continue') && allCards.length > 0 && (
+            {activeTab === 'all' && allCards.length > 0 && (
               <MediaRow
                 id="row-all-media"
                 title={searchQuery ? `Resultados da busca ("${searchQuery}")` : 'Todos os Títulos'}

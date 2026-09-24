@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio, Sparkles, Home, History, MoreVertical, X, FolderPlus } from 'lucide-react';
+import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio, Sparkles, Home, MoreVertical, X, FolderPlus } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface NavbarProps {
-  activeTab: 'all' | 'series' | 'movie' | 'continue' | 'channels';
-  onTabChange: (tab: 'all' | 'series' | 'movie' | 'continue' | 'channels') => void;
+  activeTab: 'all' | 'series' | 'movie' | 'channels';
+  onTabChange: (tab: 'all' | 'series' | 'movie' | 'channels') => void;
   onOpenAddModal: () => void;
   onOpenSystemModal: () => void;
   onOpenTorrentModal: () => void;
@@ -130,15 +130,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Film className="w-3.5 h-3.5 mr-1 inline" />
                 Filmes
-              </button>
-              <button
-                id="nav-tab-continue"
-                onClick={() => onTabChange('continue')}
-                className={`transition-colors cursor-pointer whitespace-nowrap ${
-                  activeTab === 'continue' ? 'text-white font-semibold' : 'text-neutral-400 hover:text-neutral-200'
-                }`}
-              >
-                Continuar Assistindo
               </button>
               <button
                 id="nav-tab-channels"
@@ -509,16 +500,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <Film className="w-5 h-5 mb-0.5" />
           <span className="text-[10px]">Filmes</span>
-        </button>
-
-        <button
-          onClick={() => onTabChange('continue')}
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer ${
-            activeTab === 'continue' ? 'text-[#E50914] font-semibold' : 'text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          <History className="w-5 h-5 mb-0.5" />
-          <span className="text-[10px]">Continuar</span>
         </button>
 
         <button
