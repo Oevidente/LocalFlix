@@ -122,9 +122,32 @@ export default function App() {
     }
   }, []);
 
+  const handleRescanAll = useCallback(async () => {
+    try {
+      const res = await fetch('/api/library/rescan-all', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.library) {
+          setLibrary(data.library);
+          setActiveMediaDetail((prev) => {
+            if (!prev) return null;
+            const refreshed = data.library.items.find((i: MediaItem) => i.id === prev.id);
+            return refreshed || prev;
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao re-escanear todas as pastas:', err);
+    }
+  }, []);
+
   useEffect(() => {
+    // 1. Initial fast library load
     fetchLibrary();
-  }, [fetchLibrary]);
+
+    // 2. Automatically re-scan all registered folders on site open to determine if series or movie
+    handleRescanAll();
+  }, [fetchLibrary, handleRescanAll]);
 
   // Add folder handler
   const handleAddFolder = async (folderPath: string, title?: string) => {
@@ -885,7 +908,10 @@ export default function App() {
       {showSystemModal && (
         <SystemModal
           onClose={() => setShowSystemModal(false)}
-          onRefreshLibrary={fetchLibrary}
+          onRefreshLibrary={async () => {
+            await handleRescanAll();
+            await fetchLibrary();
+          }}
           onOpenTmdbModal={() => {
             setShowSystemModal(false);
             setShowTmdbConfigModal(true);

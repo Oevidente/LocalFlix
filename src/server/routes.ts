@@ -21,6 +21,7 @@ import {
   saveTorrentMediaItem,
   readIptvStatusMap,
   saveIptvStatusMap,
+  rescanAllLibraryFolders,
 } from './storage';
 import { scanMediaFolder } from './scanner';
 import { enrichMediaWithTmdb, isTmdbConfigured, searchTmdb, getApiKey, getLanguage } from './tmdb';
@@ -222,6 +223,17 @@ apiRouter.post('/library/rescan/:id', async (req: Request, res: Response) => {
     res.json({ success: true, item: updatedItem });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// 3.0.1 Re-scan all registered media folders to determine series vs movie
+apiRouter.all(['/library/rescan-all', '/library/rescan-folders'], async (_req: Request, res: Response) => {
+  try {
+    const result = await rescanAllLibraryFolders();
+    res.json({ success: true, count: result.updatedCount, library: result.library });
+  } catch (error: any) {
+    console.error('Erro no re-scan de todas as pastas:', error);
+    res.status(500).json({ error: error?.message || 'Erro ao re-escanear pastas' });
   }
 });
 

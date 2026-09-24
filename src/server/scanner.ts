@@ -208,6 +208,29 @@ function findExternalSubtitles(videoPath: string, allFiles: string[]): SubtitleT
 // Regex to identify auxiliary / promotional / sample video files
 export const AUXILIARY_VIDEO_REGEX = /(^|[\._\-\s])(vinheta|intro|abertura|sample|trailer|teaser|preview|featurette|extra|bonus)([\._\-\s]|$)/i;
 
+export function detectMediaKind(videoFiles: string[], folderPath: string): MediaKind {
+  if (videoFiles.length > 1) {
+    return 'series';
+  }
+  if (videoFiles.length === 1) {
+    const vFile = videoFiles[0];
+    const fileName = path.basename(vFile);
+    const relPath = path.relative(folderPath, vFile).replace(/\\/g, '/');
+
+    // Check if filename or relative path has episode / season tags
+    const hasSxxExx = /[Ss]\d{1,2}[\.\s_-]*[Ee]\d{1,3}/i.test(fileName);
+    const hasNxNN = /(?:^|[\s._\-\[])\d{1,2}[xX]\d{1,3}/i.test(fileName);
+    const hasSeasonWord = /(?:temporada|season)\s*\d+/i.test(relPath);
+    const hasEpisodeWord = /(?:episodio|episódio|ep|episode)\s*[-_.]?\s*\d+/i.test(fileName);
+    const hasAnimeDash = /(?:^|[\s._\-\]])-\s*\d{1,3}(?:[\s._\-\[]|$)/.test(fileName);
+
+    if (hasSxxExx || hasNxNN || hasSeasonWord || hasEpisodeWord || hasAnimeDash) {
+      return 'series';
+    }
+  }
+  return 'movie';
+}
+
 export async function scanMediaFolder(folderPath: string, customTitle?: string): Promise<MediaItem> {
   const resolvedPath = path.resolve(folderPath);
   if (!fs.existsSync(resolvedPath)) {
@@ -289,7 +312,7 @@ export async function scanMediaFolder(folderPath: string, customTitle?: string):
 
   const folderName = path.basename(resolvedPath);
   const title = customTitle?.trim() || folderName.replace(/[\._]/g, ' ').trim();
-  const kind: MediaKind = videoFiles.length <= 1 ? 'movie' : 'series';
+  const kind: MediaKind = detectMediaKind(videoFiles, resolvedPath);
 
   // Process each video file and probe its details
   // Sort video files naturally

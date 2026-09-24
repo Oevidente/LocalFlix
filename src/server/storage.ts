@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { LibraryData, MediaItem, Episode, Season, MediaKind } from '../types';
-import { parseEpisodeInfo } from './scanner';
+import { parseEpisodeInfo, scanMediaFolder } from './scanner';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const LIBRARY_FILE = path.join(DATA_DIR, 'library.json');
@@ -623,12 +623,11 @@ export function sanitizeMediaClassification(item: MediaItem): boolean {
   );
   const titleEpisodeInfo = extractShowAndEpisode(item.title);
 
+  const hasSeriesCharacteristics = hasSeriesSeason || hasSeriesEpisode || titleEpisodeInfo.isEpisode;
   const isActuallySeries =
-    item.kind === 'series' ||
     totalVideos > 1 ||
-    hasSeriesSeason ||
-    hasSeriesEpisode ||
-    titleEpisodeInfo.isEpisode;
+    (totalVideos === 1 && hasSeriesCharacteristics) ||
+    (totalVideos === 0 && item.kind === 'series');
 
   const expectedKind: MediaKind = isActuallySeries ? 'series' : 'movie';
   if (item.kind !== expectedKind) {
@@ -1296,5 +1295,91 @@ export function saveIptvStatusMap(data: Record<string, { status: 'online' | 'off
     console.error('Erro ao gravar iptv_status.json:', err);
   }
 }
+
+export async function rescanAllLibraryFolders(): Promise<{ updatedCount: number; library: LibraryData }> {
+  const lib = readLibrary();
+  let updatedCount = 0;
+
+  // Process items in parallel
+  await Promise.all(
+    lib.items.map(async (item, i) => {
+      // If torrent or virtual folder
+      if (item.isTorrent || item.folderPath.startsWith('torrent://')) {
+        if (sanitizeMediaClassification(item)) {
+          updatedCount++;
+        }
+        return;
+      }
+
+      if (!fs.existsSync(item.folderPath)) {
+        if (sanitizeMediaClassification(item)) {
+          updatedCount++;
+        }
+        return;
+      }
+
+      try {
+        const updatedItem = await scanMediaFolder(item.folderPath, item.customTitle);
+
+        // Preserve watch progress, watched status, selected tracks, imported subtitles
+        for (const newSeason of updatedItem.seasons) {
+          const oldSeason = item.seasons?.find((s) => s.seasonNumber === newSeason.seasonNumber);
+          if (oldSeason) {
+            for (const newEp of newSeason.episodes) {
+              const oldEp = oldSeason.episodes?.find(
+                (e) => e.fileName === newEp.fileName || (e.episodeNumber === newEp.episodeNumber && e.seasonNumber === newEp.seasonNumber)
+              );
+              if (oldEp) {
+                newEp.watched = oldEp.watched;
+                newEp.progressSeconds = oldEp.progressSeconds;
+                newEp.lastWatchedAt = oldEp.lastWatchedAt;
+                newEp.selectedAudioIndex = oldEp.selectedAudioIndex;
+                newEp.selectedSubtitleIndex = oldEp.selectedSubtitleIndex;
+                newEp.subtitleTracks = [
+                  ...newEp.subtitleTracks,
+                  ...(oldEp.subtitleTracks || []).filter((track) => track.isImported),
+                ];
+              }
+            }
+          }
+        }
+
+        updatedItem.lastWatchedEpisodeId = item.lastWatchedEpisodeId;
+        updatedItem.lastWatchedAt = item.lastWatchedAt;
+        updatedItem.customTitle = item.customTitle;
+        updatedItem.tmdbId = updatedItem.tmdbId || item.tmdbId;
+        updatedItem.metadataProvider = updatedItem.metadataProvider || item.metadataProvider;
+        updatedItem.originalTitle = updatedItem.originalTitle || item.originalTitle;
+        updatedItem.year = updatedItem.year || item.year;
+        updatedItem.overview = updatedItem.overview || item.overview;
+        updatedItem.tagline = updatedItem.tagline || item.tagline;
+        updatedItem.genres = updatedItem.genres?.length ? updatedItem.genres : item.genres;
+        updatedItem.rating = updatedItem.rating ?? item.rating;
+        updatedItem.voteCount = updatedItem.voteCount ?? item.voteCount;
+        updatedItem.cast = updatedItem.cast?.length ? updatedItem.cast : item.cast;
+
+        if (item.backdropPath && !updatedItem.backdropPath) {
+          updatedItem.backdropPath = item.backdropPath;
+        }
+        if (item.posterPath && !updatedItem.posterPath) {
+          updatedItem.posterPath = item.posterPath;
+        }
+
+        lib.items[i] = updatedItem;
+        updatedCount++;
+      } catch (err) {
+        console.warn(`[Auto-rescan] Falha ao re-escanear pasta "${item.folderPath}":`, err);
+        if (sanitizeMediaClassification(item)) {
+          updatedCount++;
+        }
+      }
+    })
+  );
+
+  deduplicateSeriesInLibrary(lib);
+  writeLibrary(lib, true);
+  return { updatedCount, library: lib };
+}
+
 
 
