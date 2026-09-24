@@ -51,12 +51,15 @@ interface SubtitleCue {
 }
 
 interface ParsedPlayerEpisode {
+  id?: string;
   fileIndex: number;
   fileName: string;
   seasonNumber: number;
   episodeNumber: number;
   cleanTitle: string;
   length: number;
+  infoHash?: string;
+  magnetUri?: string;
 }
 
 function parseSubtitleTime(value: string): number {
@@ -272,14 +275,51 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
   const videoFiles = useMemo(() => status.files?.filter((f) => f.isVideo) || [], [status.files]);
   const currentFile = status.files?.find((f) => f.index === currentFileIdx) || videoFiles[0];
 
-  // Parse all video files into structured episodes
+  // Parse all video files or media seasons into structured episodes
   const parsedEpisodes: ParsedPlayerEpisode[] = useMemo(() => {
-    return videoFiles.map((file, idx) => parseEpisodeInfoFromFileName(file, idx + 1));
-  }, [videoFiles]);
+    // If media is a series with seasons, prefer full series episode roster
+    if (media && media.kind === 'series' && Array.isArray(media.seasons) && media.seasons.length > 0) {
+      const allEps: ParsedPlayerEpisode[] = [];
+      media.seasons.forEach((season) => {
+        season.episodes.forEach((ep) => {
+          allEps.push({
+            id: ep.id,
+            fileIndex: ep.fileIndex ?? 0,
+            fileName: ep.fileName || ep.title,
+            seasonNumber: ep.seasonNumber || season.seasonNumber || 1,
+            episodeNumber: ep.episodeNumber || 1,
+            cleanTitle: ep.title || `Episódio ${ep.episodeNumber}`,
+            length: ep.sizeBytes || 0,
+            infoHash: ep.infoHash || (ep.filePath?.startsWith('torrent://') ? ep.filePath.replace('torrent://', '').split('/')[0] : status.infoHash),
+            magnetUri: ep.magnetUri,
+          });
+        });
+      });
+      if (allEps.length > 0) {
+        allEps.sort((a, b) => {
+          if (a.seasonNumber !== b.seasonNumber) return a.seasonNumber - b.seasonNumber;
+          return a.episodeNumber - b.episodeNumber;
+        });
+        return allEps;
+      }
+    }
+
+    return videoFiles.map((file, idx) => ({
+      ...parseEpisodeInfoFromFileName(file, idx + 1),
+      infoHash: status.infoHash,
+      magnetUri: status.magnetUri,
+    }));
+  }, [videoFiles, media, status.infoHash, status.magnetUri]);
 
   const currentParsedEp = useMemo(() => {
-    return parsedEpisodes.find((e) => e.fileIndex === currentFileIdx) || parsedEpisodes[0];
-  }, [parsedEpisodes, currentFileIdx]);
+    return (
+      parsedEpisodes.find(
+        (e) =>
+          (e.infoHash?.toLowerCase() === status.infoHash.toLowerCase() && e.fileIndex === currentFileIdx) ||
+          e.fileIndex === currentFileIdx
+      ) || parsedEpisodes[0]
+    );
+  }, [parsedEpisodes, currentFileIdx, status.infoHash]);
 
   // Unique seasons list
   const availableSeasons = useMemo(() => {
@@ -290,8 +330,12 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
 
   // Next and Previous episodes
   const currentIdxInEpisodes = useMemo(() => {
-    return parsedEpisodes.findIndex((e) => e.fileIndex === currentFileIdx);
-  }, [parsedEpisodes, currentFileIdx]);
+    return parsedEpisodes.findIndex(
+      (e) =>
+        (e.infoHash?.toLowerCase() === status.infoHash.toLowerCase() && e.fileIndex === currentFileIdx) ||
+        (e.fileIndex === currentFileIdx && (!e.infoHash || e.infoHash.toLowerCase() === status.infoHash.toLowerCase()))
+    );
+  }, [parsedEpisodes, currentFileIdx, status.infoHash]);
 
   const nextParsedEp = useMemo(() => {
     if (currentIdxInEpisodes >= 0 && currentIdxInEpisodes < parsedEpisodes.length - 1) {
@@ -404,34 +448,57 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
     return () => clearTimeout(timer);
   }, [nextCountdown, nextParsedEp]);
 
-  const handlePlayNextEpisode = () => {
-    if (!nextParsedEp) return;
+  const switchToEpisode = async (targetEp: ParsedPlayerEpisode) => {
     if (videoRef.current) {
       saveProgress(videoRef.current.currentTime, videoRef.current.duration);
     }
     setNextCountdown(null);
-    setCurrentFileIdx(nextParsedEp.fileIndex);
-    if (onSelectFile) onSelectFile(nextParsedEp.fileIndex);
+    setIsBuffering(true);
+
+    const cleanTargetHash = targetEp.infoHash?.toLowerCase();
+    const cleanCurrentHash = status.infoHash.toLowerCase();
+
+    if (cleanTargetHash && cleanTargetHash !== cleanCurrentHash) {
+      const magnetToStart = targetEp.magnetUri || `magnet:?xt=urn:btih:${cleanTargetHash}`;
+      try {
+        const res = await fetch('/api/torrent/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ magnetUri: magnetToStart }),
+        });
+        if (res.ok) {
+          const newStatus: TorrentStatus = await res.json();
+          setStatus(newStatus);
+          setCurrentFileIdx(targetEp.fileIndex);
+          if (onSelectFile) onSelectFile(targetEp.fileIndex);
+          setShowEpisodesDrawer(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Erro ao alternar torrent do episódio:', err);
+      }
+    }
+
+    setCurrentFileIdx(targetEp.fileIndex);
+    if (onSelectFile) onSelectFile(targetEp.fileIndex);
+    setShowEpisodesDrawer(false);
+  };
+
+  const handlePlayNextEpisode = () => {
+    if (!nextParsedEp) return;
+    switchToEpisode(nextParsedEp);
   };
 
   const handlePlayPrevEpisode = () => {
     if (!prevParsedEp) return;
-    if (videoRef.current) {
-      saveProgress(videoRef.current.currentTime, videoRef.current.duration);
-    }
-    setNextCountdown(null);
-    setCurrentFileIdx(prevParsedEp.fileIndex);
-    if (onSelectFile) onSelectFile(prevParsedEp.fileIndex);
+    switchToEpisode(prevParsedEp);
   };
 
-  const handleSwitchEpisode = (fileIndex: number) => {
-    if (videoRef.current) {
-      saveProgress(videoRef.current.currentTime, videoRef.current.duration);
+  const handleSwitchEpisode = (fileIndex: number, epItem?: ParsedPlayerEpisode) => {
+    const target = epItem || parsedEpisodes.find((e) => e.fileIndex === fileIndex) || parsedEpisodes[0];
+    if (target) {
+      switchToEpisode(target);
     }
-    setNextCountdown(null);
-    setCurrentFileIdx(fileIndex);
-    if (onSelectFile) onSelectFile(fileIndex);
-    setShowEpisodesDrawer(false);
   };
 
   // Google Cast Restore
@@ -1321,11 +1388,13 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
           {/* List of episodes */}
           <div className="max-h-80 overflow-y-auto space-y-1.5 pr-1">
             {drawerEpisodes.map((ep) => {
-              const isSelected = ep.fileIndex === currentFileIdx;
+              const isSelected =
+                (ep.infoHash?.toLowerCase() === status.infoHash.toLowerCase() && ep.fileIndex === currentFileIdx) ||
+                (ep.fileIndex === currentFileIdx && (!ep.infoHash || ep.infoHash.toLowerCase() === status.infoHash.toLowerCase()));
               return (
                 <button
-                  key={ep.fileIndex}
-                  onClick={() => handleSwitchEpisode(ep.fileIndex)}
+                  key={`${ep.infoHash || 'cur'}_${ep.fileIndex}_${ep.seasonNumber}_${ep.episodeNumber}`}
+                  onClick={() => handleSwitchEpisode(ep.fileIndex, ep)}
                   className={`w-full text-left p-2.5 rounded-xl text-xs flex items-center justify-between transition cursor-pointer border ${
                     isSelected
                       ? 'bg-red-600 border-red-500 text-white font-semibold shadow-md shadow-red-950/60'

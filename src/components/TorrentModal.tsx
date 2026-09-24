@@ -253,6 +253,25 @@ export const TorrentModal: React.FC<TorrentModalProps> = ({
     }
   };
 
+  const handleToggleTorrentKind = async (infoHash: string, currentKind: 'movie' | 'series', e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextKind = currentKind === 'series' ? 'movie' : 'series';
+    try {
+      const res = await fetch(`/api/media/${infoHash}/kind`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: nextKind }),
+      });
+      if (res.ok) {
+        setHistory((prev) =>
+          prev.map((h) => (h.infoHash.toLowerCase() === infoHash.toLowerCase() ? { ...h, kind: nextKind } : h))
+        );
+      }
+    } catch (err) {
+      console.error('Erro ao alternar tipo de torrent:', err);
+    }
+  };
+
   const handleDeleteHistory = async (infoHash: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
@@ -295,14 +314,17 @@ export const TorrentModal: React.FC<TorrentModalProps> = ({
     return nonSamples.length > 0 ? nonSamples : raw;
   }, [status?.files]);
 
-  const isSeries = useMemo(() => {
-    return videoFiles.length > 1;
-  }, [videoFiles.length]);
-
   // Parse files into episodes
   const parsedEpisodes: ParsedTorrentEpisode[] = useMemo(() => {
     return videoFiles.map((file, idx) => parseEpisodeFromFileName(file, idx + 1));
   }, [videoFiles]);
+
+  const isSeries = useMemo(() => {
+    if (videoFiles.length > 1) return true;
+    if (status?.name && /[Ss]\d{1,2}|Season\s*\d+|Temporada\s*\d+|\d{1,2}x\d{1,3}|[Ee][Pp]?\d{1,4}/i.test(status.name)) return true;
+    if (parsedEpisodes.some((e) => e.seasonNumber > 0 && (e.file.name.match(/[Ss]\d{1,2}|Season|Temporada|\d{1,2}x\d{1,3}|[Ee][Pp]?\d{1,4}/i)))) return true;
+    return false;
+  }, [videoFiles.length, status?.name, parsedEpisodes]);
 
   // Unique seasons list
   const availableSeasons = useMemo(() => {
@@ -412,13 +434,23 @@ export const TorrentModal: React.FC<TorrentModalProps> = ({
                       }`}
                     />
                     {isSeries ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                      <button
+                        onClick={(e) => handleToggleTorrentKind(status.infoHash, 'series', e)}
+                        className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/40 flex items-center gap-1 cursor-pointer transition"
+                        title="Clique para alternar para Filme"
+                      >
                         <Tv className="w-3 h-3" /> Série de TV
-                      </span>
+                        <span className="text-[9px] text-amber-400 font-normal ml-0.5">(Alternar)</span>
+                      </button>
                     ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1">
-                        <Film className="w-3 h-3" /> Filme / Vídeo
-                      </span>
+                      <button
+                        onClick={(e) => handleToggleTorrentKind(status.infoHash, 'movie', e)}
+                        className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-sky-500/20 text-sky-300 border border-sky-500/30 hover:bg-sky-500/40 flex items-center gap-1 cursor-pointer transition"
+                        title="Clique para alternar para Série"
+                      >
+                        <Film className="w-3 h-3" /> Filme
+                        <span className="text-[9px] text-sky-400 font-normal ml-0.5">(Alternar)</span>
+                      </button>
                     )}
                     <h3 className="text-sm sm:text-base font-bold text-white line-clamp-1">{status.name}</h3>
                   </div>
@@ -638,11 +670,18 @@ export const TorrentModal: React.FC<TorrentModalProps> = ({
                             <span className="text-emerald-400/80 font-medium flex items-center gap-1">
                               <CheckCircle2 className="w-2.5 h-2.5" /> Na Biblioteca
                             </span>
-                            {isHistSeries ? (
-                              <span className="text-amber-400/90 font-semibold">• Série</span>
-                            ) : (
-                              <span className="text-sky-400/90 font-semibold">• Filme</span>
-                            )}
+                            <button
+                              onClick={(e) => handleToggleTorrentKind(item.infoHash, isHistSeries ? 'series' : 'movie', e)}
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase transition flex items-center gap-1 cursor-pointer border ${
+                                isHistSeries
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+                                  : 'bg-sky-500/20 text-sky-300 border-sky-500/40 hover:bg-sky-500/30'
+                              }`}
+                              title="Clique para alternar entre Filme e Série"
+                            >
+                              {isHistSeries ? <Tv className="w-2.5 h-2.5" /> : <Film className="w-2.5 h-2.5" />}
+                              <span>{isHistSeries ? 'Série' : 'Filme'}</span>
+                            </button>
                             {item.totalBytes ? <span>• {formatBytes(item.totalBytes)}</span> : null}
                             {item.progressSeconds && item.progressSeconds > 10 ? (
                               <span className="text-amber-400">

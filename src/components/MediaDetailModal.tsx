@@ -400,9 +400,21 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
           <div className="absolute bottom-6 left-6 right-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
               <div className="flex items-center space-x-2 text-xs font-semibold mb-2">
-                <span className="bg-[#E50914] text-white px-2 py-0.5 rounded font-black text-[11px] tracking-tight">
-                  {media.kind === 'series' ? 'SÉRIE' : 'FILME'}
-                </span>
+                {onUpdateKind ? (
+                  <button
+                    onClick={() => onUpdateKind(media.id, media.kind === 'series' ? 'movie' : 'series')}
+                    className="bg-[#E50914] hover:bg-[#b80710] text-white px-2.5 py-0.5 rounded font-black text-[11px] tracking-tight transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95"
+                    title={`Mídia atualmente como ${media.kind === 'series' ? 'Série' : 'Filme'}. Clique para alterar para ${media.kind === 'series' ? 'Filme' : 'Série'}.`}
+                  >
+                    {media.kind === 'series' ? <Tv className="w-3 h-3 text-amber-300" /> : <Film className="w-3 h-3 text-sky-300" />}
+                    <span>{media.kind === 'series' ? 'SÉRIE' : 'FILME'}</span>
+                    <span className="text-[9px] font-normal text-white/80 bg-black/30 px-1 py-0.2 rounded">Alterar</span>
+                  </button>
+                ) : (
+                  <span className="bg-[#E50914] text-white px-2 py-0.5 rounded font-black text-[11px] tracking-tight">
+                    {media.kind === 'series' ? 'SÉRIE' : 'FILME'}
+                  </span>
+                )}
                 {media.isTorrent && (
                   <span className="bg-red-950/90 text-red-300 border border-red-800/60 text-[11px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
                     <Radio className="w-3 h-3 text-red-400" />
