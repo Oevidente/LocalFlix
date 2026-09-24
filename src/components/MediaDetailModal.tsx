@@ -20,6 +20,7 @@ import {
   Star,
   Radio,
   Film,
+  Tv,
   Sparkles,
 } from 'lucide-react';
 import { MediaItem, Episode, OnlineSubtitleOption, Season } from '../types';
@@ -35,6 +36,7 @@ interface MediaDetailModalProps {
   onDeleteMedia: (mediaId: string) => void;
   onUpdateBanner?: (mediaId: string, bannerUrl: string) => Promise<boolean>;
   onUpdatePoster?: (mediaId: string, posterUrl: string) => Promise<boolean>;
+  onUpdateKind?: (mediaId: string, kind: 'movie' | 'series') => Promise<void>;
   onRefreshMetadata?: (mediaId: string, query?: string, tmdbId?: number) => Promise<{ success: boolean; error?: string }>;
   onImportSubtitle: (mediaId: string, episodeId: string, file: File) => Promise<void>;
   onRemoveImportedSubtitle: (mediaId: string, episodeId: string, trackIndex: number) => Promise<void>;
@@ -53,6 +55,7 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   onDeleteMedia,
   onUpdateBanner,
   onUpdatePoster,
+  onUpdateKind,
   onRefreshMetadata,
   onImportSubtitle,
   onRemoveImportedSubtitle,
@@ -535,6 +538,26 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
               >
                 <ImageIcon className="w-3.5 h-3.5 text-pink-400" />
                 <span>Banner (URL)</span>
+              </button>
+            )}
+
+            {onUpdateKind && (
+              <button
+                onClick={() => onUpdateKind(media.id, media.kind === 'series' ? 'movie' : 'series')}
+                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded font-medium transition-colors bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-white/5 cursor-pointer"
+                title={media.kind === 'series' ? 'Alterar classificação desta mídia para Filme' : 'Alterar classificação desta mídia para Série'}
+              >
+                {media.kind === 'series' ? (
+                  <>
+                    <Film className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Mudar para Filme</span>
+                  </>
+                ) : (
+                  <>
+                    <Tv className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Mudar para Série</span>
+                  </>
+                )}
               </button>
             )}
 

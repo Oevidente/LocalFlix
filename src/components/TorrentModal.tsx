@@ -278,7 +278,22 @@ export const TorrentModal: React.FC<TorrentModalProps> = ({
     onClose();
   };
 
-  const videoFiles = useMemo(() => status?.files?.filter((f) => f.isVideo) || [], [status?.files]);
+  const videoFiles = useMemo(() => {
+    const raw = status?.files?.filter((f) => f.isVideo) || [];
+    if (raw.length <= 1) return raw;
+    const maxLen = raw.reduce((acc, f) => Math.max(acc, f.length || 0), 0);
+    const nonSamples = raw.filter((f) => {
+      const norm = (f.path || f.name).toLowerCase().replace(/\\/g, '/');
+      if (/(?:^|[\/._\-\[])(?:sample|trailer|featurette|extras?|bonus|promo|preview)(?:[\/._\-\]]|\.mp4|\.mkv|\.avi)/i.test(norm)) {
+        return false;
+      }
+      if (f.length < 80 * 1024 * 1024 && maxLen > 300 * 1024 * 1024) {
+        return false;
+      }
+      return true;
+    });
+    return nonSamples.length > 0 ? nonSamples : raw;
+  }, [status?.files]);
 
   const isSeries = useMemo(() => {
     return videoFiles.length > 1;
@@ -604,7 +619,7 @@ export const TorrentModal: React.FC<TorrentModalProps> = ({
               </div>
               <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                 {history.map((item) => {
-                  const isHistSeries = /[Ss]\d{1,2}|Season\s*\d+|Temporada\s*\d+/i.test(item.name);
+                  const isHistSeries = item.kind === 'series' || (!item.kind && /[Ss]\d{1,2}|Season\s*\d+|Temporada\s*\d+/i.test(item.name));
                   return (
                     <div
                       key={item.infoHash}
@@ -613,7 +628,7 @@ export const TorrentModal: React.FC<TorrentModalProps> = ({
                     >
                       <div className="flex items-center gap-3 truncate">
                         <div className="w-9 h-9 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-red-400 transition flex-shrink-0">
-                          {isHistSeries ? <Tv className="w-4 h-4 text-amber-400" /> : <Radio className="w-4 h-4" />}
+                          {isHistSeries ? <Tv className="w-4 h-4 text-amber-400" /> : <Film className="w-4 h-4 text-sky-400" />}
                         </div>
                         <div className="truncate">
                           <p className="text-xs font-medium text-white truncate group-hover:text-red-300 transition">
@@ -623,8 +638,10 @@ export const TorrentModal: React.FC<TorrentModalProps> = ({
                             <span className="text-emerald-400/80 font-medium flex items-center gap-1">
                               <CheckCircle2 className="w-2.5 h-2.5" /> Na Biblioteca
                             </span>
-                            {isHistSeries && (
+                            {isHistSeries ? (
                               <span className="text-amber-400/90 font-semibold">• Série</span>
+                            ) : (
+                              <span className="text-sky-400/90 font-semibold">• Filme</span>
                             )}
                             {item.totalBytes ? <span>• {formatBytes(item.totalBytes)}</span> : null}
                             {item.progressSeconds && item.progressSeconds > 10 ? (

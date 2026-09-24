@@ -188,6 +188,7 @@ export interface TorrentHistoryItem {
   infoHash: string;
   magnetUri: string;
   name: string;
+  kind?: MediaKind;
   dateAdded: string;
   lastWatchedAt?: string;
   progressSeconds?: number;

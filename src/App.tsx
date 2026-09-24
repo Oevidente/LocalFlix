@@ -496,6 +496,36 @@ export default function App() {
     }
   };
 
+  const handleUpdateKind = async (mediaId: string, newKind: 'movie' | 'series'): Promise<void> => {
+    // 1. Optimistic update
+    setActiveMediaDetail((prev) => (prev && prev.id === mediaId ? { ...prev, kind: newKind } : prev));
+    setLibrary((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map((i) => (i.id === mediaId ? { ...i, kind: newKind } : i)),
+      };
+    });
+
+    try {
+      const res = await fetch(`/api/media/${mediaId}/kind`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: newKind }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.item) {
+          setActiveMediaDetail(data.item);
+        }
+        await fetchLibrary();
+      }
+    } catch (err) {
+      console.error('Erro ao alternar classificação de mídia:', err);
+      fetchLibrary();
+    }
+  };
+
   const handleRefreshMetadata = async (mediaId: string, query?: string, tmdbId?: number): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`/api/library/metadata/${mediaId}`, {
@@ -804,6 +834,7 @@ export default function App() {
           onDeleteMedia={handleDeleteMedia}
           onUpdateBanner={handleUpdateBanner}
           onUpdatePoster={handleUpdatePoster}
+          onUpdateKind={handleUpdateKind}
           onRefreshMetadata={handleRefreshMetadata}
           onImportSubtitle={handleImportSubtitle}
           onRemoveImportedSubtitle={handleRemoveImportedSubtitle}

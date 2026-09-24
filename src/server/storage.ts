@@ -272,6 +272,75 @@ export function normalizeSearchTitle(title: string): string {
     .trim();
 }
 
+function isTorrentSample(fileNameOrPath: string, length?: number, maxLenInTorrent?: number): boolean {
+  const norm = fileNameOrPath.toLowerCase().replace(/\\/g, '/');
+  if (/(?:^|[\/._\-\[])(?:sample|trailer|featurette|extras?|bonus|promo|preview)(?:[\/._\-\]]|\.mp4|\.mkv|\.avi)/i.test(norm)) {
+    return true;
+  }
+  if (length && maxLenInTorrent && length < 80 * 1024 * 1024 && maxLenInTorrent > 300 * 1024 * 1024) {
+    return true;
+  }
+  return false;
+}
+
+export function updateMediaKind(mediaId: string, newKind: MediaKind): MediaItem | undefined {
+  const lib = readLibrary();
+  const media = lib.items.find((i) => i.id === mediaId);
+  if (!media) return undefined;
+
+  media.kind = newKind;
+  if (newKind === 'movie') {
+    media.totalSeasons = 0;
+    const allEpisodes = media.seasons.flatMap((s) => s.episodes);
+    const mainEp = allEpisodes[0] || {
+      id: `ep_${media.id}_0`,
+      seasonNumber: 0,
+      episodeNumber: 1,
+      title: media.title,
+      fileName: 'video.mp4',
+      filePath: media.folderPath,
+      extension: '.mp4',
+      sizeBytes: 0,
+      durationSeconds: 0,
+      audioTracks: [],
+      subtitleTracks: [],
+      watched: false,
+      progressSeconds: 0,
+    };
+    mainEp.seasonNumber = 0;
+    mainEp.episodeNumber = 1;
+    if (!mainEp.title || mainEp.title.startsWith('Episódio') || mainEp.title.startsWith('Vídeo')) {
+      mainEp.title = media.title;
+    }
+    media.seasons = [
+      {
+        seasonNumber: 0,
+        title: '',
+        episodes: [mainEp],
+      },
+    ];
+    media.totalEpisodes = 1;
+  } else {
+    // Series
+    if (media.seasons.length === 0 || (media.seasons.length === 1 && media.seasons[0].seasonNumber === 0)) {
+      if (media.seasons.length === 1) {
+        media.seasons[0].seasonNumber = 1;
+        media.seasons[0].title = 'Temporada 1';
+        media.seasons[0].episodes.forEach((e, idx) => {
+          e.seasonNumber = 1;
+          e.episodeNumber = idx + 1;
+        });
+      }
+    }
+    media.totalSeasons = media.seasons.length;
+    media.totalEpisodes = media.seasons.reduce((acc, s) => acc + s.episodes.length, 0);
+  }
+
+  media.updatedAt = new Date().toISOString();
+  writeLibrary(lib, true);
+  return media;
+}
+
 /**
  * Automatically identifies and sanitizes a media item based strictly on its video count.
  * - totalVideos > 1  => 'series' (Apenas séries têm temporadas: totalSeasons = seasons.length)
@@ -286,14 +355,67 @@ export function sanitizeMediaClassification(item: MediaItem): boolean {
     changed = true;
   }
 
+  // Deduplicate and cleanup ghost/placeholder episodes
+  const seenPaths = new Set<string>();
+  const seenTorrentKeys = new Set<string>();
+  let hasRealEpisodes = false;
+
+  for (const s of item.seasons) {
+    if (Array.isArray(s?.episodes)) {
+      for (const ep of s.episodes) {
+        if (ep.sizeBytes && ep.sizeBytes > 0 && ep.fileName !== 'video.mp4') {
+          hasRealEpisodes = true;
+        }
+      }
+    }
+  }
+
+  for (const s of item.seasons) {
+    if (!Array.isArray(s?.episodes)) {
+      s.episodes = [];
+      changed = true;
+      continue;
+    }
+
+    const cleanEps: Episode[] = [];
+    for (const ep of s.episodes) {
+      if (!ep) continue;
+
+      // Drop placeholder torrent episode if real files already exist
+      if (hasRealEpisodes && ep.fileName === 'video.mp4' && (!ep.sizeBytes || ep.sizeBytes === 0)) {
+        changed = true;
+        continue;
+      }
+
+      // Check unique keys
+      const torrentKey = ep.infoHash ? `${ep.infoHash.toLowerCase()}_${ep.fileIndex ?? 0}` : null;
+      const fileKey = ep.filePath || ep.fileName;
+
+      if (torrentKey && seenTorrentKeys.has(torrentKey)) {
+        changed = true;
+        continue;
+      }
+      if (fileKey && seenPaths.has(fileKey)) {
+        changed = true;
+        continue;
+      }
+
+      if (torrentKey) seenTorrentKeys.add(torrentKey);
+      if (fileKey) seenPaths.add(fileKey);
+      cleanEps.push(ep);
+    }
+
+    if (cleanEps.length !== s.episodes.length) {
+      s.episodes = cleanEps;
+      changed = true;
+    }
+  }
+
   // Count all actual video files in the item
   let totalVideos = 0;
   for (const season of item.seasons) {
     if (Array.isArray(season?.episodes)) {
       totalVideos += season.episodes.length;
-    } else if (season) {
-      season.episodes = [];
-      changed = true;
     }
   }
 
@@ -312,8 +434,22 @@ export function sanitizeMediaClassification(item: MediaItem): boolean {
       changed = true;
     }
 
+    if (item.seasons.length > 1) {
+      // Flatten all episodes into season 0
+      const allEps = item.seasons.flatMap((s) => s.episodes);
+      item.seasons = [
+        {
+          seasonNumber: 0,
+          title: '',
+          episodes: allEps.slice(0, 1),
+        },
+      ];
+      item.totalEpisodes = item.seasons[0].episodes.length;
+      changed = true;
+    }
+
     for (const season of item.seasons) {
-      if (season.title && season.title.toLowerCase().includes('temporada')) {
+      if (season.title) {
         season.title = '';
         changed = true;
       }
@@ -324,6 +460,10 @@ export function sanitizeMediaClassification(item: MediaItem): boolean {
       for (const ep of season.episodes) {
         if (ep.seasonNumber !== 0) {
           ep.seasonNumber = 0;
+          changed = true;
+        }
+        if (ep.episodeNumber !== 1) {
+          ep.episodeNumber = 1;
           changed = true;
         }
         if (
@@ -488,13 +628,18 @@ export function saveTorrentMediaItem(params: {
   const now = new Date().toISOString();
 
   const rawFiles = params.files || [];
+  const maxFileLen = rawFiles.reduce((acc, f) => Math.max(acc, f.length || 0), 0);
   const videoFiles = rawFiles.filter((f) => {
     const ext = path.extname(f.name || f.path || '').toLowerCase();
-    return TORRENT_VIDEO_EXTS.has(ext);
+    if (!TORRENT_VIDEO_EXTS.has(ext)) return false;
+    if (rawFiles.length > 1 && isTorrentSample(f.name || f.path || '', f.length, maxFileLen)) {
+      return false;
+    }
+    return true;
   });
 
-  const displayFiles = videoFiles.length > 0 ? videoFiles : rawFiles;
-  const hasMultipleFiles = displayFiles.length > 1;
+  const displayFiles = videoFiles.length > 0 ? videoFiles : rawFiles.filter(f => TORRENT_VIDEO_EXTS.has(path.extname(f.name || f.path || '').toLowerCase()));
+  const isSingleMovie = displayFiles.length === 1;
 
   const rawTitle = params.name || `Torrent ${cleanHash.slice(0, 8)}`;
   const cleanTitle =
@@ -520,9 +665,56 @@ export function saveTorrentMediaItem(params: {
   const existing = existingIndex >= 0 ? lib.items[existingIndex] : undefined;
 
   // Working seasons array
-  let seasons: Season[] = existing?.seasons ? [...existing.seasons] : [];
+  let seasons: Season[] = [];
 
-  if (displayFiles.length > 0) {
+  if (isSingleMovie) {
+    // Single video file => Definitely a movie!
+    const f = displayFiles[0];
+    const epId = `ep_torrent_${cleanHash}_${f.index ?? 0}`;
+    
+    // Find existing progress if any
+    let prevProgress = 0;
+    let prevDuration = 0;
+    let prevWatched = false;
+    if (existing) {
+      for (const s of existing.seasons) {
+        for (const e of s.episodes) {
+          if (e.progressSeconds > prevProgress) prevProgress = e.progressSeconds;
+          if (e.durationSeconds > prevDuration) prevDuration = e.durationSeconds;
+          if (e.watched) prevWatched = true;
+        }
+      }
+    }
+
+    const singleEp: Episode = {
+      id: epId,
+      seasonNumber: 0,
+      episodeNumber: 1,
+      title: existing?.customTitle || cleanTitle,
+      fileName: f.name,
+      filePath: `torrent://${cleanHash}/${f.index ?? 0}`,
+      extension: path.extname(f.name).toLowerCase() || '.mp4',
+      sizeBytes: f.length || params.totalBytes || 0,
+      durationSeconds: prevDuration,
+      audioTracks: [],
+      subtitleTracks: [],
+      watched: prevWatched,
+      progressSeconds: prevProgress,
+      isTorrent: true,
+      fileIndex: f.index ?? 0,
+      magnetUri: params.magnetUri,
+      infoHash: cleanHash,
+    };
+
+    seasons = [
+      {
+        seasonNumber: 0,
+        title: '',
+        episodes: [singleEp],
+      },
+    ];
+  } else if (displayFiles.length > 1) {
+    // Multiple video files => Series
     displayFiles.forEach((f, idx) => {
       const filePathToParse = f.path || f.name;
       const parsed = parseEpisodeInfo(filePathToParse, idx + 1);
@@ -540,53 +732,44 @@ export function saveTorrentMediaItem(params: {
         seasons.push(seasonObj);
       }
 
-      // Check if episode already exists in this season to PREVENT DUPLICATES
-      let existingEp = seasonObj.episodes.find(
-        (e) =>
-          e.id === epId ||
-          (e.seasonNumber === sNum && e.episodeNumber === eNum) ||
-          (e.infoHash?.toLowerCase() === cleanHash && e.fileIndex === (f.index ?? idx)) ||
-          e.fileName === f.name
-      );
-
-      if (existingEp) {
-        // Update torrent pointer properties on existing episode
-        existingEp.seasonNumber = sNum;
-        existingEp.episodeNumber = eNum;
-        existingEp.fileName = f.name;
-        existingEp.isTorrent = true;
-        existingEp.fileIndex = f.index ?? idx;
-        existingEp.magnetUri = params.magnetUri || existingEp.magnetUri;
-        existingEp.infoHash = cleanHash;
-        existingEp.filePath = `torrent://${cleanHash}/${f.index ?? idx}`;
-        existingEp.sizeBytes = f.length || existingEp.sizeBytes;
-        existingEp.extension = path.extname(f.name).toLowerCase() || existingEp.extension;
-        if (!existingEp.title || existingEp.title.startsWith('Episódio') || existingEp.title.startsWith('Vídeo')) {
-          existingEp.title = parsed.cleanTitle || f.name;
+      // Check if episode already existed in previous state to retain progress
+      let existingEp: Episode | undefined;
+      if (existing) {
+        for (const s of existing.seasons) {
+          const match = s.episodes.find(
+            (e) =>
+              e.id === epId ||
+              (e.infoHash?.toLowerCase() === cleanHash && e.fileIndex === (f.index ?? idx)) ||
+              (e.seasonNumber === sNum && e.episodeNumber === eNum) ||
+              e.fileName === f.name
+          );
+          if (match) {
+            existingEp = match;
+            break;
+          }
         }
-      } else {
-        // Add new episode card
-        const newEp: Episode = {
-          id: epId,
-          seasonNumber: sNum,
-          episodeNumber: eNum,
-          title: parsed.cleanTitle || f.name,
-          fileName: f.name,
-          filePath: `torrent://${cleanHash}/${f.index ?? idx}`,
-          extension: path.extname(f.name).toLowerCase() || '.mp4',
-          sizeBytes: f.length || 0,
-          durationSeconds: 0,
-          audioTracks: [],
-          subtitleTracks: [],
-          watched: false,
-          progressSeconds: 0,
-          isTorrent: true,
-          fileIndex: f.index ?? idx,
-          magnetUri: params.magnetUri,
-          infoHash: cleanHash,
-        };
-        seasonObj.episodes.push(newEp);
       }
+
+      const newEp: Episode = {
+        id: epId,
+        seasonNumber: sNum,
+        episodeNumber: eNum,
+        title: parsed.cleanTitle || f.name,
+        fileName: f.name,
+        filePath: `torrent://${cleanHash}/${f.index ?? idx}`,
+        extension: path.extname(f.name).toLowerCase() || '.mp4',
+        sizeBytes: f.length || 0,
+        durationSeconds: existingEp?.durationSeconds || 0,
+        audioTracks: [],
+        subtitleTracks: [],
+        watched: existingEp?.watched || false,
+        progressSeconds: existingEp?.progressSeconds || 0,
+        isTorrent: true,
+        fileIndex: f.index ?? idx,
+        magnetUri: params.magnetUri,
+        infoHash: cleanHash,
+      };
+      seasonObj.episodes.push(newEp);
     });
   } else if (seasons.length === 0) {
     // Placeholder episode before metadata finishes loading

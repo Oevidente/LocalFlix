@@ -14,6 +14,7 @@ import {
   relocateMediaFolder,
   updateMediaBanner,
   updateMediaPoster,
+  updateMediaKind,
   updateTmdbSettings,
   getDataDir,
   updateTorrentProgressInLibrary,
@@ -1628,10 +1629,53 @@ apiRouter.get('/torrent/stream/:infoHash/:fileIndex', async (req: Request, res: 
   });
 });
 
+// 4.5. Update media kind (movie vs series)
+apiRouter.post('/media/:id/kind', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { kind } = req.body;
+  if (kind !== 'movie' && kind !== 'series') {
+    res.status(400).json({ error: 'Tipo inválido (deve ser "movie" ou "series")' });
+    return;
+  }
+  const updated = updateMediaKind(id, kind);
+  if (!updated) {
+    res.status(404).json({ error: 'Mídia não encontrada' });
+    return;
+  }
+  res.json({ success: true, item: updated });
+});
+
+apiRouter.patch('/media/:id/kind', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { kind } = req.body;
+  if (kind !== 'movie' && kind !== 'series') {
+    res.status(400).json({ error: 'Tipo inválido (deve ser "movie" ou "series")' });
+    return;
+  }
+  const updated = updateMediaKind(id, kind);
+  if (!updated) {
+    res.status(404).json({ error: 'Mídia não encontrada' });
+    return;
+  }
+  res.json({ success: true, item: updated });
+});
+
 // 5. Get recent torrent history
 apiRouter.get('/torrent/history', (_req: Request, res: Response) => {
   const history = readTorrentHistory();
-  res.json(history);
+  const lib = readLibrary();
+  const enriched = history.map((item) => {
+    const cleanHash = item.infoHash.toLowerCase();
+    const media = lib.items.find(
+      (m) => (m.infoHash && m.infoHash.toLowerCase() === cleanHash) || m.id === `torrent_${cleanHash}`
+    );
+    const inferredKind = media?.kind || (/[Ss]\d{1,2}|Season\s*\d+|Temporada\s*\d+/i.test(item.name) ? 'series' : 'movie');
+    return {
+      ...item,
+      kind: inferredKind,
+    };
+  });
+  res.json(enriched);
 });
 
 // 6. Save watch progress for a torrent
