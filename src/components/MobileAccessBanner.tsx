@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Smartphone, Wifi, ShieldCheck, Copy, Check, QrCode, ChevronDown, ChevronUp, AlertCircle, Info, Globe, Shield, ExternalLink, Cloud, Server, Radio } from 'lucide-react';
-import { generateQRCodeMatrix } from '../utils/qrcode';
+import { Smartphone, Wifi, Copy, Check, ChevronDown, ChevronUp, AlertCircle, Info, Globe, Shield, ExternalLink, Cloud, Server } from 'lucide-react';
 
 interface NetworkInfo {
   protocol: string;
@@ -20,7 +19,6 @@ export const MobileAccessBanner: React.FC<MobileAccessBannerProps> = ({ onCloseB
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedIpIndex, setSelectedIpIndex] = useState<number>(0);
   const [copied, setCopied] = useState<boolean>(false);
-  const [showQr, setShowQr] = useState<boolean>(false);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [showHelpDetails, setShowHelpDetails] = useState<boolean>(false);
   const [accessMode, setAccessMode] = useState<'local' | 'remote'>('local');
@@ -46,15 +44,6 @@ export const MobileAccessBanner: React.FC<MobileAccessBannerProps> = ({ onCloseB
     const protocol = networkInfo?.protocol || 'https';
     return `${protocol}://${host}:${port}`;
   }, [networkInfo, selectedIpIndex]);
-
-  // Compute QR Matrix
-  const qrMatrix = React.useMemo(() => {
-    try {
-      return generateQRCodeMatrix(activeUrl);
-    } catch {
-      return null;
-    }
-  }, [activeUrl]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(activeUrl);
@@ -139,21 +128,6 @@ export const MobileAccessBanner: React.FC<MobileAccessBannerProps> = ({ onCloseB
             )}
           </button>
 
-          {/* QR Code Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowQr(!showQr)}
-            className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition border cursor-pointer ${
-              showQr
-                ? 'bg-neutral-700 border-neutral-500 text-white'
-                : 'bg-neutral-800 hover:bg-neutral-700 border-neutral-700 text-neutral-300'
-            }`}
-            title="Exibir QR Code para a câmera do celular"
-          >
-            <QrCode className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">QR Code</span>
-          </button>
-
           {/* Expand Instructions Toggle */}
           <button
             type="button"
@@ -177,32 +151,6 @@ export const MobileAccessBanner: React.FC<MobileAccessBannerProps> = ({ onCloseB
           )}
         </div>
       </div>
-
-      {/* QR Code Popup / Drawer */}
-      {showQr && qrMatrix && (
-        <div className="mt-3 pt-3 border-t border-neutral-800/80 flex flex-col sm:flex-row items-center justify-center gap-3 bg-white/5 p-3 rounded-xl animate-in fade-in duration-150">
-          <div className="bg-white p-2 rounded-lg shadow-lg border border-neutral-300">
-            <svg
-              viewBox={`0 0 ${qrMatrix.length} ${qrMatrix.length}`}
-              className="w-28 h-28 sm:w-32 sm:h-32"
-              shapeRendering="crispEdges"
-            >
-              {qrMatrix.map((row, r) =>
-                row.map((cell, c) => (cell ? <rect key={`${r}-${c}`} x={c} y={r} width={1} height={1} fill="#000" /> : null))
-              )}
-            </svg>
-          </div>
-          <div className="text-center sm:text-left space-y-1 text-xs">
-            <div className="font-bold text-white flex items-center gap-1.5 justify-center sm:justify-start">
-              <QrCode className="w-4 h-4 text-emerald-400" />
-              <span>Escanear pelo Celular</span>
-            </div>
-            <p className="text-neutral-300 text-[11px] max-w-xs leading-relaxed">
-              Abra a câmera do celular ou leitor de QR Code para acessar diretamente <strong className="text-emerald-400 font-mono">{activeUrl}</strong>.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Expanded Instructions Accordion */}
       {isExpanded && (

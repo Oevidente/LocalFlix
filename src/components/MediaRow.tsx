@@ -35,7 +35,7 @@ export const MediaRow: React.FC<MediaRowProps> = ({
 
   return (
     <section id={id} className="relative mb-8 sm:mb-12 group/row">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-3 flex items-center justify-between">
+      <div className="px-4 sm:px-6 lg:px-8 mb-3 flex items-center justify-between">
         <h2 className="text-lg sm:text-xl font-bold text-white tracking-wide flex items-center space-x-2">
           <span>{title}</span>
           <span className="text-xs text-neutral-500 font-normal">({items.length})</span>
