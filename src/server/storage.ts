@@ -375,10 +375,7 @@ export function saveTorrentMediaItem(params: {
   });
 
   const displayFiles = videoFiles.length > 0 ? videoFiles : rawFiles;
-  const isSeries =
-    displayFiles.length > 1 ||
-    /[Ss]\d{1,2}|Season\s*\d+|Temporada\s*\d+|Complete|S\d+-\S\d+|[0-9]{1,2}x[0-9]{1,2}/i.test(params.name || '') ||
-    displayFiles.some((f) => /[Ss]\d{1,2}|Season\s*\d+|Temporada|Episodio|Episode|\bE\d{1,3}\b/i.test(f.path || f.name));
+  const isSeries = displayFiles.length > 1;
 
   const rawTitle = params.name || `Torrent ${cleanHash.slice(0, 8)}`;
   const cleanTitle =
@@ -404,6 +401,10 @@ export function saveTorrentMediaItem(params: {
   });
 
   const existing = existingIndex >= 0 ? lib.items[existingIndex] : undefined;
+
+  if (displayFiles.length === 0 && existing) {
+    return existing;
+  }
 
   // Working seasons array
   let seasons: Season[] = existing?.seasons ? [...existing.seasons] : [];
@@ -519,7 +520,7 @@ export function saveTorrentMediaItem(params: {
     existing.magnetUri = params.magnetUri || existing.magnetUri;
     existing.infoHash = cleanHash;
     existing.isTorrent = true;
-    existing.kind = 'series';
+    existing.kind = totalEpisodes > 1 ? 'series' : 'movie';
     existing.seasons = seasons;
     existing.totalEpisodes = totalEpisodes;
     existing.totalSeasons = totalSeasons;
@@ -529,7 +530,7 @@ export function saveTorrentMediaItem(params: {
     itemToReturn = {
       id: mediaId,
       title: cleanTitle,
-      kind: isSeries ? 'series' : 'movie',
+      kind: totalEpisodes > 1 ? 'series' : 'movie',
       folderPath: `torrent://${cleanHash}`,
       isTorrent: true,
       magnetUri: params.magnetUri,
