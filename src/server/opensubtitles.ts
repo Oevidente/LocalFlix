@@ -208,34 +208,47 @@ export async function searchOnlineSubtitles(
   episode: Episode,
   language = 'pt-br'
 ): Promise<OnlineSubtitleOption[]> {
-  const params = new URLSearchParams();
-  params.set('languages', normalizeLanguage(language));
-  params.set('type', media.kind === 'series' ? 'episode' : 'movie');
-
   const queryCandidate = media.customTitle || media.title || '';
   const cleaned = cleanSearchTitle(queryCandidate);
-  if (cleaned) {
-    params.set('query', cleaned);
-  } else if (queryCandidate) {
-    params.set('query', queryCandidate);
-  }
+  const baseParams = new URLSearchParams({
+    languages: normalizeLanguage(language),
+    type: media.kind === 'series' ? 'episode' : 'movie',
+  });
 
-  if (media.tmdbId) {
-    params.set('tmdb_id', String(media.tmdbId));
-  }
-  if (media.year) {
-    params.set('year', String(media.year));
-  }
   if (media.kind === 'series') {
-    params.set('season_number', String(episode.seasonNumber));
-    params.set('episode_number', String(episode.episodeNumber));
+    baseParams.set('season_number', String(episode.seasonNumber));
+    baseParams.set('episode_number', String(episode.episodeNumber));
   }
 
-  const response = await requestOpenSubtitles<OpenSubtitlesSearchResponse>(`/subtitles?${params.toString()}`);
-  return (response.data || [])
-    .map(resultToOption)
-    .filter((option): option is OnlineSubtitleOption => !!option)
-    .slice(0, 20);
+  const searches: URLSearchParams[] = [];
+  if (media.tmdbId) {
+    // A localized/custom title can conflict with the TMDB title in the API.
+    const byTmdb = new URLSearchParams(baseParams);
+    byTmdb.set('tmdb_id', String(media.tmdbId));
+    searches.push(byTmdb);
+  }
+
+  const byTitle = new URLSearchParams(baseParams);
+  if (cleaned || queryCandidate) byTitle.set('query', cleaned || queryCandidate);
+  if (media.year) byTitle.set('year', String(media.year));
+  searches.push(byTitle);
+
+  if (media.year) {
+    const byTitleWithoutYear = new URLSearchParams(byTitle);
+    byTitleWithoutYear.delete('year');
+    searches.push(byTitleWithoutYear);
+  }
+
+  for (const params of searches) {
+    const response = await requestOpenSubtitles<OpenSubtitlesSearchResponse>(`/subtitles?${params.toString()}`);
+    const options = (response.data || [])
+      .map(resultToOption)
+      .filter((option): option is OnlineSubtitleOption => !!option)
+      .slice(0, 20);
+    if (options.length > 0) return options;
+  }
+
+  return [];
 }
 
 async function downloadBytes(url: string): Promise<Buffer> {
