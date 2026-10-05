@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Film, Plus, HardDrive, Search, Tv, Radio, Sparkles, Home, MoreVertical, X, FolderPlus, Network } from 'lucide-react';
+import { Film, Plus, HardDrive, Search, Tv, Radio, Sparkles, Home, MoreVertical, X, FolderPlus, Network, Smartphone } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
+import { MobileAccessBanner } from './MobileAccessBanner';
 
 interface NavbarProps {
   activeTab: 'all' | 'series' | 'movie' | 'channels';
@@ -28,6 +29,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showMobileAccess, setShowMobileAccess] = useState(false);
   const desktopSearchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
@@ -217,10 +219,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="torrent-player-btn"
               onClick={onOpenTorrentModal}
-              className="h-8 lg:h-9 flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 lg:px-3 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 text-amber-400 hover:text-amber-300 text-xs lg:text-sm font-medium transition-all border border-neutral-700/80 hover:border-amber-500/50 shadow-sm active:scale-95 cursor-pointer shrink-0"
+              className="h-8 lg:h-9 flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 lg:px-3 rounded-lg bg-transparent hover:bg-white/10 text-neutral-300 hover:text-white text-xs lg:text-sm font-normal transition-all border border-transparent hover:border-white/10 active:scale-95 cursor-pointer shrink-0"
               title="Abrir Player Torrent / Link Magnet"
             >
-              <Radio className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-amber-400 shrink-0" />
+              <Radio className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" />
               <span className="hidden xl:inline">Player </span>
               <span>Torrent</span>
             </button>
@@ -230,10 +232,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="storage-nodes-navbar-btn"
                 onClick={onOpenStorageNodesModal}
-                className="h-8 lg:h-9 flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 lg:px-3 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 text-purple-400 hover:text-purple-300 text-xs lg:text-sm font-medium transition-all border border-neutral-700/80 hover:border-purple-500/50 shadow-sm active:scale-95 cursor-pointer shrink-0"
+                className="h-8 lg:h-9 flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 lg:px-3 rounded-lg bg-transparent hover:bg-white/10 text-neutral-300 hover:text-white text-xs lg:text-sm font-normal transition-all border border-transparent hover:border-white/10 active:scale-95 cursor-pointer shrink-0"
                 title="Nuvem Multi-PC (Conectar 2º PC / Tailscale)"
               >
-                <Network className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-purple-400 shrink-0" />
+                <Network className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" />
                 <span className="hidden xl:inline">Nuvem </span>
                 <span>Multi-PC</span>
               </button>
@@ -243,10 +245,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="add-folder-btn"
               onClick={onOpenAddModal}
-              className="h-8 lg:h-9 flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 lg:px-3.5 rounded-lg bg-[#E50914] hover:bg-[#b80710] text-white text-xs lg:text-sm font-medium transition-all shadow-md hover:shadow-red-600/20 active:scale-95 cursor-pointer shrink-0"
+              className="h-8 lg:h-9 flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 lg:px-3.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs lg:text-sm font-medium transition-all active:scale-95 cursor-pointer shrink-0"
               title="Adicionar pasta do PC pelo explorador nativo"
             >
-              <Plus className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" />
+              <Plus className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-[#E50914] shrink-0" />
               <span className="hidden xl:inline">Adicionar </span>
               <span>Pasta</span>
               <span className="hidden 2xl:inline"> PC</span>
@@ -260,7 +262,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="tmdb-config-navbar-btn"
                 onClick={onOpenTmdbModal}
-                className="p-1.5 lg:p-2 text-pink-400 hover:text-pink-300 rounded-md hover:bg-pink-500/15 transition-colors cursor-pointer shrink-0"
+                className="p-1.5 lg:p-2 text-neutral-300 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer shrink-0"
                 title="Configurar TMDb (Capas e Sinopses)"
               >
                 <Sparkles className="w-4 h-4 lg:w-5 lg:h-5" />
@@ -275,6 +277,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               title="Status do Sistema e Portabilidade"
             >
               <HardDrive className="w-4 h-4 lg:w-5 lg:h-5" />
+            </button>
+
+            <button
+              id="mobile-access-btn"
+              onClick={() => setShowMobileAccess((isOpen) => !isOpen)}
+              className="p-1.5 lg:p-2 text-neutral-300 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+              title="Acesso no celular"
+              aria-label="Acesso no celular"
+              aria-expanded={showMobileAccess}
+            >
+              <Smartphone className="w-4 h-4 lg:w-5 lg:h-5" />
             </button>
           </div>
 
@@ -356,6 +369,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </div>
         )}
+
+        {showMobileAccess && (
+          <div className="absolute right-3 top-full mt-2 w-[min(96vw,56rem)] max-h-[calc(100dvh-5rem)] overflow-y-auto shadow-2xl">
+            <MobileAccessBanner onCloseBanner={() => setShowMobileAccess(false)} />
+          </div>
+        )}
       </header>
 
       {/* Mobile Drawer / Action Sheet Modal */}
@@ -389,6 +408,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Menu Action List */}
             <div className="space-y-2 text-sm">
+              <button
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  setShowMobileAccess(true);
+                }}
+                className="w-full flex items-center space-x-3 p-3 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-left transition cursor-pointer"
+              >
+                <div className="p-2 rounded-lg bg-neutral-800 text-neutral-300">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-white">Acesso no Celular</div>
+                  <div className="text-xs text-neutral-400">Endereço e instruções para outros dispositivos</div>
+                </div>
+              </button>
+
               <button
                 onClick={() => {
                   setShowMobileMenu(false);

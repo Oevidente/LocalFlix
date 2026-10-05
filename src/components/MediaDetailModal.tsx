@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   X,
   Play,
+  ChevronDown,
   RotateCw,
   FolderSync,
   Trash2,
   CheckCircle2,
   Circle,
   Folder,
-  Layers,
   Subtitles,
   Volume2,
   Image as ImageIcon,
@@ -356,12 +356,12 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   return (
     <div
       id="media-detail-modal-backdrop"
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex justify-center p-2 sm:p-4 md:p-6 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-sm flex justify-center p-2 sm:p-4 md:p-6 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
         id="media-detail-modal"
-        className="relative w-full max-w-4xl bg-[#181818] rounded-xl overflow-hidden shadow-2xl border border-white/10 my-auto text-neutral-200"
+        className="relative w-full max-w-5xl bg-[#181818] rounded-xl overflow-hidden shadow-2xl border border-white/10 my-auto text-neutral-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
@@ -372,33 +372,21 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
           <X className="w-5 h-5" />
         </button>
 
-        {/* Banner Edit Header Button */}
-        {onUpdateBanner && (
-          <button
-            id="detail-edit-banner-header-btn"
-            onClick={() => setShowBannerInput(!showBannerInput)}
-            className="absolute top-4 left-4 z-30 flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-black/70 hover:bg-black/90 text-xs font-semibold text-white/90 hover:text-white transition-all border border-white/10 backdrop-blur-sm cursor-pointer shadow-lg active:scale-95"
-            title="Adicionar ou alterar imagem do banner através de URL"
-          >
-            <ImageIcon className="w-3.5 h-3.5 text-pink-400" />
-            <span>{media.backdropPath ? 'Alterar Banner (URL)' : 'Adicionar Banner (URL)'}</span>
-          </button>
-        )}
-
         {/* Modal Header Banner */}
-        <div className="relative h-64 sm:h-80 w-full overflow-hidden bg-black">
+        <div className="relative h-64 sm:h-96 w-full overflow-hidden bg-black">
           <img
             src={bannerUrl}
             alt={media.title}
-            className="w-full h-full object-cover opacity-50 filter blur-xs scale-105"
+            className="w-full h-full object-cover object-[center_35%]"
             onError={(e) => {
               (e.target as HTMLElement).style.display = 'none';
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#181818] via-[#181818]/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/15 to-transparent" />
 
           {/* Title & Quick Info */}
-          <div className="absolute bottom-6 left-6 right-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="absolute bottom-6 left-6 right-6 flex flex-col items-start gap-4">
             <div>
               <div className="flex items-center space-x-2 text-xs font-semibold mb-2">
                 {onUpdateKind ? (
@@ -455,7 +443,7 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                   </>
                 )}
               </div>
-              <h1 className="text-2xl sm:text-4xl font-black text-white drop-shadow-md">
+              <h1 className="text-3xl sm:text-5xl font-bold text-white drop-shadow-md">
                 {media.title}
               </h1>
               {(media.year || media.rating !== undefined || media.genres?.length) && (
@@ -483,7 +471,7 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
             {selectedSeason?.episodes[0] && (
               <button
                 onClick={() => onPlayEpisode(media, selectedSeason.episodes[0])}
-                className="shrink-0 flex items-center space-x-2 px-6 py-2.5 rounded bg-white text-black font-bold hover:bg-neutral-200 transition-all shadow-lg active:scale-95"
+                className="shrink-0 flex items-center space-x-2 px-6 py-2.5 rounded-md bg-white text-black font-bold hover:bg-neutral-200 transition-all shadow-lg active:scale-95"
               >
                 <Play className="w-5 h-5 fill-black" />
                 <span>{media.kind === 'movie' ? 'Assistir Filme' : 'Reproduzir'}</span>
@@ -492,6 +480,12 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
           </div>
         </div>
 
+        <details className="group border-y border-white/10 bg-black/20">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-3 text-sm font-semibold text-neutral-300 transition-colors hover:bg-white/5 hover:text-white [&::-webkit-details-marker]:hidden">
+            <span>Ferramentas da biblioteca</span>
+            <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="border-t border-white/5">
         {/* Action & Path Bar */}
         <div className="px-6 py-3 bg-black/40 border-y border-white/5 flex flex-wrap items-center justify-between gap-3 text-xs">
           {/* Path info */}
@@ -960,18 +954,21 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
           </div>
         )}
 
+          </div>
+        </details>
+
         {/* Season Selector & Episode List */}
-        <div className="p-6">
-          {media.kind === 'series' && media.seasons.length > 1 && (
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <Layers className="w-4 h-4 text-neutral-400" />
-                <span className="text-sm font-semibold text-neutral-300">Temporada:</span>
-              </div>
+        <div className="px-4 py-6 sm:px-8">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-white">
+              {media.kind === 'series' ? 'Episódios' : 'Reprodução'}
+            </h2>
+            {media.kind === 'series' && media.seasons.length > 1 && (
               <select
                 value={selectedSeasonNumber}
                 onChange={(e) => setSelectedSeasonNumber(Number(e.target.value))}
-                className="bg-neutral-800 border border-neutral-700 text-white text-sm rounded-md px-3 py-1.5 focus:outline-none focus:border-red-500"
+                className="rounded-md border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm text-white focus:border-red-500 focus:outline-none"
+                aria-label="Selecionar temporada"
               >
                 {media.seasons.map((season) => (
                   <option key={season.seasonNumber} value={season.seasonNumber}>
@@ -979,37 +976,52 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                   </option>
                 ))}
               </select>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Episode List */}
-          <div className="space-y-3">
+          <div className="divide-y divide-white/10">
             {selectedSeason?.episodes.map((ep) => {
               const hasProgress = ep.durationSeconds > 0 && ep.progressSeconds > 0 && !ep.watched;
               const progressPercent = hasProgress
                 ? Math.min(100, Math.floor((ep.progressSeconds / ep.durationSeconds) * 100))
                 : 0;
               const importedSubtitles = ep.subtitleTracks.filter((track) => track.isImported);
+              const episodeImageUrl = ep.stillPath?.startsWith('http')
+                ? ep.stillPath
+                : `/api/media/${media.id}/episode/${ep.id}/thumb`;
 
               return (
                 <div
                   key={ep.id}
                   id={`episode-row-${ep.id}`}
-                  className="group flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-neutral-900/60 hover:bg-neutral-800/80 transition-colors border border-white/5 gap-3"
+                  className="group flex flex-col gap-3 px-2 py-4 transition-colors hover:bg-white/5 sm:flex-row sm:items-center sm:justify-between"
                 >
                   {/* Left: Episode info & Thumb */}
                   <div
-                    className="flex items-center space-x-3 sm:space-x-4 cursor-pointer flex-1"
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 sm:gap-4"
                     onClick={() => onPlayEpisode(media, ep)}
                   >
+                    {media.kind === 'series' && (
+                      <span className="w-6 shrink-0 text-center text-lg font-light text-neutral-500">
+                        {ep.episodeNumber}
+                      </span>
+                    )}
+
                     {/* Episode Thumbnail Container */}
                     <div className="relative w-28 sm:w-36 aspect-video bg-black rounded overflow-hidden shrink-0 border border-neutral-800">
                       <img
-                        src={`/api/media/${media.id}/episode/${ep.id}/thumb`}
+                        src={episodeImageUrl}
                         alt={ep.title}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
+                          const image = e.currentTarget;
+                          if (image.dataset.fallback !== 'true') {
+                            image.dataset.fallback = 'true';
+                            image.src = bannerUrl;
+                          } else {
+                            image.style.display = 'none';
+                          }
                         }}
                       />
                       {/* Play Icon on hover */}
@@ -1030,15 +1042,16 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                     {/* Metadata */}
                     <div className="min-w-0">
                       <div className="flex items-center space-x-2">
-                        {media.kind === 'series' && (
-                          <span className="text-xs font-bold text-red-500">
-                            E{ep.episodeNumber.toString().padStart(2, '0')}
-                          </span>
-                        )}
                         <h4 className="text-sm font-semibold text-white truncate group-hover:text-red-400 transition-colors">
                           {media.kind === 'movie' ? (media.title || ep.title) : ep.title}
                         </h4>
                       </div>
+
+                      {ep.overview && (
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-neutral-400">
+                          {ep.overview}
+                        </p>
+                      )}
 
                       <div className="text-xs text-neutral-400 mt-1 flex flex-wrap items-center gap-2">
                         {ep.durationSeconds > 0 && <span>{formatTime(ep.durationSeconds)}</span>}
@@ -1210,6 +1223,22 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
               );
             })}
           </div>
+
+          {(media.overview || media.cast?.length || media.genres?.length) && (
+            <section className="mt-8 border-t border-white/10 pt-6">
+              <h2 className="text-lg font-semibold text-white">Sobre {media.title}</h2>
+              {media.overview && <p className="mt-3 max-w-3xl text-sm leading-relaxed text-neutral-300">{media.overview}</p>}
+              {media.cast && media.cast.length > 0 && (
+                <p className="mt-3 text-xs leading-relaxed text-neutral-400">
+                  <span className="font-semibold text-neutral-300">Elenco: </span>
+                  {media.cast.slice(0, 8).map((member) => member.name).join(', ')}
+                </p>
+              )}
+              {media.genres && media.genres.length > 0 && (
+                <p className="mt-2 text-xs text-neutral-500">Gêneros: {media.genres.join(' · ')}</p>
+              )}
+            </section>
+          )}
         </div>
       </div>
     </div>

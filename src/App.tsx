@@ -747,13 +747,7 @@ export default function App() {
           )}
 
           {/* Rows Container */}
-          <main className={`relative z-20 ${heroMedia && !searchQuery ? 'mt-3 sm:mt-6 lg:mt-8' : 'pt-28 sm:pt-32 lg:pt-36'}`}>
-            {/* Mobile Access Instruction Banner on Home Screen */}
-            {!searchQuery && activeTab === 'all' && (
-              <div className="px-4 sm:px-6 lg:px-8 mb-6 sm:mb-8">
-                <MobileAccessBanner />
-              </div>
-            )}
+          <main className={`relative z-20 ${heroMedia && !searchQuery ? 'mt-0' : 'pt-28 sm:pt-32 lg:pt-36'}`}>
             {/* 1. Continuar Assistindo Row (Backdrop card variant with progress bar) */}
             {continueWatchingItems.length > 0 && activeTab !== 'series' && activeTab !== 'movie' && (
               <MediaRow
@@ -774,7 +768,7 @@ export default function App() {
                 items={seriesItems}
                 onPlay={handlePlayEpisode}
                 onOpenDetails={setActiveMediaDetail}
-                variant="poster"
+                variant="backdrop"
               />
             )}
 
@@ -786,7 +780,7 @@ export default function App() {
                 items={movieItems}
                 onPlay={handlePlayEpisode}
                 onOpenDetails={setActiveMediaDetail}
-                variant="poster"
+                variant="backdrop"
               />
             )}
 
@@ -798,7 +792,7 @@ export default function App() {
                 items={allCards}
                 onPlay={handlePlayEpisode}
                 onOpenDetails={setActiveMediaDetail}
-                variant="poster"
+                variant="backdrop"
               />
             )}
 
