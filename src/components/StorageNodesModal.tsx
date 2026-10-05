@@ -75,7 +75,7 @@ export const StorageNodesModal: React.FC<StorageNodesModalProps> = ({
 
   const handleTestConnection = async () => {
     if (!baseUrl.trim()) {
-      setTestResult({ ok: false, error: 'Digite a URL do nó (ex: http://100.82.15.42:3000)' });
+      setTestResult({ ok: false, error: 'Digite a URL do nó (ex: https://100.82.15.42:3050)' });
       return;
     }
     setTesting(true);
@@ -89,7 +89,40 @@ export const StorageNodesModal: React.FC<StorageNodesModalProps> = ({
         body: JSON.stringify({ baseUrl: baseUrl.trim(), authToken: authToken.trim() }),
       });
       const data = await res.json();
-      setTestResult(data);
+
+      if (data.ok) {
+        setTestResult(data);
+        if (data.suggestedUrl && data.suggestedUrl !== baseUrl.trim()) {
+          setBaseUrl(data.suggestedUrl);
+        }
+      } else {
+        // Fallback: se o backend estiver na nuvem (AI Studio preview) e não puder alcançar o IP privado Tailscale,
+        // testa a conexão diretamente a partir do navegador do usuário, que está conectado ao Tailscale!
+        let clientOk = false;
+        try {
+          let testCandidate = baseUrl.trim().replace(/\/+$/, '');
+          if (!/^https?:\/\//i.test(testCandidate)) {
+            testCandidate = `https://${testCandidate}`;
+          }
+          const clientStart = Date.now();
+          const clientRes = await fetch(`${testCandidate}/api/nodes/ping`, {
+            method: 'GET',
+            mode: 'cors',
+          });
+          if (clientRes.ok) {
+            clientOk = true;
+            setTestResult({
+              ok: true,
+              latencyMs: Date.now() - clientStart,
+            });
+            setBaseUrl(testCandidate);
+          }
+        } catch {}
+
+        if (!clientOk) {
+          setTestResult(data);
+        }
+      }
     } catch (err: any) {
       setTestResult({ ok: false, error: err.message || 'Erro ao conectar' });
     } finally {
@@ -289,10 +322,13 @@ export const StorageNodesModal: React.FC<StorageNodesModalProps> = ({
                         type="text"
                         value={baseUrl}
                         onChange={(e) => setBaseUrl(e.target.value)}
-                        placeholder="http://100.82.15.42:3000"
+                        placeholder="https://100.82.15.42:3050"
                         className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#E50914]"
                         required
                       />
+                      <p className="text-[10px] text-neutral-400 mt-1">
+                        Dica: Pelo <strong className="text-neutral-300">start.bat</strong> padrão, o CineLocal roda em <strong className="text-emerald-400">HTTPS</strong> na porta <strong className="text-white">3050</strong> (ex: <span className="font-mono text-emerald-400">https://100.x.y.z:3050</span>).
+                      </p>
                     </div>
                   </div>
 
@@ -477,7 +513,7 @@ export const StorageNodesModal: React.FC<StorageNodesModalProps> = ({
                   <div className="space-y-1">
                     <p className="font-semibold text-white">Inicie o CineLocal no 2º PC e Cadastre Aqui</p>
                     <p className="text-neutral-400">
-                      Abra o CineLocal no 2º PC (porta padrão :3000). Em seguida, volte aqui na aba <strong className="text-white">Computadores</strong>, clique em <strong className="text-white">Adicionar 2º PC</strong> e informe a URL (exemplo: <code className="text-emerald-400 bg-neutral-900 px-1 rounded font-mono">http://100.82.15.42:3000</code>).
+                      Abra o CineLocal no 2º PC usando o <strong className="text-white">start.bat</strong> (porta padrão :3050 com HTTPS). Em seguida, volte aqui na aba <strong className="text-white">Computadores</strong>, clique em <strong className="text-white">Adicionar 2º PC</strong> e informe o endereço: <code className="text-emerald-400 bg-neutral-900 px-1 rounded font-mono">https://100.82.15.42:3050</code>.
                     </p>
                   </div>
                 </div>

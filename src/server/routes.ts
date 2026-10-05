@@ -4,6 +4,9 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { spawn, execFile, exec } from 'child_process';
+
+// Permite conexões HTTPS locais e nós de rede Tailscale com certificados autoassinados
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 import {
   readLibrary,
   writeLibrary,
@@ -361,38 +364,83 @@ apiRouter.get('/nodes', async (req: Request, res: Response) => {
 // 3.0.4 Test connectivity to a potential node URL
 apiRouter.post('/nodes/test', async (req: Request, res: Response) => {
   const { baseUrl, authToken } = req.body;
-  if (!baseUrl) {
+  if (!baseUrl || typeof baseUrl !== 'string') {
     res.status(400).json({ ok: false, error: 'A URL do computador/nó é obrigatória.' });
     return;
   }
 
-  const cleanUrl = baseUrl.trim().replace(/\/+$/, '');
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3500);
-  const start = Date.now();
+  let raw = baseUrl.trim().replace(/\/+$/, '');
+  if (!/^https?:\/\//i.test(raw)) {
+    raw = `http://${raw}`;
+  }
+
+  // Generate candidate URLs to try in order of likelihood
+  const candidates: string[] = [raw];
 
   try {
-    const pingUrl = `${cleanUrl}/api/nodes/ping`;
-    const resp = await fetch(pingUrl, {
-      signal: controller.signal,
-      headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-    });
-    clearTimeout(timeoutId);
-    const latencyMs = Date.now() - start;
+    const parsed = new URL(raw);
+    const altProtocol = parsed.protocol === 'https:' ? 'http:' : 'https:';
+    const altProtocolUrl = `${altProtocol}//${parsed.host}${parsed.pathname}`;
+    candidates.push(altProtocolUrl);
 
-    if (resp.ok) {
-      res.json({ ok: true, latencyMs, status: 'online' });
-    } else {
-      res.json({ ok: false, status: 'offline', error: `Servidor remoto retornou HTTP ${resp.status}` });
+    // If port 3000 was given, try 3050 (default of start.bat)
+    if (parsed.port === '3000') {
+      const p3050Host = parsed.hostname + ':3050';
+      candidates.push(`${parsed.protocol}//${p3050Host}${parsed.pathname}`);
+      candidates.push(`${altProtocol}//${p3050Host}${parsed.pathname}`);
+    } else if (parsed.port === '3050') {
+      const p3000Host = parsed.hostname + ':3000';
+      candidates.push(`${parsed.protocol}//${p3000Host}${parsed.pathname}`);
+      candidates.push(`${altProtocol}//${p3000Host}${parsed.pathname}`);
+    } else if (!parsed.port) {
+      candidates.push(`${parsed.protocol}//${parsed.hostname}:3050${parsed.pathname}`);
+      candidates.push(`${parsed.protocol}//${parsed.hostname}:3000${parsed.pathname}`);
+      candidates.push(`${altProtocol}//${parsed.hostname}:3050${parsed.pathname}`);
     }
-  } catch (err: any) {
-    clearTimeout(timeoutId);
-    res.json({
-      ok: false,
-      status: 'offline',
-      error: err.name === 'AbortError' ? 'Tempo limite esgotado (timeout 3.5s). Verifique se o Tailscale está ativo em ambos os PCs.' : (err.message || 'Falha na conexão'),
-    });
+  } catch {}
+
+  let lastError = 'Falha na conexão';
+
+  for (const candidate of candidates) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2800);
+    const start = Date.now();
+
+    try {
+      const pingUrl = `${candidate.replace(/\/+$/, '')}/api/nodes/ping`;
+      const resp = await fetch(pingUrl, {
+        signal: controller.signal,
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+      });
+      clearTimeout(timeoutId);
+      const latencyMs = Date.now() - start;
+
+      if (resp.ok) {
+        const isSuggested = candidate !== raw;
+        res.json({
+          ok: true,
+          latencyMs,
+          status: 'online',
+          suggestedUrl: isSuggested ? candidate : undefined,
+          note: isSuggested ? `Conexão estabelecida com sucesso usando: ${candidate}` : undefined,
+        });
+        return;
+      } else {
+        lastError = `Servidor remoto retornou HTTP ${resp.status}`;
+      }
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      lastError = err.name === 'AbortError'
+        ? 'Tempo limite esgotado (timeout). Verifique se o CineLocal está rodando na máquina de destino.'
+        : (err.message || 'Falha na conexão');
+    }
   }
+
+  res.json({
+    ok: false,
+    status: 'offline',
+    error: lastError,
+  });
 });
 
 // 3.0.5 Save or update a storage node
