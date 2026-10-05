@@ -22,6 +22,7 @@ import {
   Film,
   Tv,
   Sparkles,
+  Network,
 } from 'lucide-react';
 import { MediaItem, Episode, OnlineSubtitleOption, Season } from '../types';
 import { formatTime, formatBytes } from '../utils';
@@ -442,6 +443,15 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                         <span>{formatTime(selectedSeason.episodes[0].durationSeconds)}</span>
                       </>
                     ) : null}
+                  </>
+                )}
+                {media.nodeName && media.nodeId && media.nodeId !== 'local' && (
+                  <>
+                    <span className="text-neutral-400">·</span>
+                    <span className="text-purple-400 flex items-center gap-1 font-medium">
+                      <Network className="w-3 h-3" />
+                      <span>{media.nodeName}</span>
+                    </span>
                   </>
                 )}
               </div>

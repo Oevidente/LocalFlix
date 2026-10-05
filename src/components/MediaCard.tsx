@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Info, CheckCircle2, Radio } from 'lucide-react';
+import { Play, Info, CheckCircle2, Radio, Laptop } from 'lucide-react';
 import { MediaItem, Episode } from '../types';
 import { formatTime } from '../utils';
 
@@ -78,6 +78,15 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             <span className="bg-red-950/90 text-red-300 border border-red-800/60 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow-sm">
               <Radio className="w-2.5 h-2.5 text-red-400" />
               Magnet
+            </span>
+          )}
+          {media.nodeName && media.nodeId && media.nodeId !== 'local' && (
+            <span
+              className="bg-purple-950/90 text-purple-300 border border-purple-800/60 text-[10px] font-medium px-1.5 py-0.5 rounded flex items-center gap-1 shadow-sm"
+              title={`Armazenado no nó remoto: ${media.nodeName}`}
+            >
+              <Laptop className="w-2.5 h-2.5 text-purple-400" />
+              <span className="truncate max-w-[65px]">{media.nodeName}</span>
             </span>
           )}
           {isAllWatched && (

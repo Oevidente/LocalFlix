@@ -80,4 +80,16 @@ Se você quiser levar o projeto em pendrive ou disco externo:
 
 - O app usa HTTPS local para o servidor e para o Chromecast.
 - O arquivo de dados principal fica em `data/library.json`.
-- O servidor local usa a porta `3050` por padrão.
+- O servidor local usa a porta `3050` (ou `3000`) por padrão.
+
+## 8. Como Conectar um 2º PC de Armazenamento em Outro Estado (Pernambuco ⇄ Piauí)
+
+Para usar um segundo computador para armazenamento sem estar na mesma rede e sem pagar por nuvem ou abrir portas no roteador:
+
+1. **Instale o Tailscale (100% gratuito)** no PC de Pernambuco e no PC do Piauí em [tailscale.com](https://tailscale.com).
+2. Entre com a **mesma conta** (Google, Microsoft ou GitHub) em ambos os computadores.
+3. Copie o IP Tailscale do 2º PC no Piauí (ex: `100.82.15.42`).
+4. Execute o CineLocal no 2º PC normalmente (`start.bat`).
+5. No CineLocal do PC 1, clique no botão **Nuvem Multi-PC** (no topo) -> **Adicionar 2º PC** -> Digite `http://100.82.15.42:3000` (ou a porta usada) e clique em **Testar Conexão**.
+6. Pronto! Ao clicar em **Adicionar Pasta**, basta alternar a origem para **PC Piauí** para navegar e cadastrar as pastas do disco remoto. O streaming é transmitido direto do 2º PC para os clientes!
+

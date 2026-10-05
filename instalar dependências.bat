@@ -3,6 +3,29 @@ setlocal EnableExtensions EnableDelayedExpansion
 title CineLocal - Instalar dependencias
 cd /d "%~dp0"
 
+:: Valida se o arquivo de fato esta sendo executado de dentro da pasta raiz do projeto
+if not exist "%~dp0package.json" (
+    echo ======================================================================
+    echo                     [ERRO DE EXECUCAO - CINELOCAL]
+    echo ======================================================================
+    echo.
+    echo O arquivo "instalar dependencias.bat" foi executado fora de sua pasta original!
+    echo.
+    echo Caminho de execucao atual: %~dp0
+    echo.
+    echo CAUSA PROVAVEL:
+    echo Voce provavelmente COPIOU este arquivo diretamente para a
+    echo Area de Trabalho ou outra pasta em vez de roda-lo da pasta original.
+    echo.
+    echo COMO CORRIGIR:
+    echo Execute este arquivo diretamente de dentro da pasta original onde
+    echo voce extraiu o CineLocal. Nao o copie para fora da pasta.
+    echo.
+    echo ======================================================================
+    pause
+    exit /b 1
+)
+
 set "APP_DIR=%~dp0"
 set "PATH=%APP_DIR%bin;%APP_DIR%ffmpeg\bin;%APP_DIR%ffmpeg;%PATH%"
 

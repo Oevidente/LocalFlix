@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { LibraryData, MediaItem, Episode, Season, MediaKind } from '../types';
+import { LibraryData, MediaItem, Episode, Season, MediaKind, StorageNode } from '../types';
 import { parseEpisodeInfo, scanMediaFolder } from './scanner';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
@@ -1379,6 +1379,74 @@ export async function rescanAllLibraryFolders(): Promise<{ updatedCount: number;
   deduplicateSeriesInLibrary(lib);
   writeLibrary(lib, true);
   return { updatedCount, library: lib };
+}
+
+export function getStorageNodes(): StorageNode[] {
+  const lib = readLibrary();
+  if (!lib.settings.storageNodes || !Array.isArray(lib.settings.storageNodes)) {
+    lib.settings.storageNodes = [];
+  }
+  const hasLocal = lib.settings.storageNodes.some((n) => n.isLocal || n.id === 'local');
+  if (!hasLocal) {
+    lib.settings.storageNodes.unshift({
+      id: 'local',
+      name: 'Este Computador (Local)',
+      baseUrl: '',
+      isLocal: true,
+      status: 'online',
+    });
+    writeLibrary(lib, true);
+  }
+  return lib.settings.storageNodes;
+}
+
+export function saveStorageNode(node: { id?: string; name: string; baseUrl: string; authToken?: string; isLocal?: boolean }): StorageNode {
+  const lib = readLibrary();
+  if (!lib.settings.storageNodes || !Array.isArray(lib.settings.storageNodes)) {
+    lib.settings.storageNodes = [];
+  }
+  const cleanBaseUrl = (node.baseUrl || '').trim().replace(/\/+$/, '');
+  const id = node.id || `node_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const existingIndex = lib.settings.storageNodes.findIndex((n) => n.id === id);
+
+  const savedNode: StorageNode = {
+    id,
+    name: node.name.trim() || 'PC Remoto',
+    baseUrl: cleanBaseUrl,
+    authToken: node.authToken?.trim(),
+    isLocal: !!node.isLocal,
+    status: 'checking',
+  };
+
+  if (existingIndex >= 0) {
+    lib.settings.storageNodes[existingIndex] = {
+      ...lib.settings.storageNodes[existingIndex],
+      ...savedNode,
+    };
+  } else {
+    lib.settings.storageNodes.push(savedNode);
+  }
+
+  writeLibrary(lib, true);
+  return savedNode;
+}
+
+export function deleteStorageNode(id: string): boolean {
+  if (id === 'local') return false;
+  const lib = readLibrary();
+  if (!lib.settings.storageNodes) return false;
+  const initialLength = lib.settings.storageNodes.length;
+  lib.settings.storageNodes = lib.settings.storageNodes.filter((n) => n.id !== id);
+  if (lib.settings.storageNodes.length !== initialLength) {
+    writeLibrary(lib, true);
+    return true;
+  }
+  return false;
+}
+
+export function findStorageNode(id: string): StorageNode | undefined {
+  const nodes = getStorageNodes();
+  return nodes.find((n) => n.id === id);
 }
 
 

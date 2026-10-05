@@ -1114,7 +1114,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (shouldUseHls) setCurrentTime(hlsStartOffset);
 
     if (shouldUseHls) {
-      const hlsUrl = `/api/media/${media.id}/episode/${episode.id}/hls/master.m3u8?audio=${selectedAudioIndex}${
+      const streamBase = episode.directStreamUrl
+        ? episode.directStreamUrl.replace(/\/api\/media\/.*$/, '')
+        : '';
+      const hlsUrl = `${streamBase}/api/media/${media.id}/episode/${episode.id}/hls/master.m3u8?audio=${selectedAudioIndex}${
         hlsStartOffset > 0 ? `&seek=${encodeURIComponent(hlsStartOffset)}` : ''
       }${isForceTranscode ? '&transcode=1' : ''}`;
 
@@ -1264,8 +1267,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         video.addEventListener('loadedmetadata', onLoaded, { once: true });
       }
     } else {
-      // Direct native MP4 / WebM
-      const directUrl = `/api/media/${media.id}/episode/${episode.id}/stream`;
+      // Direct native MP4 / WebM (direto do nó remoto se disponível)
+      const directUrl =
+        episode.directStreamUrl ||
+        `/api/media/${media.id}/episode/${episode.id}/stream`;
       video.src = directUrl;
       const onLoaded = () => {
         if (video.duration && isFinite(video.duration)) {

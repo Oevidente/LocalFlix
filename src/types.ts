@@ -76,6 +76,8 @@ export interface Episode {
   fileIndex?: number;
   magnetUri?: string;
   infoHash?: string;
+  nodeId?: string;
+  directStreamUrl?: string;
 }
 
 export interface Season {
@@ -85,6 +87,18 @@ export interface Season {
 }
 
 export type MediaKind = 'series' | 'movie';
+
+export interface StorageNode {
+  id: string;
+  name: string;
+  baseUrl: string; // e.g., "http://100.82.15.42:3000"
+  authToken?: string;
+  isLocal: boolean;
+  status?: 'online' | 'offline' | 'checking';
+  latencyMs?: number;
+  lastChecked?: string;
+  totalItems?: number;
+}
 
 export interface MediaItem {
   id: string;
@@ -115,6 +129,8 @@ export interface MediaItem {
   isTorrent?: boolean;
   magnetUri?: string;
   infoHash?: string;
+  nodeId?: string;
+  nodeName?: string;
 }
 
 export interface LibraryData {
@@ -128,6 +144,7 @@ export interface LibraryData {
     tmdbApiKey?: string;
     tmdbAccessToken?: string;
     tmdbLanguage?: string;
+    storageNodes?: StorageNode[];
   };
   items: MediaItem[];
 }

@@ -22,7 +22,12 @@ import {
   readIptvStatusMap,
   saveIptvStatusMap,
   rescanAllLibraryFolders,
+  getStorageNodes,
+  saveStorageNode,
+  deleteStorageNode,
+  findStorageNode,
 } from './storage';
+import { StorageNode } from '../types';
 import { scanMediaFolder } from './scanner';
 import { enrichMediaWithTmdb, isTmdbConfigured, searchTmdb, getApiKey, getLanguage } from './tmdb';
 import {
@@ -101,17 +106,61 @@ apiRouter.get('/library', (req: Request, res: Response) => {
   res.json(lib);
 });
 
-// 2. Add and scan a folder
+// 2. Add and scan a folder (local or from a remote storage node)
 apiRouter.post('/library/add', async (req: Request, res: Response) => {
   try {
-    const { folderPath, title } = req.body;
+    const { folderPath, title, nodeId } = req.body;
     if (!folderPath) {
       res.status(400).json({ error: 'Caminho da pasta é obrigatório' });
       return;
     }
 
-    const mediaItem = await scanMediaFolder(folderPath, title);
-    await enrichMediaWithTmdb(mediaItem);
+    let mediaItem: any;
+
+    if (nodeId && nodeId !== 'local') {
+      const node = findStorageNode(nodeId);
+      if (!node || !node.baseUrl) {
+        res.status(404).json({ error: 'Nó de armazenamento remoto não encontrado ou sem endereço cadastrado.' });
+        return;
+      }
+
+      // Relay scan request to remote node
+      const remoteUrl = `${node.baseUrl.replace(/\/+$/, '')}/api/library/add`;
+      const remoteRes = await fetch(remoteUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(node.authToken ? { Authorization: `Bearer ${node.authToken}` } : {}),
+        },
+        body: JSON.stringify({ folderPath, title }),
+      });
+
+      if (!remoteRes.ok) {
+        const errJson: any = await remoteRes.json().catch(() => ({}));
+        res.status(remoteRes.status).json({
+          error: errJson.error || `Falha ao escanear pasta no nó remoto (${node.name}).`,
+        });
+        return;
+      }
+
+      const remoteData: any = await remoteRes.json();
+      mediaItem = remoteData.item || remoteData;
+      mediaItem.nodeId = node.id;
+      mediaItem.nodeName = node.name;
+
+      // Assign directStreamUrl to each episode so client can stream direct
+      for (const season of mediaItem.seasons || []) {
+        for (const ep of season.episodes || []) {
+          ep.nodeId = node.id;
+          ep.directStreamUrl = `${node.baseUrl.replace(/\/+$/, '')}/api/media/${mediaItem.id}/episode/${ep.id}/stream`;
+        }
+      }
+    } else {
+      mediaItem = await scanMediaFolder(folderPath, title);
+      await enrichMediaWithTmdb(mediaItem);
+      mediaItem.nodeId = 'local';
+    }
+
     const lib = readLibrary();
 
     // Replace if already exists with same folder or ID
@@ -122,10 +171,10 @@ apiRouter.post('/library/add', async (req: Request, res: Response) => {
     if (existingIndex >= 0) {
       // Preserve watch history and progress from previous scan
       const existing = lib.items[existingIndex];
-      for (const newSeason of mediaItem.seasons) {
+      for (const newSeason of mediaItem.seasons || []) {
         const oldSeason = existing.seasons.find((s) => s.seasonNumber === newSeason.seasonNumber);
         if (oldSeason) {
-          for (const newEp of newSeason.episodes) {
+          for (const newEp of newSeason.episodes || []) {
             const oldEp = oldSeason.episodes.find(
               (e) => e.fileName === newEp.fileName || e.episodeNumber === newEp.episodeNumber
             );
@@ -136,8 +185,8 @@ apiRouter.post('/library/add', async (req: Request, res: Response) => {
               newEp.selectedAudioIndex = oldEp.selectedAudioIndex;
               newEp.selectedSubtitleIndex = oldEp.selectedSubtitleIndex;
               newEp.subtitleTracks = [
-                ...newEp.subtitleTracks,
-                ...oldEp.subtitleTracks.filter((track) => track.isImported),
+                ...(newEp.subtitleTracks || []),
+                ...(oldEp.subtitleTracks || []).filter((track) => track.isImported),
               ];
             }
           }
@@ -236,6 +285,216 @@ apiRouter.all(['/library/rescan-all', '/library/rescan-folders'], async (_req: R
     res.status(500).json({ error: error?.message || 'Erro ao re-escanear pastas' });
   }
 });
+
+// ==========================================
+// NÓS DE ARMAZENAMENTO / NUVEM MULTI-PC
+// ==========================================
+
+// 3.0.2 Ping endpoint for quick latency and status checks between nodes
+apiRouter.get('/nodes/ping', (_req: Request, res: Response) => {
+  res.json({ ok: true, timestamp: Date.now() });
+});
+
+// 3.0.3 List all storage nodes (with optional live ping)
+apiRouter.get('/nodes', async (req: Request, res: Response) => {
+  const nodes = getStorageNodes();
+  const checkLive = req.query.check === 'true';
+
+  if (!checkLive) {
+    res.json({ nodes });
+    return;
+  }
+
+  const updatedNodes = await Promise.all(
+    nodes.map(async (node) => {
+      if (node.isLocal || node.id === 'local') {
+        return {
+          ...node,
+          status: 'online' as const,
+          latencyMs: 1,
+          lastChecked: new Date().toISOString(),
+        };
+      }
+
+      if (!node.baseUrl) {
+        return {
+          ...node,
+          status: 'offline' as const,
+          latencyMs: undefined,
+          lastChecked: new Date().toISOString(),
+        };
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const start = Date.now();
+
+      try {
+        const pingUrl = `${node.baseUrl.replace(/\/+$/, '')}/api/nodes/ping`;
+        const resp = await fetch(pingUrl, {
+          signal: controller.signal,
+          headers: node.authToken ? { Authorization: `Bearer ${node.authToken}` } : {},
+        });
+        clearTimeout(timeoutId);
+        const latencyMs = Date.now() - start;
+        return {
+          ...node,
+          status: resp.ok ? ('online' as const) : ('offline' as const),
+          latencyMs: resp.ok ? latencyMs : undefined,
+          lastChecked: new Date().toISOString(),
+        };
+      } catch {
+        clearTimeout(timeoutId);
+        return {
+          ...node,
+          status: 'offline' as const,
+          latencyMs: undefined,
+          lastChecked: new Date().toISOString(),
+        };
+      }
+    })
+  );
+
+  res.json({ nodes: updatedNodes });
+});
+
+// 3.0.4 Test connectivity to a potential node URL
+apiRouter.post('/nodes/test', async (req: Request, res: Response) => {
+  const { baseUrl, authToken } = req.body;
+  if (!baseUrl) {
+    res.status(400).json({ ok: false, error: 'A URL do computador/nó é obrigatória.' });
+    return;
+  }
+
+  const cleanUrl = baseUrl.trim().replace(/\/+$/, '');
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
+  const start = Date.now();
+
+  try {
+    const pingUrl = `${cleanUrl}/api/nodes/ping`;
+    const resp = await fetch(pingUrl, {
+      signal: controller.signal,
+      headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+    });
+    clearTimeout(timeoutId);
+    const latencyMs = Date.now() - start;
+
+    if (resp.ok) {
+      res.json({ ok: true, latencyMs, status: 'online' });
+    } else {
+      res.json({ ok: false, status: 'offline', error: `Servidor remoto retornou HTTP ${resp.status}` });
+    }
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    res.json({
+      ok: false,
+      status: 'offline',
+      error: err.name === 'AbortError' ? 'Tempo limite esgotado (timeout 3.5s). Verifique se o Tailscale está ativo em ambos os PCs.' : (err.message || 'Falha na conexão'),
+    });
+  }
+});
+
+// 3.0.5 Save or update a storage node
+apiRouter.post('/nodes', (req: Request, res: Response) => {
+  const { id, name, baseUrl, authToken, isLocal } = req.body;
+  if (!name || (!isLocal && !baseUrl)) {
+    res.status(400).json({ error: 'Nome e URL do PC remoto são obrigatórios.' });
+    return;
+  }
+
+  const saved = saveStorageNode({ id, name, baseUrl, authToken, isLocal });
+  res.json({ success: true, node: saved });
+});
+
+// 3.0.6 Delete a storage node
+apiRouter.delete('/nodes/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const deleted = deleteStorageNode(id);
+  if (!deleted) {
+    res.status(400).json({ error: 'Não foi possível remover este nó (o nó local principal não pode ser excluído).' });
+    return;
+  }
+  res.json({ success: true });
+});
+
+// 3.0.7 Remote folder browse through storage node
+apiRouter.get('/nodes/:id/browse', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const dir = (req.query.dir as string) || '';
+
+  if (id === 'local') {
+    res.redirect(`/api/browse${dir ? `?dir=${encodeURIComponent(dir)}` : ''}`);
+    return;
+  }
+
+  const node = findStorageNode(id);
+  if (!node || !node.baseUrl) {
+    res.status(404).json({ error: 'Nó de armazenamento não encontrado.' });
+    return;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+  try {
+    const targetUrl = `${node.baseUrl.replace(/\/+$/, '')}/api/browse${dir ? `?dir=${encodeURIComponent(dir)}` : ''}`;
+    const remoteRes = await fetch(targetUrl, {
+      signal: controller.signal,
+      headers: node.authToken ? { Authorization: `Bearer ${node.authToken}` } : {},
+    });
+    clearTimeout(timeoutId);
+
+    if (!remoteRes.ok) {
+      res.status(remoteRes.status).json({ error: `Nó remoto retornou erro ${remoteRes.status}` });
+      return;
+    }
+
+    const data = await remoteRes.json();
+    res.json(data);
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    res.status(502).json({
+      error: `Não foi possível listar as pastas do PC remoto (${node.name}): ${err.message}`,
+    });
+  }
+});
+
+// 3.0.8 Resolve direct stream URL for player
+apiRouter.get('/media/:mediaId/episode/:episodeId/stream-url', (req: Request, res: Response) => {
+  const { mediaId, episodeId } = req.params;
+  const pair = findEpisode(mediaId, episodeId);
+  if (!pair) {
+    res.status(404).json({ error: 'Episódio não encontrado' });
+    return;
+  }
+
+  const { media } = pair;
+  if (media.nodeId && media.nodeId !== 'local') {
+    const node = findStorageNode(media.nodeId);
+    if (node && node.baseUrl) {
+      const cleanBase = node.baseUrl.replace(/\/+$/, '');
+      res.json({
+        streamUrl: `${cleanBase}/api/media/${mediaId}/episode/${episodeId}/stream`,
+        hlsUrl: `${cleanBase}/api/media/${mediaId}/episode/${episodeId}/hls/master.m3u8`,
+        posterUrl: `${cleanBase}/api/media/${mediaId}/poster`,
+        nodeId: node.id,
+        nodeName: node.name,
+        isRemote: true,
+      });
+      return;
+    }
+  }
+
+  res.json({
+    streamUrl: `/api/media/${mediaId}/episode/${episodeId}/stream`,
+    hlsUrl: `/api/media/${mediaId}/episode/${episodeId}/hls/master.m3u8`,
+    posterUrl: `/api/media/${mediaId}/poster`,
+    nodeId: 'local',
+    isRemote: false,
+  });
+});
+
 
 // 3.1 Refresh metadata from TMDb (supports optional search query or explicit TMDb ID)
 apiRouter.post('/library/metadata/:id', async (req: Request, res: Response) => {
@@ -369,7 +628,19 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/stream', (req: Request, res: R
     return;
   }
 
-  const { episode } = pair;
+  const { media, episode } = pair;
+
+  // Se a mídia estiver armazenada em um nó remoto (ex: PC Piauí), redireciona o stream diretamente para lá
+  if (media.nodeId && media.nodeId !== 'local') {
+    const node = findStorageNode(media.nodeId);
+    if (node && node.baseUrl) {
+      const qIdx = req.url.indexOf('?');
+      const query = qIdx >= 0 ? req.url.slice(qIdx) : '';
+      res.redirect(`${node.baseUrl.replace(/\/+$/, '')}/api/media/${mediaId}/episode/${episodeId}/stream${query}`);
+      return;
+    }
+  }
+
   const filePath = episode.filePath;
 
   if (!fs.existsSync(filePath)) {
@@ -561,7 +832,18 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/hls/:file', async (req: Reques
     return;
   }
 
-  const { episode } = pair;
+  const { media, episode } = pair;
+
+  // Se a mídia estiver no segundo PC, redireciona o manifesto e os segmentos para o nó remoto
+  if (media.nodeId && media.nodeId !== 'local') {
+    const node = findStorageNode(media.nodeId);
+    if (node && node.baseUrl) {
+      const qIdx = req.url.indexOf('?');
+      const query = qIdx >= 0 ? req.url.slice(qIdx) : '';
+      res.redirect(`${node.baseUrl.replace(/\/+$/, '')}/api/media/${mediaId}/episode/${episodeId}/hls/${file}${query}`);
+      return;
+    }
+  }
   const filePath = episode.filePath;
   if (!fs.existsSync(filePath)) {
     console.warn(`[HLS Route] Arquivo não existe no disco: ${filePath}`);
@@ -950,6 +1232,15 @@ apiRouter.get('/media/:mediaId/poster', async (req: Request, res: Response) => {
     return;
   }
 
+  // Se a mídia estiver no segundo PC, redireciona o poster para o nó remoto
+  if (media.nodeId && media.nodeId !== 'local') {
+    const node = findStorageNode(media.nodeId);
+    if (node && node.baseUrl) {
+      res.redirect(`${node.baseUrl.replace(/\/+$/, '')}/api/media/${mediaId}/poster`);
+      return;
+    }
+  }
+
   // 1. If posterPath is a remote URL, redirect
   if (media.posterPath && (media.posterPath.startsWith('http://') || media.posterPath.startsWith('https://'))) {
     res.redirect(media.posterPath);
@@ -1064,6 +1355,15 @@ apiRouter.get('/media/:mediaId/episode/:episodeId/thumb', async (req: Request, r
   if (!pair) {
     res.status(404).send('Episódio não encontrado');
     return;
+  }
+
+  // Se a mídia estiver no segundo PC, redireciona a miniatura para lá
+  if (pair.media.nodeId && pair.media.nodeId !== 'local') {
+    const node = findStorageNode(pair.media.nodeId);
+    if (node && node.baseUrl) {
+      res.redirect(`${node.baseUrl.replace(/\/+$/, '')}/api/media/${mediaId}/episode/${episodeId}/thumb`);
+      return;
+    }
   }
 
   if (pair.episode.stillPath) {

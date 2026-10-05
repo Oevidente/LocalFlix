@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio, Sparkles, Home, MoreVertical, X, FolderPlus } from 'lucide-react';
+import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio, Sparkles, Home, MoreVertical, X, FolderPlus, Network } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface NavbarProps {
@@ -9,6 +9,7 @@ interface NavbarProps {
   onOpenSystemModal: () => void;
   onOpenTorrentModal: () => void;
   onOpenTmdbModal?: () => void;
+  onOpenStorageNodesModal?: () => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   isPickingFolder?: boolean;
@@ -21,6 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSystemModal,
   onOpenTorrentModal,
   onOpenTmdbModal,
+  onOpenStorageNodesModal,
   searchQuery,
   onSearchChange,
   isPickingFolder = false,
@@ -225,6 +227,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Torrent</span>
             </button>
 
+            {/* Nuvem Multi-PC Button */}
+            {onOpenStorageNodesModal && (
+              <button
+                id="storage-nodes-navbar-btn"
+                onClick={onOpenStorageNodesModal}
+                className="h-8 lg:h-9 flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 lg:px-3 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 text-purple-400 hover:text-purple-300 text-xs lg:text-sm font-medium transition-all border border-neutral-700/80 hover:border-purple-500/50 shadow-sm active:scale-95 cursor-pointer shrink-0"
+                title="Nuvem Multi-PC (Conectar 2º PC / Tailscale)"
+              >
+                <Network className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-purple-400 shrink-0" />
+                <span className="hidden xl:inline">Nuvem </span>
+                <span>Multi-PC</span>
+              </button>
+            )}
+
             {/* Add Folder Button */}
             <button
               id="add-folder-btn"
@@ -417,6 +433,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <div className="text-xs text-neutral-400">Reproduza vídeos diretamente por links P2P</div>
                 </div>
               </button>
+
+              {onOpenStorageNodesModal && (
+                <button
+                  onClick={() => {
+                    setShowMobileMenu(false);
+                    onOpenStorageNodesModal();
+                  }}
+                  className="w-full flex items-center space-x-3 p-3 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-left transition cursor-pointer"
+                >
+                  <div className="p-2 rounded-lg bg-purple-500/20 text-purple-400">
+                    <Network className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white">Nuvem Privada Multi-PC</div>
+                    <div className="text-xs text-neutral-400">Conecte computadores em outros estados (Piauí / PE) via Tailscale</div>
+                  </div>
+                </button>
+              )}
 
               {onOpenTmdbModal && (
                 <button

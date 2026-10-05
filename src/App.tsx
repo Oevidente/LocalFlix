@@ -13,6 +13,7 @@ import { TorrentPlayer } from './components/TorrentPlayer';
 import { ChannelsPage } from './components/ChannelsPage';
 import { IptvPlayerModal } from './components/IptvPlayerModal';
 import { MobileAccessBanner } from './components/MobileAccessBanner';
+import { StorageNodesModal } from './components/StorageNodesModal';
 import { LibraryData, MediaItem, Episode, OnlineSubtitleOption, TorrentStatus, IptvChannel } from './types';
 import { FolderPlus, Film, Tv, Play, HardDrive, RefreshCw, Radio } from 'lucide-react';
 
@@ -40,6 +41,7 @@ export default function App() {
   const [isPickingFolder, setIsPickingFolder] = useState<boolean>(false);
   const [showSystemModal, setShowSystemModal] = useState<boolean>(false);
   const [showTmdbConfigModal, setShowTmdbConfigModal] = useState<boolean>(false);
+  const [showStorageNodesModal, setShowStorageNodesModal] = useState<boolean>(false);
   const [relocateTarget, setRelocateTarget] = useState<MediaItem | null>(null);
   const [showTorrentModal, setShowTorrentModal] = useState<boolean>(false);
   const [playingTorrent, setPlayingTorrent] = useState<{
@@ -150,11 +152,11 @@ export default function App() {
   }, [fetchLibrary, handleRescanAll]);
 
   // Add folder handler
-  const handleAddFolder = async (folderPath: string, title?: string) => {
+  const handleAddFolder = async (folderPath: string, title?: string, nodeId?: string) => {
     const res = await fetch('/api/library/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folderPath, title }),
+      body: JSON.stringify({ folderPath, title, nodeId }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -675,6 +677,7 @@ export default function App() {
         onOpenSystemModal={() => setShowSystemModal(true)}
         onOpenTorrentModal={() => setShowTorrentModal(true)}
         onOpenTmdbModal={() => setShowTmdbConfigModal(true)}
+        onOpenStorageNodesModal={() => setShowStorageNodesModal(true)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         isPickingFolder={isPickingFolder}
@@ -892,8 +895,16 @@ export default function App() {
             setInitialAddFolder('');
           }}
           onAddFolder={handleAddFolder}
+          onOpenNodesModal={() => setShowStorageNodesModal(true)}
         />
       )}
+
+      {/* Storage Nodes (Nuvem Privada Multi-PC) Modal */}
+      <StorageNodesModal
+        isOpen={showStorageNodesModal}
+        onClose={() => setShowStorageNodesModal(false)}
+        onNodesUpdated={fetchLibrary}
+      />
 
       {/* Relocate Folder Modal */}
       {relocateTarget && (

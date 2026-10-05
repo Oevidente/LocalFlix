@@ -4,16 +4,19 @@ import { FolderBrowser } from './FolderBrowser';
 
 interface AddMediaModalProps {
   onClose: () => void;
-  onAddFolder: (folderPath: string, title?: string) => Promise<void>;
+  onAddFolder: (folderPath: string, title?: string, nodeId?: string) => Promise<void>;
   initialFolderPath?: string;
+  onOpenNodesModal?: () => void;
 }
 
 export const AddMediaModal: React.FC<AddMediaModalProps> = ({
   onClose,
   onAddFolder,
   initialFolderPath = '',
+  onOpenNodesModal,
 }) => {
   const [folderPath, setFolderPath] = useState(initialFolderPath);
+  const [selectedNodeId, setSelectedNodeId] = useState<string>('local');
   const [title, setTitle] = useState('');
   const [titleWasEdited, setTitleWasEdited] = useState(false);
   const [showBrowser, setShowBrowser] = useState(!initialFolderPath);
@@ -91,7 +94,7 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
     setIsScanning(true);
     try {
       const explicitTitle = titleWasEdited ? title.trim() || undefined : undefined;
-      await onAddFolder(folderPath.trim(), explicitTitle);
+      await onAddFolder(folderPath.trim(), explicitTitle, selectedNodeId);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Erro ao escanear pasta');
@@ -208,10 +211,11 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
           {/* Folder Browser */}
           {showBrowser && (
             <div className="animate-in fade-in duration-150">
-              <div className="text-[11px] text-neutral-400 mb-1">Navegue pelas pastas do PC:</div>
+              <div className="text-[11px] text-neutral-400 mb-1">Selecione o computador e a pasta do acervo:</div>
               <FolderBrowser
-                onSelectPath={(path) => {
+                onSelectPath={(path, nodeId) => {
                   setFolderPath(path);
+                  if (nodeId) setSelectedNodeId(nodeId);
                   const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
                   const folderName = parts[parts.length - 1];
                   if (folderName && !titleWasEdited) {
@@ -219,6 +223,7 @@ export const AddMediaModal: React.FC<AddMediaModalProps> = ({
                   }
                 }}
                 currentSelected={folderPath}
+                onOpenNodesModal={onOpenNodesModal}
               />
             </div>
           )}

@@ -25,17 +25,29 @@ if %ERRORLEVEL% NEQ 0 (
     pause
     exit /b 1
 )
+echo.
+echo Para o navegador liberar a instalacao do PWA pelo endereco IP,
+echo o certificado HTTPS precisa ser confiavel neste perfil do Windows.
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; try { Import-Certificate -FilePath '%HTTPS_CERT_DIR%\cinelocal.crt' -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null; exit 0 } catch { Write-Error $_; exit 1 }"
+if errorlevel 1 (
+    echo [AVISO] Nao foi possivel confiar automaticamente no certificado.
+) else (
+    echo [OK] Certificado confiavel automaticamente para o usuario atual do Windows.
+)
 :: Obtem o endereco IP local da rede para acesso no celular
 set "LOCAL_IP="
 for /f "usebackq tokens=*" %%i in (`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "(Get-NetIPAddress -AddressFamily IPv4 -Type Unicast | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | Select-Object -ExpandProperty IPAddress -First 1)"`) do set "LOCAL_IP=%%i"
 
-echo Iniciando servidor em https://localhost:%PORT% ...
-echo Porta HTTP auxiliar para o Chromecast: %CAST_MEDIA_PORT%
 if defined LOCAL_IP (
+    set "BROWSER_URL=https://%LOCAL_IP%:%PORT%"
+    echo Iniciando servidor em https://%LOCAL_IP%:%PORT% ...
     echo Endereco HTTPS para acessar no celular: https://%LOCAL_IP%:%PORT%
 ) else (
-    echo Endereco HTTPS para acessar no celular: https://[IP_DO_SEU_PC]:%PORT%
+    set "BROWSER_URL=https://localhost:%PORT%"
+    echo [AVISO] Nao foi possivel detectar o IP local; abrindo localhost.
+    echo Iniciando servidor em https://localhost:%PORT% ...
 )
+echo Porta HTTP auxiliar para o Chromecast: %CAST_MEDIA_PORT%
 echo Certificado para instalar no celular: %HTTPS_CERT_DIR%\cinelocal.crt
 echo (Pressione Ctrl+C para encerrar)
 echo.
@@ -87,8 +99,8 @@ if %ERRORLEVEL% NEQ 0 (
     )
 )
 
-:: Abre o navegador automaticamente apos 3 segundos
-start "" cmd /c "timeout /t 3 >nul 2>&1 & start https://localhost:%PORT%"
+:: Abre o PWA instalado ou, se nao existir, o endereco no navegador
+start "" powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0scripts\open-cinelocal.ps1" -Url "%BROWSER_URL%"
 
 :: Define modo de producao para usar a interface compilada de forma rapida, leve e estavel
 set "NODE_ENV=production"
