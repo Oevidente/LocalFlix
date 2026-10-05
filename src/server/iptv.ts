@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { createHash } from 'crypto';
 import { getDataDir } from './storage';
 
 export interface IptvChannel {
@@ -142,7 +143,14 @@ export function parseM3U(content: string, playlistUrl: string): IptvPlaylistSumm
     } else if (line.startsWith('http://') || line.startsWith('https://') || line.startsWith('rtmp://') || line.startsWith('mms://')) {
       // This is the channel stream URL
       if (currentInfo) {
-        const channelId = `ch_${channels.length + 1}_${Math.random().toString(36).substring(2, 7)}`;
+        const channelIdentity = [
+          (currentInfo.tvgId || '').trim().toLowerCase(),
+          (currentInfo.name || '').trim().toLowerCase(),
+          (currentInfo.group || 'Geral').trim().toLowerCase(),
+          (currentInfo.country || '').trim().toUpperCase(),
+          line,
+        ].join('\0');
+        const channelId = `ch_${createHash('sha256').update(channelIdentity).digest('hex').slice(0, 16)}`;
         channels.push({
           id: channelId,
           name: currentInfo.name || `Canal ${channels.length + 1}`,

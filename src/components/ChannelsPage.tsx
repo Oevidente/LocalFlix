@@ -221,7 +221,7 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
   // Main popular categories to show as quick chips
   const popularCategoryChips = [
     { id: 'all', label: 'Todos os Canais', icon: Tv },
-    { id: 'favorites', label: `⭐ Favoritos (${favorites.length})`, icon: Star },
+    { id: 'favorites', label: `⭐ Favoritos (${favoriteChannelsList.length})`, icon: Star },
     { id: 'General', label: 'Geral', icon: Radio },
     { id: 'News', label: 'Notícias', icon: Radio },
     { id: 'Movies', label: 'Filmes', icon: Film },
