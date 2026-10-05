@@ -14,13 +14,13 @@ if not exist "%~dp0package.json" (
     echo.
     echo CAUSA PROVAVEL:
     echo Voce provavelmente COPIOU o arquivo "start.bat" diretamente para a
-    echo Area de Trabalho (ou outra pasta) em vez de criar um ATALHO.
+    echo Area de Trabalho ^(ou outra pasta^) em vez de criar um ATALHO.
     echo.
     echo COMO CORRIGIR:
     echo 1. Va ate a pasta original onde voce extraiu o CineLocal.
     echo 2. Clique com o BOTAO DIREITO no arquivo "start.bat" original.
-    echo 3. Selecione "Mostrar mais opcoes" (no Windows 11) ou diretamente
-    echo    "Enviar para" -^> "Area de Trabalho (criar atalho)".
+    echo 3. Selecione "Mostrar mais opcoes" ^(no Windows 11^) ou diretamente
+    echo    "Enviar para" -^> "Area de Trabalho ^(criar atalho^)".
     echo 4. Delete este arquivo "start.bat" que voce copiou na Area de Trabalho,
     echo    e use apenas o ATALHO criado para abrir o programa.
     echo.
@@ -55,24 +55,22 @@ if %ERRORLEVEL% NEQ 0 (
 echo.
 echo Para o navegador liberar a instalacao do PWA pelo endereco IP,
 echo o certificado HTTPS precisa ser confiavel neste perfil do Windows.
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; try { Import-Certificate -FilePath '%HTTPS_CERT_DIR%\cinelocal.crt' -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null; exit 0 } catch { Write-Error $_; exit 1 }"
-if errorlevel 1 (
-    echo [AVISO] Nao foi possivel confiar automaticamente no certificado.
-) else (
-    echo [OK] Certificado confiavel automaticamente para o usuario atual do Windows.
-)
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; try { Import-Certificate -FilePath (Join-Path $env:HTTPS_CERT_DIR 'cinelocal.crt') -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null } catch {}" >nul 2>&1
+
 :: Tenta liberar a porta no Firewall do Windows para redes locais e Tailscale
 netsh advfirewall firewall add rule name="CineLocal" dir=in action=allow protocol=TCP localport=%PORT%,%CAST_MEDIA_PORT% profile=any >nul 2>&1
 
-:: Obtem o endereco IP local da rede para acesso no celular
+:: Obtem os enderecos IP da rede e Tailscale de forma segura sem pipes no cmd
 set "LOCAL_IP="
-for /f "usebackq tokens=*" %%i in (`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "(Get-NetIPAddress -AddressFamily IPv4 -Type Unicast | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' -and $_.InterfaceAlias -notlike '*Tailscale*' } | Select-Object -ExpandProperty IPAddress -First 1)"`) do set "LOCAL_IP=%%i"
-
-:: Obtem o endereco IP especifico do Tailscale (se ativo)
 set "TAILSCALE_IP="
-for /f "usebackq tokens=*" %%i in (`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "(Get-NetIPAddress -AddressFamily IPv4 -Type Unicast | Where-Object { $_.IPAddress -like '100.*' -or $_.InterfaceAlias -like '*Tailscale*' } | Select-Object -ExpandProperty IPAddress -First 1)"`) do set "TAILSCALE_IP=%%i"
+set "NET_TEMP=%TEMP%\cinelocal_net_%RANDOM%.bat"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\detect-network.ps1" -OutputFile "%NET_TEMP%" >nul 2>&1
+if exist "%NET_TEMP%" (
+    call "%NET_TEMP%"
+    del /f /q "%NET_TEMP%" >nul 2>&1
+)
 
-if defined LOCAL_IP (
+if defined LOCAL_IP if not "%LOCAL_IP%"=="" (
     set "BROWSER_URL=https://%LOCAL_IP%:%PORT%"
     echo Iniciando servidor em https://%LOCAL_IP%:%PORT% ...
     echo Endereco HTTPS para acessar no celular: https://%LOCAL_IP%:%PORT%
@@ -81,8 +79,8 @@ if defined LOCAL_IP (
     echo [AVISO] Nao foi possivel detectar o IP local; abrindo localhost.
     echo Iniciando servidor em https://localhost:%PORT% ...
 )
-if defined TAILSCALE_IP (
-    echo Endereco Nuvem Multi-PC (Tailscale): https://%TAILSCALE_IP%:%PORT%
+if defined TAILSCALE_IP if not "%TAILSCALE_IP%"=="" (
+    echo Endereco Nuvem Multi-PC ^(Tailscale^): https://%TAILSCALE_IP%:%PORT%
 )
 echo Porta HTTP auxiliar para o Chromecast: %CAST_MEDIA_PORT%
 echo Certificado para instalar no celular: %HTTPS_CERT_DIR%\cinelocal.crt

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Film, Plus, HardDrive, Search, Tv, Loader2, Radio, Sparkles, Home, MoreVertical, X, FolderPlus, Network } from 'lucide-react';
+import { Film, Plus, HardDrive, Search, Tv, Radio, Sparkles, Home, MoreVertical, X, FolderPlus, Network } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface NavbarProps {
@@ -12,7 +12,6 @@ interface NavbarProps {
   onOpenStorageNodesModal?: () => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
-  isPickingFolder?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -25,7 +24,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenStorageNodesModal,
   searchQuery,
   onSearchChange,
-  isPickingFolder = false,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -245,23 +243,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="add-folder-btn"
               onClick={onOpenAddModal}
-              disabled={isPickingFolder}
-              className="h-8 lg:h-9 flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 lg:px-3.5 rounded-lg bg-[#E50914] hover:bg-[#b80710] text-white text-xs lg:text-sm font-medium transition-all shadow-md hover:shadow-red-600/20 active:scale-95 disabled:opacity-75 cursor-pointer shrink-0"
+              className="h-8 lg:h-9 flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 lg:px-3.5 rounded-lg bg-[#E50914] hover:bg-[#b80710] text-white text-xs lg:text-sm font-medium transition-all shadow-md hover:shadow-red-600/20 active:scale-95 cursor-pointer shrink-0"
               title="Adicionar pasta do PC pelo explorador nativo"
             >
-              {isPickingFolder ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 lg:w-4 lg:h-4 animate-spin shrink-0" />
-                  <span className="text-xs lg:text-sm">Explorador...</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" />
-                  <span className="hidden xl:inline">Adicionar </span>
-                  <span>Pasta</span>
-                  <span className="hidden 2xl:inline"> PC</span>
-                </>
-              )}
+              <Plus className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" />
+              <span className="hidden xl:inline">Adicionar </span>
+              <span>Pasta</span>
+              <span className="hidden 2xl:inline"> PC</span>
             </button>
 
             {/* Install PWA Button */}
@@ -306,11 +294,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="mobile-add-folder-btn"
               onClick={onOpenAddModal}
-              disabled={isPickingFolder}
-              className="p-2 bg-[#E50914] text-white rounded-lg active:scale-95 transition-all shadow cursor-pointer disabled:opacity-75 flex items-center justify-center"
+              className="p-2 bg-[#E50914] text-white rounded-lg active:scale-95 transition-all shadow cursor-pointer flex items-center justify-center"
               title="Adicionar Pasta do PC"
             >
-              {isPickingFolder ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              <Plus className="w-4 h-4" />
             </button>
 
             {/* Player Torrent Button (Compact) */}

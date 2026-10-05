@@ -38,7 +38,6 @@ export default function App() {
   const [playingState, setPlayingState] = useState<{ media: MediaItem; episode: Episode } | null>(null);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [initialAddFolder, setInitialAddFolder] = useState<string>('');
-  const [isPickingFolder, setIsPickingFolder] = useState<boolean>(false);
   const [showSystemModal, setShowSystemModal] = useState<boolean>(false);
   const [showTmdbConfigModal, setShowTmdbConfigModal] = useState<boolean>(false);
   const [showStorageNodesModal, setShowStorageNodesModal] = useState<boolean>(false);
@@ -82,23 +81,7 @@ export default function App() {
     }
   };
 
-  const handleOpenAddModal = async () => {
-    setIsPickingFolder(true);
-    try {
-      const res = await fetch('/api/system/pick-folder', { method: 'POST' });
-      const data = await res.json();
-      if (data.success && data.folderPath) {
-        setInitialAddFolder(data.folderPath);
-        setShowAddModal(true);
-        return;
-      } else if (data.cancelled) {
-        return;
-      }
-    } catch (err) {
-      console.error('Erro ao chamar explorador nativo:', err);
-    } finally {
-      setIsPickingFolder(false);
-    }
+  const handleOpenAddModal = () => {
     setInitialAddFolder('');
     setShowAddModal(true);
   };
@@ -680,7 +663,6 @@ export default function App() {
         onOpenStorageNodesModal={() => setShowStorageNodesModal(true)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        isPickingFolder={isPickingFolder}
       />
 
       {/* Main Content Area */}
@@ -710,20 +692,10 @@ export default function App() {
             <button
               id="empty-add-folder-btn"
               onClick={handleOpenAddModal}
-              disabled={isPickingFolder}
               className="w-full flex items-center justify-center space-x-2 px-6 py-3.5 rounded-lg bg-[#E50914] hover:bg-red-700 text-white font-bold transition-all shadow-xl active:scale-95 text-sm disabled:opacity-75"
             >
-              {isPickingFolder ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Abrindo Explorador do PC...</span>
-                </>
-              ) : (
-                <>
-                  <FolderPlus className="w-5 h-5" />
-                  <span>Adicionar Pasta do PC</span>
-                </>
-              )}
+              <FolderPlus className="w-5 h-5" />
+              <span>Adicionar Pasta do PC</span>
             </button>
 
             <button
