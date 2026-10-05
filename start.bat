@@ -2,6 +2,33 @@
 title CineLocal - Servidor Offline
 cd /d "%~dp0"
 
+:: Valida se o arquivo de fato esta sendo executado de dentro da pasta raiz do projeto
+if not exist "%~dp0package.json" (
+    echo ======================================================================
+    echo                     [ERRO DE EXECUCAO - CINELOCAL]
+    echo ======================================================================
+    echo.
+    echo O arquivo "start.bat" foi executado fora de sua pasta original!
+    echo.
+    echo Caminho de execucao atual: %~dp0
+    echo.
+    echo CAUSA PROVAVEL:
+    echo Voce provavelmente COPIOU o arquivo "start.bat" diretamente para a
+    echo Area de Trabalho (ou outra pasta) em vez de criar um ATALHO.
+    echo.
+    echo COMO CORRIGIR:
+    echo 1. Va ate a pasta original onde voce extraiu o CineLocal.
+    echo 2. Clique com o BOTAO DIREITO no arquivo "start.bat" original.
+    echo 3. Selecione "Mostrar mais opcoes" (no Windows 11) ou diretamente
+    echo    "Enviar para" -^> "Area de Trabalho (criar atalho)".
+    echo 4. Delete este arquivo "start.bat" que voce copiou na Area de Trabalho,
+    echo    e use apenas o ATALHO criado para abrir o programa.
+    echo.
+    echo ======================================================================
+    pause
+    exit /b 1
+)
+
 :: Porta alternativa para nao conflitar com a 3000
 set PORT=3050
 set /a CAST_MEDIA_PORT=%PORT%+1
@@ -34,9 +61,16 @@ if errorlevel 1 (
 ) else (
     echo [OK] Certificado confiavel automaticamente para o usuario atual do Windows.
 )
+:: Tenta liberar a porta no Firewall do Windows para redes locais e Tailscale
+netsh advfirewall firewall add rule name="CineLocal" dir=in action=allow protocol=TCP localport=%PORT%,%CAST_MEDIA_PORT% profile=any >nul 2>&1
+
 :: Obtem o endereco IP local da rede para acesso no celular
 set "LOCAL_IP="
-for /f "usebackq tokens=*" %%i in (`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "(Get-NetIPAddress -AddressFamily IPv4 -Type Unicast | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | Select-Object -ExpandProperty IPAddress -First 1)"`) do set "LOCAL_IP=%%i"
+for /f "usebackq tokens=*" %%i in (`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "(Get-NetIPAddress -AddressFamily IPv4 -Type Unicast | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' -and $_.InterfaceAlias -notlike '*Tailscale*' } | Select-Object -ExpandProperty IPAddress -First 1)"`) do set "LOCAL_IP=%%i"
+
+:: Obtem o endereco IP especifico do Tailscale (se ativo)
+set "TAILSCALE_IP="
+for /f "usebackq tokens=*" %%i in (`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "(Get-NetIPAddress -AddressFamily IPv4 -Type Unicast | Where-Object { $_.IPAddress -like '100.*' -or $_.InterfaceAlias -like '*Tailscale*' } | Select-Object -ExpandProperty IPAddress -First 1)"`) do set "TAILSCALE_IP=%%i"
 
 if defined LOCAL_IP (
     set "BROWSER_URL=https://%LOCAL_IP%:%PORT%"
@@ -46,6 +80,9 @@ if defined LOCAL_IP (
     set "BROWSER_URL=https://localhost:%PORT%"
     echo [AVISO] Nao foi possivel detectar o IP local; abrindo localhost.
     echo Iniciando servidor em https://localhost:%PORT% ...
+)
+if defined TAILSCALE_IP (
+    echo Endereco Nuvem Multi-PC (Tailscale): https://%TAILSCALE_IP%:%PORT%
 )
 echo Porta HTTP auxiliar para o Chromecast: %CAST_MEDIA_PORT%
 echo Certificado para instalar no celular: %HTTPS_CERT_DIR%\cinelocal.crt
