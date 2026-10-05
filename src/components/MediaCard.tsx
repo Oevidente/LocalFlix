@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Play, Info, CheckCircle2, Radio, Laptop } from 'lucide-react';
 import { MediaItem, Episode } from '../types';
 import { formatTime } from '../utils';
@@ -18,6 +19,45 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   onOpenDetails,
   variant = 'poster',
 }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const hoverCloseTimeout = useRef<number | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [hoverPosition, setHoverPosition] = useState<{ left: number; top: number; width: number } | null>(null);
+
+  useEffect(() => {
+    if (!isHovered) return;
+
+    const updateHoverPosition = () => {
+      const rect = cardRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const width = Math.min(rect.width * 1.2, window.innerWidth - 24);
+      const height = width * (9 / 16) + 112;
+      const left = Math.max(12, Math.min(rect.left + (rect.width - width) / 2, window.innerWidth - width - 12));
+      const top = Math.min(Math.max(8, rect.top - 8), Math.max(8, window.innerHeight - height - 8));
+      setHoverPosition({ left, top, width });
+    };
+
+    updateHoverPosition();
+    window.addEventListener('resize', updateHoverPosition);
+    window.addEventListener('scroll', updateHoverPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateHoverPosition);
+      window.removeEventListener('scroll', updateHoverPosition, true);
+    };
+  }, [isHovered]);
+
+  const openHoverCard = () => {
+    if (hoverCloseTimeout.current !== null) {
+      window.clearTimeout(hoverCloseTimeout.current);
+    }
+    setIsHovered(true);
+  };
+
+  const scheduleHoverCardClose = () => {
+    hoverCloseTimeout.current = window.setTimeout(() => setIsHovered(false), 120);
+  };
+
   // Check if fully watched
   const isAllWatched = media.seasons.every((s) => s.episodes.every((e) => e.watched));
 
@@ -45,20 +85,25 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 
   return (
     <div
+      ref={cardRef}
       id={`media-card-${media.id}`}
       className="group relative shrink-0 select-none cursor-pointer"
       onClick={() => onOpenDetails(media)}
+      onMouseEnter={openHoverCard}
+      onMouseLeave={scheduleHoverCardClose}
     >
       <div
-        className={`relative rounded-md overflow-hidden bg-neutral-900 border border-white/5 transition-all duration-300 transform group-hover:scale-105 group-hover:z-20 group-hover:shadow-2xl group-hover:shadow-black/80 ${
-          variant === 'backdrop' ? 'w-60 sm:w-72 aspect-video' : 'w-36 sm:w-44 aspect-[2/3]'
+        className={`relative rounded-md overflow-hidden bg-neutral-900 border border-white/5 ${
+          variant === 'backdrop'
+            ? 'w-[42vw] sm:w-[calc((100vw_-_4rem)/3)] md:w-[calc((100vw_-_4.5rem)/4)] lg:w-[calc((100vw_-_6rem)/5)] xl:w-[calc((100vw_-_6.5rem)/6)] 2xl:w-[calc((100vw_-_7rem)/7)] aspect-video'
+            : 'w-36 sm:w-44 aspect-[2/3]'
         }`}
       >
         {/* Poster / Thumbnail Image */}
         <img
           src={displayImage}
           alt={media.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          className="w-full h-full object-cover"
           onError={(e) => {
             // Fallback gradient with clean typography if file poster fails
             const target = e.currentTarget;
@@ -96,49 +141,6 @@ export const MediaCard: React.FC<MediaCardProps> = ({
           )}
         </div>
 
-        {/* Hover overlay with actions */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 z-10">
-          <div className="text-white font-bold text-sm line-clamp-1 mb-1">{media.title}</div>
-
-          {continueEpisode ? (
-            <div className="text-[11px] text-red-400 font-medium line-clamp-1 mb-2">
-              {media.kind === 'series'
-                ? `T${continueEpisode.seasonNumber}:E${continueEpisode.episodeNumber} - ${continueEpisode.title}`
-                : `Parou em ${formatTime(continueEpisode.progressSeconds)}`}
-            </div>
-          ) : (
-            <div className="text-[11px] text-neutral-400 line-clamp-1 mb-2">
-              {media.kind === 'series'
-                ? `${media.totalSeasons} Temp · ${media.totalEpisodes} eps`
-                : (activeEp?.durationSeconds ? formatTime(activeEp.durationSeconds) : (activeEp?.resolution || 'Filme'))}
-            </div>
-          )}
-
-          {/* Quick Buttons */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onPlay(media, activeEp);
-              }}
-              className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center hover:bg-neutral-200 transition-all shadow-md active:scale-95"
-              title="Assistir agora"
-            >
-              <Play className="w-4 h-4 fill-black ml-0.5" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenDetails(media);
-              }}
-              className="w-8 h-8 rounded-full bg-neutral-800/90 text-white border border-neutral-600 flex items-center justify-center hover:bg-neutral-700 transition-all shadow-md active:scale-95"
-              title="Detalhes"
-            >
-              <Info className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
         {/* Bottom Red Progress Bar */}
         {hasProgress && (
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-neutral-800 z-10">
@@ -162,6 +164,75 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             )}
           </div>
         </div>
+      )}
+
+      {isHovered && hoverPosition && createPortal(
+        <div
+          className="fixed z-[45] overflow-hidden rounded-md border border-white/10 bg-[#181818] shadow-2xl shadow-black/80"
+          style={{ left: hoverPosition.left, top: hoverPosition.top, width: hoverPosition.width }}
+          onMouseEnter={openHoverCard}
+          onMouseLeave={scheduleHoverCardClose}
+          onClick={() => onOpenDetails(media)}
+        >
+          <div className="relative aspect-video bg-neutral-900">
+            <img src={displayImage} alt={media.title} className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+            {hasProgress && (
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-neutral-700">
+                <div className="h-full bg-[#E50914]" style={{ width: `${progressPercent}%` }} />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2.5 p-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPlay(media, activeEp);
+                }}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-black transition-colors hover:bg-neutral-200"
+                title="Assistir agora"
+              >
+                <Play className="ml-0.5 h-4 w-4 fill-black" />
+              </button>
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenDetails(media);
+                }}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-neutral-500 text-white transition-colors hover:border-white"
+                title="Mais informações"
+              >
+                <Info className="h-4 w-4" />
+              </button>
+              <span className="ml-auto text-xs font-semibold text-neutral-300">
+                {media.kind === 'series'
+                  ? `${media.totalSeasons} temporada${media.totalSeasons === 1 ? '' : 's'}`
+                  : activeEp?.durationSeconds
+                    ? formatTime(activeEp.durationSeconds)
+                    : 'Filme'}
+              </span>
+            </div>
+
+            <div>
+              <h3 className="line-clamp-1 text-sm font-bold text-white">{media.title}</h3>
+              <p className="mt-1 line-clamp-1 text-xs text-neutral-400">
+                {[media.year, media.genres?.slice(0, 2).join(' · '), media.rating ? `★ ${media.rating.toFixed(1)}` : undefined]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            </div>
+
+            {continueEpisode && (
+              <p className="line-clamp-1 text-xs text-neutral-300">
+                T{continueEpisode.seasonNumber}:E{continueEpisode.episodeNumber} · {continueEpisode.title}
+              </p>
+            )}
+            {media.overview && <p className="line-clamp-2 text-xs leading-relaxed text-neutral-400">{media.overview}</p>}
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -61,9 +61,8 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
       : 'Filme disponível para reprodução imediata na sua biblioteca local com qualidade de alta definição.');
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 pt-18 sm:pt-20 lg:pt-22 pb-2 select-none">
-      {/* Netflix-style framed billboard card */}
-      <div className="relative w-full h-[62vh] min-h-[460px] max-h-[700px] rounded-2xl sm:rounded-3xl overflow-hidden bg-neutral-950 border border-white/10 shadow-2xl group">
+    <div className="w-full pt-16 sm:pt-20 pb-2 select-none">
+      <div className="relative mx-auto w-[calc(100%-1.5rem)] sm:w-[86%] h-[40vw] min-h-[300px] max-h-[80vh] rounded-xl overflow-hidden bg-neutral-950 border border-white/10 shadow-2xl group">
         {/* Backdrop Image */}
         <div className="absolute inset-0">
           <img
@@ -80,7 +79,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
         </div>
 
         {/* Billboard Hero Content */}
-        <div className="relative h-full w-full p-6 sm:p-10 lg:p-14 flex flex-col justify-end z-10">
+        <div className="relative h-full w-full px-4 pb-8 sm:px-6 sm:pb-12 lg:px-8 lg:pb-16 flex flex-col justify-end z-10">
           {/* Title */}
           <h1
             id="hero-media-title"
@@ -151,7 +150,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
               <button
                 id="hero-play-button"
                 onClick={() => onPlayEpisode(media, targetEpisode!)}
-                className="flex items-center space-x-2 px-6 py-2.5 sm:px-7 sm:py-3 rounded-lg bg-white text-black font-bold hover:bg-neutral-200 transition-all shadow-xl active:scale-95 shrink-0 whitespace-nowrap cursor-pointer z-10"
+                className="flex items-center space-x-2 px-6 py-2.5 sm:px-7 sm:py-3 rounded-md bg-white text-black font-bold hover:bg-neutral-200 transition-all shadow-xl active:scale-95 shrink-0 whitespace-nowrap cursor-pointer z-10"
               >
                 <Play className="w-5 h-5 fill-black shrink-0" />
                 <span>{isContinue ? 'Continuar Assistindo' : 'Assistir'}</span>
@@ -161,25 +160,13 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
             <button
               id="hero-info-button"
               onClick={() => onOpenDetails(media)}
-              className="flex items-center space-x-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg bg-white/20 hover:bg-white/30 text-white font-semibold backdrop-blur-md transition-all shadow-lg active:scale-95 shrink-0 whitespace-nowrap cursor-pointer z-10"
+              className="flex items-center space-x-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-md bg-neutral-500/80 hover:bg-neutral-400/90 text-white font-semibold backdrop-blur-md transition-all shadow-lg active:scale-95 shrink-0 whitespace-nowrap cursor-pointer z-10"
             >
               <Info className="w-5 h-5 shrink-0" />
               <span>Mais Informações</span>
             </button>
           </div>
 
-          {/* Bottom Right Badges (Novidade / Destaque) */}
-          <div className="hidden sm:flex items-center space-x-2 absolute right-6 sm:right-10 lg:right-14 bottom-6 sm:bottom-10 lg:bottom-14 z-10 pointer-events-none">
-            <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-xs font-semibold text-neutral-200">
-              <span className="w-2 h-2 rounded-full bg-[#E50914] animate-pulse" />
-              <span>{isContinue ? 'Em Andamento' : 'Destaque'}</span>
-            </div>
-            {targetEpisode?.resolution && (
-              <span className="px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-mono font-bold text-white">
-                {targetEpisode.resolution}
-              </span>
-            )}
-          </div>
         </div>
       </div>
     </div>

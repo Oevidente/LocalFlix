@@ -34,11 +34,10 @@ export const MediaRow: React.FC<MediaRowProps> = ({
   if (items.length === 0) return null;
 
   return (
-    <section id={id} className="relative mb-8 sm:mb-12 group/row">
-      <div className="px-4 sm:px-6 lg:px-8 mb-3 flex items-center justify-between">
-        <h2 className="text-lg sm:text-xl font-bold text-white tracking-wide flex items-center space-x-2">
-          <span>{title}</span>
-          <span className="text-xs text-neutral-500 font-normal">({items.length})</span>
+    <section id={id} className="relative mb-7 sm:mb-9 group/row">
+      <div className="px-4 sm:px-6 lg:px-8 mb-2 flex items-center justify-between">
+        <h2 className="text-lg sm:text-xl font-semibold text-white">
+          {title}
         </h2>
       </div>
 
@@ -55,7 +54,7 @@ export const MediaRow: React.FC<MediaRowProps> = ({
         {/* Horizontal Card Container */}
         <div
           ref={rowRef}
-          className="flex space-x-3 sm:space-x-4 overflow-x-auto no-scrollbar scroll-smooth px-4 sm:px-6 lg:px-8 py-2"
+          className="flex gap-2 overflow-x-auto no-scrollbar scroll-smooth px-4 sm:px-6 lg:px-8 py-2"
         >
           {items.map(({ media, continueEpisode }) => (
             <MediaCard
