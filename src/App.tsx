@@ -281,6 +281,7 @@ export default function App() {
           if (item.id !== mediaId) return item;
           let newLastWatched = item.lastWatchedEpisodeId;
           let newMediaWatchedAt = item.lastWatchedAt;
+          let continueWatchingDismissedAt = item.continueWatchingDismissedAt;
           const newSeasons = item.seasons.map((s) => ({
             ...s,
             episodes: s.episodes.map((ep) => {
@@ -289,6 +290,9 @@ export default function App() {
                 if (isWatched) {
                   newLastWatched = ep.id;
                   newMediaWatchedAt = now;
+                  continueWatchingDismissedAt = undefined;
+                } else {
+                  continueWatchingDismissedAt = now;
                 }
                 return {
                   ...ep,
@@ -304,6 +308,7 @@ export default function App() {
             ...item,
             lastWatchedEpisodeId: newLastWatched,
             lastWatchedAt: newMediaWatchedAt,
+            continueWatchingDismissedAt,
             updatedAt: now,
             seasons: newSeasons,
           };
@@ -315,6 +320,7 @@ export default function App() {
       if (!prevDetail || prevDetail.id !== mediaId) return prevDetail;
       let newLastWatched = prevDetail.lastWatchedEpisodeId;
       let newMediaWatchedAt = prevDetail.lastWatchedAt;
+      let continueWatchingDismissedAt = prevDetail.continueWatchingDismissedAt;
       const newSeasons = prevDetail.seasons.map((s) => ({
         ...s,
         episodes: s.episodes.map((ep) => {
@@ -323,6 +329,9 @@ export default function App() {
             if (isWatched) {
               newLastWatched = ep.id;
               newMediaWatchedAt = now;
+              continueWatchingDismissedAt = undefined;
+            } else {
+              continueWatchingDismissedAt = now;
             }
             return {
               ...ep,
@@ -338,6 +347,7 @@ export default function App() {
         ...prevDetail,
         lastWatchedEpisodeId: newLastWatched,
         lastWatchedAt: newMediaWatchedAt,
+        continueWatchingDismissedAt,
         updatedAt: now,
         seasons: newSeasons,
       };
@@ -619,6 +629,7 @@ export default function App() {
     const results: { media: MediaItem; continueEpisode: Episode; lastWatchedTime: number }[] = [];
 
     for (const media of library.items) {
+      if (media.continueWatchingDismissedAt) continue;
       const allEpisodes = media.seasons.flatMap((s) => s.episodes);
       if (allEpisodes.length === 0) continue;
 

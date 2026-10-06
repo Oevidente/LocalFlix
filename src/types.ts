@@ -125,6 +125,7 @@ export interface MediaItem {
   seasons: Season[];
   lastWatchedEpisodeId?: string;
   lastWatchedAt?: string;
+  continueWatchingDismissedAt?: string;
   createdAt: string;
   updatedAt: string;
   isTorrent?: boolean;

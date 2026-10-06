@@ -150,6 +150,9 @@ export function updateEpisodeProgress(
       if (subtitleIndex !== undefined) {
         ep.selectedSubtitleIndex = subtitleIndex;
       }
+      if (progressSeconds > 10) {
+        media.continueWatchingDismissedAt = undefined;
+      }
       ep.lastWatchedAt = new Date().toISOString();
       media.lastWatchedEpisodeId = ep.id;
       media.lastWatchedAt = ep.lastWatchedAt;
@@ -184,6 +187,9 @@ export function toggleEpisodeWatched(mediaId: string, episodeId: string, watched
         ep.lastWatchedAt = now;
         media.lastWatchedEpisodeId = ep.id;
         media.lastWatchedAt = now;
+        media.continueWatchingDismissedAt = undefined;
+      } else {
+        media.continueWatchingDismissedAt = now;
       }
       media.updatedAt = now;
       writeLibrary(lib);
@@ -1353,6 +1359,7 @@ export async function rescanAllLibraryFolders(): Promise<{ updatedCount: number;
 
         updatedItem.lastWatchedEpisodeId = item.lastWatchedEpisodeId;
         updatedItem.lastWatchedAt = item.lastWatchedAt;
+        updatedItem.continueWatchingDismissedAt = item.continueWatchingDismissedAt;
         updatedItem.customTitle = item.customTitle;
         updatedItem.tmdbId = updatedItem.tmdbId || item.tmdbId;
         updatedItem.metadataProvider = updatedItem.metadataProvider || item.metadataProvider;

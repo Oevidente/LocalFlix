@@ -203,6 +203,7 @@ apiRouter.post('/library/add', async (req: Request, res: Response) => {
       }
       mediaItem.lastWatchedEpisodeId = existing.lastWatchedEpisodeId;
       mediaItem.lastWatchedAt = existing.lastWatchedAt;
+      mediaItem.continueWatchingDismissedAt = existing.continueWatchingDismissedAt;
       if (existing.backdropPath && !mediaItem.backdropPath) {
         mediaItem.backdropPath = existing.backdropPath;
       }
@@ -263,6 +264,7 @@ apiRouter.post('/library/rescan/:id', async (req: Request, res: Response) => {
     }
     updatedItem.lastWatchedEpisodeId = media.lastWatchedEpisodeId;
     updatedItem.lastWatchedAt = media.lastWatchedAt;
+    updatedItem.continueWatchingDismissedAt = media.continueWatchingDismissedAt;
     updatedItem.customTitle = media.customTitle;
     updatedItem.tmdbId = updatedItem.tmdbId || media.tmdbId;
     updatedItem.metadataProvider = updatedItem.metadataProvider || media.metadataProvider;
