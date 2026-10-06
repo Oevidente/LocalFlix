@@ -179,6 +179,13 @@ export function toggleEpisodeWatched(mediaId: string, episodeId: string, watched
       } else if (!ep.watched) {
         ep.progressSeconds = 0;
       }
+      const now = new Date().toISOString();
+      if (ep.watched) {
+        ep.lastWatchedAt = now;
+        media.lastWatchedEpisodeId = ep.id;
+        media.lastWatchedAt = now;
+      }
+      media.updatedAt = now;
       writeLibrary(lib);
       return true;
     }

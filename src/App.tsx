@@ -258,6 +258,7 @@ export default function App() {
 
   // Toggle episode watched with instant optimistic update
   const handleToggleWatched = async (mediaId: string, episodeId: string, watched?: boolean) => {
+    const now = new Date().toISOString();
     // 1. Instant local update
     setLibrary((prevLib) => {
       if (!prevLib) return prevLib;
@@ -266,16 +267,21 @@ export default function App() {
         items: prevLib.items.map((item) => {
           if (item.id !== mediaId) return item;
           let newLastWatched = item.lastWatchedEpisodeId;
+          let newMediaWatchedAt = item.lastWatchedAt;
           const newSeasons = item.seasons.map((s) => ({
             ...s,
             episodes: s.episodes.map((ep) => {
               if (ep.id === episodeId) {
                 const isWatched = typeof watched === 'boolean' ? watched : !ep.watched;
-                if (isWatched) newLastWatched = ep.id;
+                if (isWatched) {
+                  newLastWatched = ep.id;
+                  newMediaWatchedAt = now;
+                }
                 return {
                   ...ep,
                   watched: isWatched,
                   progressSeconds: isWatched ? (ep.durationSeconds || ep.progressSeconds) : 0,
+                  lastWatchedAt: isWatched ? now : ep.lastWatchedAt,
                 };
               }
               return ep;
@@ -284,6 +290,8 @@ export default function App() {
           return {
             ...item,
             lastWatchedEpisodeId: newLastWatched,
+            lastWatchedAt: newMediaWatchedAt,
+            updatedAt: now,
             seasons: newSeasons,
           };
         }),
@@ -293,16 +301,21 @@ export default function App() {
     setActiveMediaDetail((prevDetail) => {
       if (!prevDetail || prevDetail.id !== mediaId) return prevDetail;
       let newLastWatched = prevDetail.lastWatchedEpisodeId;
+      let newMediaWatchedAt = prevDetail.lastWatchedAt;
       const newSeasons = prevDetail.seasons.map((s) => ({
         ...s,
         episodes: s.episodes.map((ep) => {
           if (ep.id === episodeId) {
             const isWatched = typeof watched === 'boolean' ? watched : !ep.watched;
-            if (isWatched) newLastWatched = ep.id;
+            if (isWatched) {
+              newLastWatched = ep.id;
+              newMediaWatchedAt = now;
+            }
             return {
               ...ep,
               watched: isWatched,
               progressSeconds: isWatched ? (ep.durationSeconds || ep.progressSeconds) : 0,
+              lastWatchedAt: isWatched ? now : ep.lastWatchedAt,
             };
           }
           return ep;
@@ -311,6 +324,8 @@ export default function App() {
       return {
         ...prevDetail,
         lastWatchedEpisodeId: newLastWatched,
+        lastWatchedAt: newMediaWatchedAt,
+        updatedAt: now,
         seasons: newSeasons,
       };
     });
@@ -584,50 +599,190 @@ export default function App() {
     return list;
   }, [library, searchQuery, activeTab]);
 
-  // "Continue Watching" items: any item that has partially watched episodes or recent activity
+  // "Continue Watching" items: ordered strictly from most recently watched to oldest.
+  // When an episode was finished, it automatically advances to the next unwatched episode in sequence at the top of the queue.
   const continueWatchingItems = useMemo(() => {
     if (!library) return [];
-    const results: { media: MediaItem; continueEpisode: Episode }[] = [];
+    const results: { media: MediaItem; continueEpisode: Episode; lastWatchedTime: number }[] = [];
 
     for (const media of library.items) {
-      // Find candidate episode: lastWatchedEpisode or any episode in progress
+      const allEpisodes = media.seasons.flatMap((s) => s.episodes);
+      if (allEpisodes.length === 0) continue;
+
       let candEp: Episode | undefined;
+      let candTime = 0;
+
+      // 1. Check lastWatchedEpisodeId
       if (media.lastWatchedEpisodeId) {
-        for (const s of media.seasons) {
-          const ep = s.episodes.find((e) => e.id === media.lastWatchedEpisodeId);
-          if (ep && !ep.watched) {
-            candEp = ep;
-            break;
+        const lastEpIndex = allEpisodes.findIndex((e) => e.id === media.lastWatchedEpisodeId);
+        if (lastEpIndex >= 0) {
+          const lastEp = allEpisodes[lastEpIndex];
+          const lastEpTime = lastEp.lastWatchedAt
+            ? new Date(lastEp.lastWatchedAt).getTime()
+            : media.lastWatchedAt
+            ? new Date(media.lastWatchedAt).getTime()
+            : 0;
+
+          if (lastEp.watched) {
+            // User finished this episode. For a series, advance to the next unwatched episode in sequence
+            if (media.kind === 'series') {
+              const nextUnwatched = allEpisodes.slice(lastEpIndex + 1).find((e) => !e.watched);
+              if (nextUnwatched) {
+                candEp = nextUnwatched;
+                // Inherit the time the previous episode was finished so it stays at the top of the queue
+                candTime = lastEpTime || (media.updatedAt ? new Date(media.updatedAt).getTime() : 0);
+              }
+            }
+            // For a movie that is 100% watched, do not keep in continue watching
+          } else {
+            // Episode is in progress or selected
+            candEp = lastEp;
+            candTime =
+              lastEpTime ||
+              (candEp.lastWatchedAt ? new Date(candEp.lastWatchedAt).getTime() : 0) ||
+              (media.lastWatchedAt ? new Date(media.lastWatchedAt).getTime() : 0);
           }
         }
       }
 
+      // 2. If no candidate yet, look for any unwatched episode with progress > 10s
       if (!candEp) {
-        // Find first unwatched episode that has some progress
-        for (const s of media.seasons) {
-          const ep = s.episodes.find((e) => e.progressSeconds > 10 && !e.watched);
-          if (ep) {
-            candEp = ep;
-            break;
+        const inProgressEp = allEpisodes.find((e) => e.progressSeconds > 10 && !e.watched);
+        if (inProgressEp) {
+          candEp = inProgressEp;
+          candTime = inProgressEp.lastWatchedAt
+            ? new Date(inProgressEp.lastWatchedAt).getTime()
+            : media.lastWatchedAt
+            ? new Date(media.lastWatchedAt).getTime()
+            : 0;
+        }
+      }
+
+      // 3. If still no candidate, check if series has any watched episodes and find next unwatched
+      if (!candEp && media.kind === 'series') {
+        const lastWatchedIndex = allEpisodes.map((e) => e.watched).lastIndexOf(true);
+        if (lastWatchedIndex >= 0) {
+          const nextUnwatched = allEpisodes.slice(lastWatchedIndex + 1).find((e) => !e.watched);
+          if (nextUnwatched) {
+            const lastWatchedEp = allEpisodes[lastWatchedIndex];
+            candEp = nextUnwatched;
+            candTime = lastWatchedEp.lastWatchedAt
+              ? new Date(lastWatchedEp.lastWatchedAt).getTime()
+              : media.lastWatchedAt
+              ? new Date(media.lastWatchedAt).getTime()
+              : 0;
           }
         }
       }
 
       if (candEp) {
-        results.push({ media, continueEpisode: candEp });
+        // Fallback for candTime if 0
+        if (!candTime || isNaN(candTime)) {
+          const mediaTimes = [
+            media.lastWatchedAt ? new Date(media.lastWatchedAt).getTime() : 0,
+            media.updatedAt ? new Date(media.updatedAt).getTime() : 0,
+            media.createdAt ? new Date(media.createdAt).getTime() : 0,
+          ].filter((t) => !isNaN(t) && t > 0);
+          candTime = mediaTimes.length > 0 ? Math.max(...mediaTimes) : 0;
+        }
+
+        results.push({ media, continueEpisode: candEp, lastWatchedTime: candTime });
       }
     }
 
-    return results;
+    // Sort strictly descending: newest lastWatchedTime first!
+    results.sort((a, b) => b.lastWatchedTime - a.lastWatchedTime);
+
+    return results.map(({ media, continueEpisode }) => ({ media, continueEpisode }));
   }, [library]);
 
-  // Featured Hero Item (first continue watching or first item in library)
-  const heroMedia = useMemo(() => {
+  // Featured Hero Carousel Items (up to 5 items: 1st is most recently watched, then other watched, then popular/top-rated)
+  const heroMediaList = useMemo(() => {
+    if (!library || library.items.length === 0) return [];
+
+    const list: MediaItem[] = [];
+    const addedIds = new Set<string>();
+
+    // 1. The first item is ALWAYS the most recently watched media
     if (continueWatchingItems.length > 0) {
-      return continueWatchingItems[0].media;
+      const first = continueWatchingItems[0].media;
+      list.push(first);
+      addedIds.add(first.id);
+    } else {
+      // If no active continue watching, check if any media has lastWatchedAt
+      const sortedByWatched = [...library.items]
+        .filter((m) => Boolean(m.lastWatchedAt))
+        .sort((a, b) => new Date(b.lastWatchedAt!).getTime() - new Date(a.lastWatchedAt!).getTime());
+      if (sortedByWatched.length > 0) {
+        list.push(sortedByWatched[0]);
+        addedIds.add(sortedByWatched[0].id);
+      }
     }
-    return filteredItems[0] || null;
-  }, [continueWatchingItems, filteredItems]);
+
+    // 2. Next items: other items from continueWatchingItems
+    for (const item of continueWatchingItems) {
+      if (list.length >= 5) break;
+      if (!addedIds.has(item.media.id)) {
+        list.push(item.media);
+        addedIds.add(item.media.id);
+      }
+    }
+
+    // 3. Other media in user watch history (episodes marked watched or with progress)
+    if (list.length < 5) {
+      const otherWatched = [...library.items]
+        .filter((m) => !addedIds.has(m.id))
+        .map((m) => {
+          const watchedCount = m.seasons.reduce(
+            (acc, s) => acc + s.episodes.filter((e) => e.watched || e.progressSeconds > 10).length,
+            0
+          );
+          const latestEpTime = Math.max(
+            0,
+            ...m.seasons
+              .flatMap((s) => s.episodes)
+              .map((e) => (e.lastWatchedAt ? new Date(e.lastWatchedAt).getTime() : 0))
+          );
+          const mTime = m.lastWatchedAt ? new Date(m.lastWatchedAt).getTime() : 0;
+          return { media: m, watchedCount, sortTime: Math.max(mTime, latestEpTime) };
+        })
+        .filter((entry) => entry.watchedCount > 0 || entry.sortTime > 0)
+        .sort((a, b) => (b.sortTime !== a.sortTime ? b.sortTime - a.sortTime : b.watchedCount - a.watchedCount));
+
+      for (const entry of otherWatched) {
+        if (list.length >= 5) break;
+        list.push(entry.media);
+        addedIds.add(entry.media.id);
+      }
+    }
+
+    // 4. If fewer than 5, complete with the most popular / highest rated / recent in the library
+    if (list.length < 5) {
+      const candidates = [...library.items]
+        .filter((m) => !addedIds.has(m.id))
+        .sort((a, b) => {
+          const ratingA = a.rating || 0;
+          const ratingB = b.rating || 0;
+          if (Math.abs(ratingB - ratingA) > 0.1) return ratingB - ratingA;
+
+          const votesA = a.voteCount || 0;
+          const votesB = b.voteCount || 0;
+          if (votesB !== votesA) return votesB - votesA;
+
+          const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+          const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+          return dateB - dateA;
+        });
+
+      for (const m of candidates) {
+        if (list.length >= 5) break;
+        list.push(m);
+        addedIds.add(m.id);
+      }
+    }
+
+    return list;
+  }, [library, continueWatchingItems]);
 
   const seriesItems = useMemo(
     () => filteredItems.filter((i) => i.kind === 'series').map((media) => ({ media })),
@@ -737,17 +892,17 @@ export default function App() {
       ) : (
         /* Populated Library View */
         <>
-          {/* Hero Spotlight */}
-          {heroMedia && !searchQuery && (
+          {/* Hero Spotlight Carousel */}
+          {heroMediaList.length > 0 && !searchQuery && (
             <HeroBanner
-              media={heroMedia}
+              items={heroMediaList}
               onPlayEpisode={handlePlayEpisode}
               onOpenDetails={setActiveMediaDetail}
             />
           )}
 
           {/* Rows Container */}
-          <main className={`relative z-20 ${heroMedia && !searchQuery ? 'mt-0' : 'pt-28 sm:pt-32 lg:pt-36'}`}>
+          <main className={`relative z-20 ${heroMediaList.length > 0 && !searchQuery ? 'mt-0' : 'pt-28 sm:pt-32 lg:pt-36'}`}>
             {/* 1. Continuar Assistindo Row (Backdrop card variant with progress bar) */}
             {continueWatchingItems.length > 0 && activeTab !== 'series' && activeTab !== 'movie' && (
               <MediaRow
