@@ -268,6 +268,9 @@ apiRouter.post('/library/rescan/:id', async (req: Request, res: Response) => {
     if (media.posterPath && !updatedItem.posterPath) {
       updatedItem.posterPath = media.posterPath;
     }
+    if (media.logoPath && !updatedItem.logoPath) {
+      updatedItem.logoPath = media.logoPath;
+    }
 
     lib.items[idx] = updatedItem;
     writeLibrary(lib);
@@ -1394,6 +1397,48 @@ apiRouter.get(['/media/:mediaId/backdrop', '/media/:mediaId/banner'], (req: Requ
   }
 
   res.status(404).send('Banner não encontrado');
+});
+
+// 10.6 Official transparent title logo (PNG)
+apiRouter.get('/media/:mediaId/logo', (req: Request, res: Response) => {
+  const { mediaId } = req.params;
+  const media = findMediaItem(mediaId);
+  if (!media) {
+    res.status(404).send('Mídia não encontrada');
+    return;
+  }
+
+  // Se a mídia estiver no segundo PC, redireciona o logo para o nó remoto
+  if (media.nodeId && media.nodeId !== 'local') {
+    const node = findStorageNode(media.nodeId);
+    if (node && node.baseUrl) {
+      res.redirect(`${node.baseUrl.replace(/\/+$/, '')}/api/media/${mediaId}/logo`);
+      return;
+    }
+  }
+
+  // 1. If logoPath is a remote URL, redirect directly
+  if (media.logoPath && (media.logoPath.startsWith('http://') || media.logoPath.startsWith('https://'))) {
+    res.redirect(media.logoPath);
+    return;
+  }
+
+  // 2. Local explicit logoPath
+  if (media.logoPath && fs.existsSync(media.logoPath)) {
+    res.setHeader('Content-Type', 'image/png');
+    res.sendFile(media.logoPath);
+    return;
+  }
+
+  // 3. Check cached TMDb logo in data/metadata/{id}/logo.png
+  const cachedLogo = path.join(getDataDir(), 'metadata', mediaId, 'logo.png');
+  if (fs.existsSync(cachedLogo) && fs.statSync(cachedLogo).size > 100) {
+    res.setHeader('Content-Type', 'image/png');
+    res.sendFile(cachedLogo);
+    return;
+  }
+
+  res.status(404).send('Logotipo não encontrado');
 });
 
 // 11. Episode thumbnail

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, Info, Sparkles, Film, Tv } from 'lucide-react';
 import { MediaItem, Episode } from '../types';
 import { formatTime, formatDurationLabel } from '../utils';
@@ -14,6 +14,15 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   onPlayEpisode,
   onOpenDetails,
 }) => {
+  const [logoFailed, setLogoFailed] = useState(false);
+
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [media.id, media.logoPath]);
+
+  const logoUrl = media.logoPath?.startsWith('http')
+    ? media.logoPath
+    : (media.logoPath || media.tmdbId ? `/api/media/${media.id}/logo` : undefined);
   // Determine episode to play: last watched or first episode
   let targetEpisode: Episode | undefined;
   if (media.lastWatchedEpisodeId) {
@@ -80,13 +89,24 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
         {/* Billboard Hero Content */}
         <div className="relative h-full w-full px-4 pb-8 sm:px-6 sm:pb-12 lg:px-8 lg:pb-16 flex flex-col justify-end z-10">
-          {/* Title */}
-          <h1
-            id="hero-media-title"
-            className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight drop-shadow-2xl mb-2.5 max-w-3xl line-clamp-2"
-          >
-            {media.title}
-          </h1>
+          {/* Title or Official Transparent Logo */}
+          {logoUrl && !logoFailed ? (
+            <div className="mb-3 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
+              <img
+                src={logoUrl}
+                alt={media.title}
+                className="max-h-20 sm:max-h-28 lg:max-h-36 w-auto object-contain object-left drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
+                onError={() => setLogoFailed(true)}
+              />
+            </div>
+          ) : (
+            <h1
+              id="hero-media-title"
+              className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight drop-shadow-2xl mb-2.5 max-w-3xl line-clamp-2"
+            >
+              {media.title}
+            </h1>
+          )}
 
           {/* Dot-separated Meta Info Bar (e.g. Filme • Fantasia • 2025 • 1h 41min • 10) */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm font-semibold text-neutral-300 mb-2.5 drop-shadow">

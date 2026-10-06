@@ -35,10 +35,19 @@ interface TmdbCredit {
   profile_path?: string | null;
 }
 
+export interface TmdbLogo {
+  file_path: string;
+  iso_639_1?: string | null;
+  aspect_ratio?: number;
+  width?: number;
+  height?: number;
+}
+
 interface TmdbDetail extends TmdbSearchResult {
   tagline?: string;
   genres?: Array<{ id: number; name: string }>;
   credits?: { cast?: TmdbCredit[] };
+  images?: { logos?: TmdbLogo[] };
   seasons?: Array<{ season_number: number; episode_count: number }>;
 }
 
@@ -159,15 +168,35 @@ async function downloadImage(url: string, destination: string): Promise<boolean>
   }
 }
 
-async function cacheImage(mediaId: string, kind: string, remoteUrl: string | undefined): Promise<string | undefined> {
+async function cacheImage(
+  mediaId: string,
+  kind: string,
+  remoteUrl: string | undefined,
+  ext = 'jpg'
+): Promise<string | undefined> {
   if (!remoteUrl) return undefined;
 
-  const destination = path.join(getDataDir(), 'metadata', mediaId, `${kind}.jpg`);
+  const destination = path.join(getDataDir(), 'metadata', mediaId, `${kind}.${ext}`);
   if (fs.existsSync(destination) && fs.statSync(destination).size > 0) {
     return destination;
   }
 
   return (await downloadImage(remoteUrl, destination)) ? destination : remoteUrl;
+}
+
+export function selectBestLogo(logos?: TmdbLogo[]): string | undefined {
+  if (!logos || logos.length === 0) return undefined;
+  // Prioritize Portuguese logo
+  const pt = logos.find((l) => l.iso_639_1 && ['pt', 'pt-br', 'pt-pt'].includes(l.iso_639_1.toLowerCase()));
+  if (pt) return pt.file_path;
+  // Then English
+  const en = logos.find((l) => l.iso_639_1 && l.iso_639_1.toLowerCase() === 'en');
+  if (en) return en.file_path;
+  // Then language-neutral
+  const neutral = logos.find((l) => !l.iso_639_1);
+  if (neutral) return neutral.file_path;
+  // Fallback to first available logo
+  return logos[0].file_path;
 }
 
 function mapCast(cast: TmdbCredit[] | undefined): CastMember[] {
@@ -321,22 +350,41 @@ export async function enrichMediaWithTmdb(
   }
 
   const endpoint = media.kind === 'movie' ? `/movie/${targetId}` : `/tv/${targetId}`;
+  const queryParams = {
+    append_to_response: 'credits,images',
+    include_image_language: 'pt,pt-BR,pt-PT,en,null',
+  };
+
   let detail: TmdbDetail;
   try {
-    detail = await requestTmdb<TmdbDetail>(endpoint, { append_to_response: 'credits' });
+    detail = await requestTmdb<TmdbDetail>(endpoint, queryParams);
   } catch (err) {
     // If not found in primary endpoint, try other endpoint
     const fallbackEndpoint = media.kind === 'movie' ? `/tv/${targetId}` : `/movie/${targetId}`;
-    detail = await requestTmdb<TmdbDetail>(fallbackEndpoint, { append_to_response: 'credits' });
+    detail = await requestTmdb<TmdbDetail>(fallbackEndpoint, queryParams);
   }
 
   applyMediaDetail(media, detail);
 
+  let rawLogoPath = selectBestLogo(detail.images?.logos);
+  if (!rawLogoPath && detail.id) {
+    try {
+      const imagesEndpoint = media.kind === 'movie' ? `/movie/${detail.id}/images` : `/tv/${detail.id}/images`;
+      const imagesRes = await requestTmdb<{ logos?: TmdbLogo[] }>(imagesEndpoint, {
+        include_image_language: 'pt,pt-BR,pt-PT,en,null',
+      });
+      rawLogoPath = selectBestLogo(imagesRes?.logos);
+    } catch {}
+  }
+
   const posterUrl = imageUrl(detail.poster_path, 'w500');
   const backdropUrl = imageUrl(detail.backdrop_path, 'w780');
-  const [posterPath, backdropPath] = await Promise.all([
-    cacheImage(media.id, 'poster', posterUrl),
-    cacheImage(media.id, 'backdrop', backdropUrl),
+  const logoUrl = imageUrl(rawLogoPath, 'w500');
+
+  const [posterPath, backdropPath, logoPath] = await Promise.all([
+    cacheImage(media.id, 'poster', posterUrl, 'jpg'),
+    cacheImage(media.id, 'backdrop', backdropUrl, 'jpg'),
+    cacheImage(media.id, 'logo', logoUrl, 'png'),
   ]);
 
   if (posterPath) {
@@ -349,6 +397,12 @@ export async function enrichMediaWithTmdb(
     media.backdropPath = backdropPath;
   } else if (backdropUrl) {
     media.backdropPath = backdropUrl;
+  }
+
+  if (logoPath) {
+    media.logoPath = logoPath;
+  } else if (logoUrl) {
+    media.logoPath = logoUrl;
   }
 
   if (media.kind === 'series') {

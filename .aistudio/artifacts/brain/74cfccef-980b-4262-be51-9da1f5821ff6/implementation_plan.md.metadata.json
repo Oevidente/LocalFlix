@@ -1,0 +1,6 @@
+{
+  "summary":  "Plano de implementação para aprimoramento da ordenação cronológica do Continuar Assistindo (do mais recente ao mais antigo, avançando para o próximo episódio ao concluir) e transformação do Hero Banner em um carrossel dinâmico estilo Netflix com rotação suave a cada 7 segundos, indicadores de slide, navegação por toque/clique e seleção dos até 5 itens mais vistos ou populares.",
+  "updatedAt":  "2026-10-06T02:06:25.324625940Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

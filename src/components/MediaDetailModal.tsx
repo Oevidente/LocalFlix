@@ -103,12 +103,18 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const [onlineSubtitleOptions, setOnlineSubtitleOptions] = useState<Record<string, OnlineSubtitleOption[]>>({});
   const [searchingOnlineEpisodeId, setSearchingOnlineEpisodeId] = useState<string | null>(null);
   const [downloadingOnlineFileId, setDownloadingOnlineFileId] = useState<number | null>(null);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   useEffect(() => {
     setBannerUrlInput(media.backdropPath || '');
     setPosterUrlInput(media.posterPath || '');
     setTmdbSearchQuery(media.title || '');
-  }, [media.id, media.backdropPath, media.posterPath, media.title]);
+    setLogoFailed(false);
+  }, [media.id, media.backdropPath, media.posterPath, media.logoPath, media.title]);
+
+  const logoUrl = media.logoPath?.startsWith('http')
+    ? media.logoPath
+    : (media.logoPath || media.tmdbId ? `/api/media/${media.id}/logo` : undefined);
 
   const selectedSeason: Season | undefined =
     media.seasons.find((s) => s.seasonNumber === selectedSeasonNumber) || media.seasons[0];
@@ -443,9 +449,20 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                   </>
                 )}
               </div>
-              <h1 className="text-3xl sm:text-5xl font-bold text-white drop-shadow-md">
-                {media.title}
-              </h1>
+              {logoUrl && !logoFailed ? (
+                <div className="mb-2 max-w-xs sm:max-w-md">
+                  <img
+                    src={logoUrl}
+                    alt={media.title}
+                    className="max-h-16 sm:max-h-24 w-auto object-contain object-left drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
+                    onError={() => setLogoFailed(true)}
+                  />
+                </div>
+              ) : (
+                <h1 className="text-3xl sm:text-5xl font-bold text-white drop-shadow-md">
+                  {media.title}
+                </h1>
+              )}
               {(media.year || media.rating !== undefined || media.genres?.length) && (
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-neutral-300">
                   {media.year && <span>{media.year}</span>}

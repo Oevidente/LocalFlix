@@ -109,6 +109,7 @@ export interface MediaItem {
   relativeFolderPath?: string;
   posterPath?: string;
   backdropPath?: string;
+  logoPath?: string;
   year?: number;
   overview?: string;
   tagline?: string;

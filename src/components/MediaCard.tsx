@@ -58,6 +58,12 @@ export const MediaCard: React.FC<MediaCardProps> = ({
     hoverCloseTimeout.current = window.setTimeout(() => setIsHovered(false), 120);
   };
 
+  const [logoFailed, setLogoFailed] = useState(false);
+
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [media.id, media.logoPath]);
+
   // Check if fully watched
   const isAllWatched = media.seasons.every((s) => s.episodes.every((e) => e.watched));
 
@@ -82,6 +88,10 @@ export const MediaCard: React.FC<MediaCardProps> = ({
     : (activeEp ? `/api/media/${media.id}/episode/${activeEp.id}/thumb` : posterUrl);
 
   const displayImage = variant === 'backdrop' ? backdropUrl : posterUrl;
+
+  const logoUrl = media.logoPath?.startsWith('http')
+    ? media.logoPath
+    : (media.logoPath || media.tmdbId ? `/api/media/${media.id}/logo` : undefined);
 
   return (
     <div
@@ -141,9 +151,31 @@ export const MediaCard: React.FC<MediaCardProps> = ({
           )}
         </div>
 
+        {/* Bottom-left Logo / Stylized Title overlay */}
+        <div className="absolute inset-x-0 bottom-0 pt-6 pb-2 px-2 sm:px-2.5 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none z-10 flex items-end">
+          {logoUrl && !logoFailed ? (
+            <img
+              src={logoUrl}
+              alt={media.title}
+              className={`object-contain object-left-bottom drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)] transition-transform duration-300 group-hover:scale-105 ${
+                variant === 'backdrop' ? 'max-h-7 sm:max-h-8.5 max-w-[80%]' : 'max-h-6 sm:max-h-7.5 max-w-[88%]'
+              }`}
+              onError={() => setLogoFailed(true)}
+            />
+          ) : (
+            <span
+              className={`font-extrabold text-white tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] line-clamp-2 ${
+                variant === 'backdrop' ? 'text-xs sm:text-sm leading-tight' : 'text-[11px] sm:text-xs leading-tight'
+              }`}
+            >
+              {media.title}
+            </span>
+          )}
+        </div>
+
         {/* Bottom Red Progress Bar */}
         {hasProgress && (
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-neutral-800 z-10">
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-neutral-800 z-20">
             <div className="h-full bg-[#E50914]" style={{ width: `${progressPercent}%` }} />
           </div>
         )}
@@ -176,9 +208,18 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         >
           <div className="relative aspect-video bg-neutral-900">
             <img src={displayImage} alt={media.title} className="h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+            {logoUrl && !logoFailed && (
+              <div className="absolute left-3 bottom-3 right-3 z-10 pointer-events-none">
+                <img
+                  src={logoUrl}
+                  alt={media.title}
+                  className="max-h-8 sm:max-h-10 max-w-[75%] object-contain object-left-bottom drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)]"
+                />
+              </div>
+            )}
             {hasProgress && (
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-neutral-700">
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-neutral-700 z-20">
                 <div className="h-full bg-[#E50914]" style={{ width: `${progressPercent}%` }} />
               </div>
             )}
