@@ -105,11 +105,11 @@ export function getLanguage(): string {
 function normalizeSearchTitle(title: string): string {
   return title
     .replace(/(?:^|[\s._-])[Ss]\d{1,2}(?:[-_. ][Ss]\d{1,2})?(?:[Ee]\d{1,3})?(?:[-_. ]*[Ee]\d{1,3})?/g, ' ')
-    .replace(/(?:temporada|season)\s*\d+/gi, ' ')
+    .replace(/\b(?:temporada|season)\s*\d+|\b\d+\s*(?:[ªº°]|a|o)?\s*(?:temporada|season)\b/gi, ' ')
     .replace(/(?:complete\s*series|complete\s*season|complete)/gi, ' ')
     .replace(/[._]/g, ' ')
     .replace(/[\[\(].*?[\]\)]/g, ' ')
-    .replace(/\b(?:2160p|1080p|720p|480p|4k|bluray|brrip|webrip|web[- ]?dl|webdl|hdtv|x26[45]|hevc|avc|aac|dts|ddp|ac3|remux|proper|repack|yify|yts|eztv|rarbg|tgx|dual|dublado|legendado|multi|dv|dovi|hdr10\+?|hdr|sdr|dolby\s*vision|atmos|truehd|flac|eac3|dd\+?)\b/gi, ' ')
+    .replace(/\b(?:2160p|1080p|720p|480p|4k|bluray|brrip|webrip|web[- ]?dl|webdl|hdtv|x26[45]|hevc|avc|aac|dts|ddp|ac3|remux|proper|repack|yify|yts|eztv|rarbg|tgx|dual|dub|sub|dublado|legendado|multi|dv|dovi|hdr10\+?|hdr|sdr|dolby\s*vision|atmos|truehd|flac|eac3|dd\+?)\b/gi, ' ')
     .replace(/\b\d+(?:\.\d+)?\s*(?:ch|канал(?:а|ов)?|channels?)\b/gi, ' ')
     .replace(/\b\d+\.\d+\b/g, ' ')
     .replace(/\s+/g, ' ')
