@@ -162,7 +162,11 @@ apiRouter.post('/library/add', async (req: Request, res: Response) => {
       }
     } else {
       mediaItem = await scanMediaFolder(folderPath, title);
-      await enrichMediaWithTmdb(mediaItem);
+      try {
+        await enrichMediaWithTmdb(mediaItem);
+      } catch (error) {
+        console.warn('[Library] Mídia adicionada sem metadados do TMDb:', error instanceof Error ? error.message : error);
+      }
       mediaItem.nodeId = 'local';
     }
 
