@@ -209,6 +209,12 @@ apiRouter.post('/library/add', async (req: Request, res: Response) => {
       if (existing.posterPath && !mediaItem.posterPath) {
         mediaItem.posterPath = existing.posterPath;
       }
+      if (existing.logoPath && !mediaItem.logoPath) {
+        mediaItem.logoPath = existing.logoPath;
+      }
+      if (existing.metadataProvider === 'tmdb' && !mediaItem.metadataProvider && !existing.customTitle) {
+        mediaItem.title = existing.title;
+      }
       lib.items[existingIndex] = mediaItem;
     } else {
       lib.items.push(mediaItem);
@@ -233,7 +239,7 @@ apiRouter.post('/library/rescan/:id', async (req: Request, res: Response) => {
     }
 
     const updatedItem = await scanMediaFolder(media.folderPath, media.customTitle);
-    await enrichMediaWithTmdb(updatedItem);
+    await enrichMediaWithTmdb(updatedItem, undefined, media.tmdbId);
     const lib = readLibrary();
     const idx = lib.items.findIndex((i) => i.id === id);
 

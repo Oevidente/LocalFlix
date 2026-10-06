@@ -1356,6 +1356,9 @@ export async function rescanAllLibraryFolders(): Promise<{ updatedCount: number;
         updatedItem.customTitle = item.customTitle;
         updatedItem.tmdbId = updatedItem.tmdbId || item.tmdbId;
         updatedItem.metadataProvider = updatedItem.metadataProvider || item.metadataProvider;
+        if (item.metadataProvider === 'tmdb' && !item.customTitle) {
+          updatedItem.title = item.title;
+        }
         updatedItem.originalTitle = updatedItem.originalTitle || item.originalTitle;
         updatedItem.year = updatedItem.year || item.year;
         updatedItem.overview = updatedItem.overview || item.overview;
@@ -1370,6 +1373,9 @@ export async function rescanAllLibraryFolders(): Promise<{ updatedCount: number;
         }
         if (item.posterPath && !updatedItem.posterPath) {
           updatedItem.posterPath = item.posterPath;
+        }
+        if (item.logoPath && !updatedItem.logoPath) {
+          updatedItem.logoPath = item.logoPath;
         }
 
         lib.items[i] = updatedItem;
