@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { createHash } from 'crypto';
 import { CastMember, Episode, MediaItem } from '../types';
 import { getDataDir, readLibrary } from './storage';
 
@@ -176,7 +177,8 @@ async function cacheImage(
 ): Promise<string | undefined> {
   if (!remoteUrl) return undefined;
 
-  const destination = path.join(getDataDir(), 'metadata', mediaId, `${kind}.${ext}`);
+  const imageKey = createHash('sha1').update(remoteUrl).digest('hex').slice(0, 12);
+  const destination = path.join(getDataDir(), 'metadata', mediaId, `${kind}-${imageKey}.${ext}`);
   if (fs.existsSync(destination) && fs.statSync(destination).size > 0) {
     return destination;
   }
@@ -362,6 +364,24 @@ export async function enrichMediaWithTmdb(
     // If not found in primary endpoint, try other endpoint
     const fallbackEndpoint = media.kind === 'movie' ? `/tv/${targetId}` : `/movie/${targetId}`;
     detail = await requestTmdb<TmdbDetail>(fallbackEndpoint, queryParams);
+  }
+
+  if (media.tmdbId && media.tmdbId !== detail.id) {
+    media.posterPath = undefined;
+    media.backdropPath = undefined;
+    media.logoPath = undefined;
+    const metadataDir = path.join(getDataDir(), 'metadata', media.id);
+    for (const cachedName of ['poster.jpg', 'backdrop.jpg', 'logo.png']) {
+      const cachedPath = path.join(metadataDir, cachedName);
+      try {
+        if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath);
+      } catch {}
+    }
+    for (const season of media.seasons) {
+      for (const episode of season.episodes) {
+        episode.stillPath = undefined;
+      }
+    }
   }
 
   applyMediaDetail(media, detail);
