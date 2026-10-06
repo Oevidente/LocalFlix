@@ -27,7 +27,8 @@ import { IptvChannel, IptvPreset, IptvPlaylistSummary, ChannelStatusInfo } from 
 interface ChannelsPageProps {
   onPlayChannel: (channel: IptvChannel, allChannels: IptvChannel[]) => void;
   favorites: string[];
-  onToggleFavorite: (channelId: string) => void;
+  favoriteChannels: IptvChannel[];
+  onToggleFavorite: (channel: IptvChannel) => void;
 }
 
 const DEFAULT_PLAYLIST_URL = 'https://iptv-org.github.io/iptv/index.m3u';
@@ -35,6 +36,7 @@ const DEFAULT_PLAYLIST_URL = 'https://iptv-org.github.io/iptv/index.m3u';
 export const ChannelsPage: React.FC<ChannelsPageProps> = ({
   onPlayChannel,
   favorites,
+  favoriteChannels,
   onToggleFavorite,
 }) => {
   const [playlistUrl, setPlaylistUrl] = useState<string>(() => {
@@ -183,9 +185,15 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
 
   // Favorite channels list for top shelf
   const favoriteChannelsList = useMemo(() => {
-    if (!playlistData) return [];
-    return playlistData.channels.filter((c) => favorites.includes(c.id));
-  }, [playlistData, favorites]);
+    const channelsById = new Map(favoriteChannels.map((channel) => [channel.id, channel]));
+    for (const channel of playlistData?.channels || []) {
+      if (favorites.includes(channel.id)) channelsById.set(channel.id, channel);
+    }
+    return favorites.flatMap((id) => {
+      const channel = channelsById.get(id);
+      return channel ? [channel] : [];
+    });
+  }, [playlistData, favorites, favoriteChannels]);
 
   // Pagination calculation
   const totalPages = Math.ceil(filteredChannels.length / ITEMS_PER_PAGE);
@@ -319,7 +327,7 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onToggleFavorite(ch.id);
+                    onToggleFavorite(ch);
                   }}
                   className="absolute top-2 right-2 p-1 text-amber-400 hover:text-neutral-400 transition-colors"
                   title="Remover dos favoritos"
@@ -616,7 +624,7 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onToggleFavorite(ch.id);
+                        onToggleFavorite(ch);
                       }}
                       className="absolute top-2 right-2 p-1 text-neutral-500 hover:text-amber-400 transition-colors z-10"
                       title={isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
@@ -721,7 +729,7 @@ export const ChannelsPage: React.FC<ChannelsPageProps> = ({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onToggleFavorite(ch.id);
+                          onToggleFavorite(ch);
                         }}
                         className="p-2 text-neutral-500 hover:text-amber-400 transition-colors"
                       >

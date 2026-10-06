@@ -52,6 +52,7 @@ export default function App() {
   // IPTV Live Channels State
   const [iptvPlaying, setIptvPlaying] = useState<{ channel: IptvChannel; allChannels: IptvChannel[] } | null>(null);
   const [iptvFavorites, setIptvFavorites] = useState<string[]>([]);
+  const [iptvFavoriteChannels, setIptvFavoriteChannels] = useState<IptvChannel[]>([]);
 
   // Fetch IPTV favorites
   useEffect(() => {
@@ -61,21 +62,33 @@ export default function App() {
         if (Array.isArray(data.favorites)) {
           setIptvFavorites(data.favorites);
         }
+        if (Array.isArray(data.channels)) {
+          setIptvFavoriteChannels(data.channels);
+        }
       })
       .catch((err) => console.error('Erro ao carregar favoritos IPTV:', err));
   }, []);
 
-  const handleToggleIptvFavorite = async (channelId: string) => {
+  const handleToggleIptvFavorite = async (channel: IptvChannel) => {
+    const channelId = channel.id;
     const isFav = iptvFavorites.includes(channelId);
     const updated = isFav ? iptvFavorites.filter((id) => id !== channelId) : [...iptvFavorites, channelId];
     setIptvFavorites(updated);
+    setIptvFavoriteChannels((current) => isFav
+      ? current.filter((saved) => saved.id !== channelId)
+      : [...current.filter((saved) => saved.id !== channelId), channel]);
 
     try {
-      await fetch('/api/iptv/favorites', {
+      const res = await fetch('/api/iptv/favorites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channelId, isFavorite: !isFav }),
+        body: JSON.stringify({ channelId, isFavorite: !isFav, channel }),
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.favorites)) setIptvFavorites(data.favorites);
+        if (Array.isArray(data.channels)) setIptvFavoriteChannels(data.channels);
+      }
     } catch (err) {
       console.error('Erro ao sincronizar favorito IPTV:', err);
     }
@@ -825,6 +838,7 @@ export default function App() {
         <ChannelsPage
           onPlayChannel={(channel, allChannels) => setIptvPlaying({ channel, allChannels })}
           favorites={iptvFavorites}
+          favoriteChannels={iptvFavoriteChannels}
           onToggleFavorite={handleToggleIptvFavorite}
         />
       ) : library && library.items.length === 0 ? (

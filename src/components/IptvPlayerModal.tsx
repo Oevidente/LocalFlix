@@ -33,7 +33,7 @@ interface IptvPlayerModalProps {
   channel: IptvChannel;
   allChannels: IptvChannel[];
   favorites: string[];
-  onToggleFavorite: (channelId: string) => void;
+  onToggleFavorite: (channel: IptvChannel) => void;
   onSelectChannel: (channel: IptvChannel) => void;
   onClose: () => void;
 }
@@ -612,7 +612,7 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
           </button>
 
           <button
-            onClick={() => onToggleFavorite(channel.id)}
+            onClick={() => onToggleFavorite(channel)}
             className={`p-2.5 rounded-full transition-all cursor-pointer ${
               isFavorite
                 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
@@ -958,7 +958,7 @@ export const IptvPlayerModal: React.FC<IptvPlayerModalProps> = ({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onToggleFavorite(ch.id);
+                          onToggleFavorite(ch);
                         }}
                         className="p-1 text-neutral-500 hover:text-amber-400"
                       >

@@ -72,6 +72,7 @@ import {
   parseM3U,
   IPTV_PRESETS,
   IptvChannel,
+  getCachedFavoriteChannels,
   loadIptvCacheFromDisk,
 } from './iptv';
 
@@ -2149,6 +2150,7 @@ apiRouter.post('/torrent/stop', async (req: Request, res: Response) => {
 // ==========================================
 
 const IPTV_FAVORITES_FILE = path.join(getDataDir(), 'iptv_favorites.json');
+const IPTV_FAVORITE_CHANNELS_FILE = path.join(getDataDir(), 'iptv_favorite_channels.json');
 
 function getIptvFavorites(): string[] {
   try {
@@ -2165,6 +2167,37 @@ function saveIptvFavorites(favs: string[]) {
   } catch (err) {
     console.error('Erro ao salvar favoritos IPTV:', err);
   }
+}
+
+function getIptvFavoriteChannels(): IptvChannel[] {
+  try {
+    if (fs.existsSync(IPTV_FAVORITE_CHANNELS_FILE)) {
+      const channels = JSON.parse(fs.readFileSync(IPTV_FAVORITE_CHANNELS_FILE, 'utf-8'));
+      return Array.isArray(channels) ? channels : [];
+    }
+  } catch {}
+  return [];
+}
+
+function saveIptvFavoriteChannels(channels: IptvChannel[]) {
+  try {
+    fs.writeFileSync(IPTV_FAVORITE_CHANNELS_FILE, JSON.stringify(channels, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Erro ao salvar canais favoritos IPTV:', err);
+  }
+}
+
+function resolveIptvFavoriteChannels(favorites: string[]): IptvChannel[] {
+  const channelsById = new Map(getCachedFavoriteChannels(favorites).map((channel) => [channel.id, channel]));
+  for (const channel of getIptvFavoriteChannels()) {
+    if (favorites.includes(channel.id)) channelsById.set(channel.id, channel);
+  }
+  const channels = favorites.flatMap((id) => {
+    const channel = channelsById.get(id);
+    return channel ? [channel] : [];
+  });
+  saveIptvFavoriteChannels(channels);
+  return channels;
 }
 
 // 1. Get preset playlists
@@ -2203,12 +2236,13 @@ apiRouter.post('/iptv/parse-custom', (req: Request, res: Response) => {
 
 // 4. Get favorite channel IDs
 apiRouter.get('/iptv/favorites', (_req: Request, res: Response) => {
-  res.json({ favorites: getIptvFavorites() });
+  const favorites = getIptvFavorites();
+  res.json({ favorites, channels: resolveIptvFavoriteChannels(favorites) });
 });
 
 // 5. Toggle or update favorites
 apiRouter.post('/iptv/favorites', (req: Request, res: Response) => {
-  const { channelId, isFavorite, favorites } = req.body;
+  const { channelId, isFavorite, favorites, channel } = req.body;
   let current = getIptvFavorites();
 
   if (Array.isArray(favorites)) {
@@ -2229,7 +2263,12 @@ apiRouter.post('/iptv/favorites', (req: Request, res: Response) => {
   }
 
   saveIptvFavorites(current);
-  res.json({ success: true, favorites: current });
+  if (channel && channel.id === channelId && typeof channel.name === 'string' && typeof channel.url === 'string') {
+    const savedChannels = getIptvFavoriteChannels().filter((saved) => saved.id !== channelId);
+    if (current.includes(channelId)) savedChannels.push(channel as IptvChannel);
+    saveIptvFavoriteChannels(savedChannels);
+  }
+  res.json({ success: true, favorites: current, channels: resolveIptvFavoriteChannels(current) });
 });
 
 // 5.1 IPTV Channel Status Tracking & Batch Prober

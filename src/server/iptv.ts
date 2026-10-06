@@ -57,6 +57,17 @@ export function saveIptvCacheToDisk() {
   }
 }
 
+export function getCachedFavoriteChannels(channelIds: string[]): IptvChannel[] {
+  const wantedIds = new Set(channelIds);
+  const matches = new Map<string, IptvChannel>();
+  for (const cachedPlaylist of Object.values(playlistCache)) {
+    for (const channel of cachedPlaylist.data.channels) {
+      if (wantedIds.has(channel.id)) matches.set(channel.id, channel);
+    }
+  }
+  return [...matches.values()];
+}
+
 // Parse M3U playlist text into structured channel objects
 export function parseM3U(content: string, playlistUrl: string): IptvPlaylistSummary {
   const lines = content.split(/\r?\n/);
