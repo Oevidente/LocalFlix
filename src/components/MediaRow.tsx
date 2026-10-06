@@ -10,6 +10,7 @@ interface MediaRowProps {
   onPlay: (media: MediaItem, episode?: Episode) => void;
   onOpenDetails: (media: MediaItem) => void;
   variant?: 'poster' | 'backdrop';
+  layout?: 'carousel' | 'gallery';
 }
 
 export const MediaRow: React.FC<MediaRowProps> = ({
@@ -19,6 +20,7 @@ export const MediaRow: React.FC<MediaRowProps> = ({
   onPlay,
   onOpenDetails,
   variant = 'poster',
+  layout = 'carousel',
 }) => {
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -41,6 +43,21 @@ export const MediaRow: React.FC<MediaRowProps> = ({
         </h2>
       </div>
 
+      {layout === 'gallery' ? (
+        <div className="grid grid-cols-2 min-[480px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-x-3 gap-y-5 px-4 sm:px-6 lg:px-8 py-2">
+          {items.map(({ media, continueEpisode }) => (
+            <MediaCard
+              key={`${media.id}-${continueEpisode?.id || 'main'}`}
+              media={media}
+              continueEpisode={continueEpisode}
+              onPlay={onPlay}
+              onOpenDetails={onOpenDetails}
+              variant="poster"
+              fillWidth
+            />
+          ))}
+        </div>
+      ) : (
       <div className="relative">
         {/* Left scroll chevron */}
         <button
@@ -77,6 +94,7 @@ export const MediaRow: React.FC<MediaRowProps> = ({
           <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8 text-white drop-shadow" />
         </button>
       </div>
+      )}
     </section>
   );
 };

@@ -893,7 +893,7 @@ export default function App() {
         /* Populated Library View */
         <>
           {/* Hero Spotlight Carousel */}
-          {heroMediaList.length > 0 && !searchQuery && (
+          {activeTab === 'all' && heroMediaList.length > 0 && !searchQuery && (
             <HeroBanner
               items={heroMediaList}
               onPlayEpisode={handlePlayEpisode}
@@ -902,7 +902,7 @@ export default function App() {
           )}
 
           {/* Rows Container */}
-          <main className={`relative z-20 ${heroMediaList.length > 0 && !searchQuery ? 'mt-0' : 'pt-28 sm:pt-32 lg:pt-36'}`}>
+          <main className={`relative z-20 ${activeTab === 'all' && heroMediaList.length > 0 && !searchQuery ? 'mt-0' : 'pt-28 sm:pt-32 lg:pt-36'}`}>
             {/* 1. Continuar Assistindo Row (Backdrop card variant with progress bar) */}
             {continueWatchingItems.length > 0 && activeTab !== 'series' && activeTab !== 'movie' && (
               <MediaRow
@@ -919,11 +919,12 @@ export default function App() {
             {seriesItems.length > 0 && activeTab !== 'movie' && (
               <MediaRow
                 id="row-series"
-                title="Séries de TV"
+                title={activeTab === 'series' ? 'Séries' : 'Séries de TV'}
                 items={seriesItems}
                 onPlay={handlePlayEpisode}
                 onOpenDetails={setActiveMediaDetail}
-                variant="backdrop"
+                variant={activeTab === 'series' ? 'poster' : 'backdrop'}
+                layout={activeTab === 'series' ? 'gallery' : 'carousel'}
               />
             )}
 
@@ -935,7 +936,8 @@ export default function App() {
                 items={movieItems}
                 onPlay={handlePlayEpisode}
                 onOpenDetails={setActiveMediaDetail}
-                variant="backdrop"
+                variant={activeTab === 'movie' ? 'poster' : 'backdrop'}
+                layout={activeTab === 'movie' ? 'gallery' : 'carousel'}
               />
             )}
 

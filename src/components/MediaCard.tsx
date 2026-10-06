@@ -10,6 +10,7 @@ interface MediaCardProps {
   onPlay: (media: MediaItem, episode?: Episode) => void;
   onOpenDetails: (media: MediaItem) => void;
   variant?: 'poster' | 'backdrop';
+  fillWidth?: boolean;
 }
 
 export const MediaCard: React.FC<MediaCardProps> = ({
@@ -18,6 +19,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   onPlay,
   onOpenDetails,
   variant = 'poster',
+  fillWidth = false,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const hoverCloseTimeout = useRef<number | null>(null);
@@ -97,14 +99,16 @@ export const MediaCard: React.FC<MediaCardProps> = ({
     <div
       ref={cardRef}
       id={`media-card-${media.id}`}
-      className="group relative shrink-0 select-none cursor-pointer"
+      className={`group relative ${fillWidth ? 'w-full' : 'shrink-0'} select-none cursor-pointer`}
       onClick={() => onOpenDetails(media)}
       onMouseEnter={openHoverCard}
       onMouseLeave={scheduleHoverCardClose}
     >
       <div
         className={`relative rounded-md overflow-hidden bg-neutral-900 border border-white/5 ${
-          variant === 'backdrop'
+          fillWidth
+            ? 'w-full aspect-[2/3]'
+            : variant === 'backdrop'
             ? 'w-[42vw] sm:w-[calc((100vw_-_4rem)/3)] md:w-[calc((100vw_-_4.5rem)/4)] lg:w-[calc((100vw_-_6rem)/5)] xl:w-[calc((100vw_-_6.5rem)/6)] 2xl:w-[calc((100vw_-_7rem)/7)] aspect-video'
             : 'w-36 sm:w-44 aspect-[2/3]'
         }`}
