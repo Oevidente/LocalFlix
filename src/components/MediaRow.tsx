@@ -53,7 +53,7 @@ export const MediaRow: React.FC<MediaRowProps> = ({
               onPlay={onPlay}
               onOpenDetails={onOpenDetails}
               variant="poster"
-              fillWidth
+              gallery
             />
           ))}
         </div>

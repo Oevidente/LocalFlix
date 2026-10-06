@@ -10,7 +10,7 @@ interface MediaCardProps {
   onPlay: (media: MediaItem, episode?: Episode) => void;
   onOpenDetails: (media: MediaItem) => void;
   variant?: 'poster' | 'backdrop';
-  fillWidth?: boolean;
+  gallery?: boolean;
 }
 
 export const MediaCard: React.FC<MediaCardProps> = ({
@@ -19,7 +19,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   onPlay,
   onOpenDetails,
   variant = 'poster',
-  fillWidth = false,
+  gallery = false,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const hoverCloseTimeout = useRef<number | null>(null);
@@ -99,15 +99,15 @@ export const MediaCard: React.FC<MediaCardProps> = ({
     <div
       ref={cardRef}
       id={`media-card-${media.id}`}
-      className={`group relative ${fillWidth ? 'w-full' : 'shrink-0'} select-none cursor-pointer`}
+      className={`group relative ${gallery ? 'w-full md:hover:z-10' : 'shrink-0'} select-none cursor-pointer`}
       onClick={() => onOpenDetails(media)}
-      onMouseEnter={openHoverCard}
-      onMouseLeave={scheduleHoverCardClose}
+      onMouseEnter={gallery ? undefined : openHoverCard}
+      onMouseLeave={gallery ? undefined : scheduleHoverCardClose}
     >
       <div
-        className={`relative rounded-md overflow-hidden bg-neutral-900 border border-white/5 ${
-          fillWidth
-            ? 'w-full aspect-[2/3]'
+        className={`relative rounded-md overflow-hidden bg-neutral-900 border border-white/5 transition-[border-color,box-shadow] duration-150 ${
+          gallery
+            ? 'w-full aspect-[2/3] md:group-hover:border-white md:group-hover:ring-2 md:group-hover:ring-white/90'
             : variant === 'backdrop'
             ? 'w-[42vw] sm:w-[calc((100vw_-_4rem)/3)] md:w-[calc((100vw_-_4.5rem)/4)] lg:w-[calc((100vw_-_6rem)/5)] xl:w-[calc((100vw_-_6.5rem)/6)] 2xl:w-[calc((100vw_-_7rem)/7)] aspect-video'
             : 'w-36 sm:w-44 aspect-[2/3]'
@@ -156,7 +156,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         </div>
 
         {/* Bottom-left Logo / Stylized Title overlay */}
-        <div className="absolute inset-x-0 bottom-0 pt-6 pb-2 px-2 sm:px-2.5 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none z-10 flex items-end">
+        {!gallery && <div className="absolute inset-x-0 bottom-0 pt-6 pb-2 px-2 sm:px-2.5 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none z-10 flex items-end">
           {logoUrl && !logoFailed ? (
             <img
               src={logoUrl}
@@ -175,7 +175,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
               {media.title}
             </span>
           )}
-        </div>
+        </div>}
 
         {/* Bottom Red Progress Bar */}
         {hasProgress && (
@@ -202,7 +202,18 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         </div>
       )}
 
-      {isHovered && hoverPosition && createPortal(
+      {gallery && (
+        <div className="mt-1.5 min-h-10 px-0.5">
+          <div className="truncate text-xs sm:text-sm font-semibold text-neutral-100">{media.title}</div>
+          <div className="mt-0.5 truncate text-[10px] sm:text-xs text-neutral-400">
+            {[media.year, media.genres?.[0], media.rating ? `★ ${media.rating.toFixed(1)}` : undefined]
+              .filter(Boolean)
+              .join(' · ')}
+          </div>
+        </div>
+      )}
+
+      {!gallery && isHovered && hoverPosition && createPortal(
         <div
           className="fixed z-[45] overflow-hidden rounded-md border border-white/10 bg-[#181818] shadow-2xl shadow-black/80"
           style={{ left: hoverPosition.left, top: hoverPosition.top, width: hoverPosition.width }}
