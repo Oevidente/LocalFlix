@@ -342,6 +342,14 @@ export function getOrCreateTorrentEngine(magnetUriOrHash: string): Promise<Engin
   });
 }
 
+export function calculateTorrentHealth(peers: number, downloadSpeed = 0, state = 'ready'): 'high' | 'medium' | 'low' | 'none' {
+  if (state === 'error' || (peers === 0 && state !== 'connecting' && state !== 'metadata')) return 'none';
+  if (peers >= 8 || downloadSpeed > 400 * 1024) return 'high';
+  if (peers >= 3 || downloadSpeed > 50 * 1024) return 'medium';
+  if (peers >= 1) return 'low';
+  return 'none';
+}
+
 /**
  * Get current real-time status of a torrent.
  */
@@ -365,6 +373,7 @@ export function getTorrentStatus(infoHash: string): TorrentStatus {
       selectedFileIndex: historyItem?.selectedFileIndex || 0,
       files: [],
       errorMessage: 'Torrent inativo. Clique para conectar.',
+      health: 'none',
     };
   }
 
@@ -393,6 +402,8 @@ export function getTorrentStatus(infoHash: string): TorrentStatus {
     };
   });
 
+  const health = calculateTorrentHealth(peers, downloadSpeed, record.state);
+
   return {
     infoHash: record.infoHash,
     magnetUri: record.magnetUri,
@@ -407,6 +418,7 @@ export function getTorrentStatus(infoHash: string): TorrentStatus {
     selectedFileIndex: record.selectedFileIndex,
     files: fileItems,
     errorMessage: record.errorMessage,
+    health,
   };
 }
 

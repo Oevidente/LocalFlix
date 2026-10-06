@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { TorrentStatus, TorrentHistoryItem, TorrentFileItem } from '../types';
 import { formatTime, formatBytes } from '../utils';
+import { TorrentHealthBadge } from './TorrentHealthBadge';
 
 interface TorrentModalProps {
   isOpen: boolean;
@@ -453,6 +454,12 @@ export const TorrentModal: React.FC<TorrentModalProps> = ({
                       </button>
                     )}
                     <h3 className="text-sm sm:text-base font-bold text-white line-clamp-1">{status.name}</h3>
+                    <TorrentHealthBadge
+                      peers={status.peers}
+                      downloadSpeed={status.downloadSpeed}
+                      state={status.state}
+                      health={status.health}
+                    />
                   </div>
 
                   <p className="text-xs text-zinc-400">
@@ -662,10 +669,19 @@ export const TorrentModal: React.FC<TorrentModalProps> = ({
                         <div className="w-9 h-9 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-red-400 transition flex-shrink-0">
                           {isHistSeries ? <Tv className="w-4 h-4 text-amber-400" /> : <Film className="w-4 h-4 text-sky-400" />}
                         </div>
-                        <div className="truncate">
-                          <p className="text-xs font-medium text-white truncate group-hover:text-red-300 transition">
-                            {item.name}
-                          </p>
+                        <div className="truncate min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-xs font-medium text-white truncate group-hover:text-red-300 transition max-w-[280px] sm:max-w-md">
+                              {item.name}
+                            </p>
+                            <TorrentHealthBadge
+                              peers={item.peers}
+                              downloadSpeed={item.downloadSpeed}
+                              state={item.state}
+                              health={item.health}
+                              compact
+                            />
+                          </div>
                           <div className="flex items-center gap-2 text-[10px] text-zinc-400 mt-0.5">
                             <span className="text-emerald-400/80 font-medium flex items-center gap-1">
                               <CheckCircle2 className="w-2.5 h-2.5" /> Na Biblioteca

@@ -200,6 +200,7 @@ export interface TorrentStatus {
   selectedFileIndex: number;
   files: TorrentFileItem[];
   errorMessage?: string;
+  health?: 'high' | 'medium' | 'low' | 'none';
 }
 
 export interface TorrentHistoryItem {
@@ -213,6 +214,10 @@ export interface TorrentHistoryItem {
   durationSeconds?: number;
   selectedFileIndex?: number;
   totalBytes?: number;
+  peers?: number;
+  downloadSpeed?: number;
+  state?: 'connecting' | 'metadata' | 'ready' | 'downloading' | 'error';
+  health?: 'high' | 'medium' | 'low' | 'none';
 }
 
 export interface IptvChannel {

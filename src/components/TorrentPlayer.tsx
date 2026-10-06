@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { TorrentStatus, TorrentFileItem, MediaItem, Episode } from '../types';
 import { formatTime, formatBytes } from '../utils';
+import { TorrentHealthBadge } from './TorrentHealthBadge';
 import {
   getCastContext,
   getCastErrorMessage,
@@ -1030,6 +1031,13 @@ export const TorrentPlayer: React.FC<TorrentPlayerProps> = ({
                 <h1 className="text-base font-bold text-white line-clamp-1">
                   {media?.title || status.name}
                 </h1>
+                <TorrentHealthBadge
+                  peers={status.peers}
+                  downloadSpeed={status.downloadSpeed}
+                  state={status.state}
+                  health={status.health}
+                  compact
+                />
               </div>
 
               {currentParsedEp && (

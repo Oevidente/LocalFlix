@@ -24,8 +24,9 @@ import {
   Sparkles,
   Network,
 } from 'lucide-react';
-import { MediaItem, Episode, OnlineSubtitleOption, Season } from '../types';
+import { MediaItem, Episode, OnlineSubtitleOption, Season, TorrentStatus } from '../types';
 import { formatTime, formatBytes } from '../utils';
+import { TorrentHealthBadge } from './TorrentHealthBadge';
 
 interface MediaDetailModalProps {
   media: MediaItem;
@@ -104,13 +105,24 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const [searchingOnlineEpisodeId, setSearchingOnlineEpisodeId] = useState<string | null>(null);
   const [downloadingOnlineFileId, setDownloadingOnlineFileId] = useState<number | null>(null);
   const [logoFailed, setLogoFailed] = useState(false);
+  const [torrentStatus, setTorrentStatus] = useState<TorrentStatus | null>(null);
 
   useEffect(() => {
     setBannerUrlInput(media.backdropPath || '');
     setPosterUrlInput(media.posterPath || '');
     setTmdbSearchQuery(media.title || '');
     setLogoFailed(false);
-  }, [media.id, media.backdropPath, media.posterPath, media.logoPath, media.title]);
+    setTorrentStatus(null);
+
+    if (media.isTorrent && media.infoHash) {
+      fetch(`/api/torrent/status/${media.infoHash}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data) setTorrentStatus(data);
+        })
+        .catch(() => {});
+    }
+  }, [media.id, media.backdropPath, media.posterPath, media.logoPath, media.title, media.isTorrent, media.infoHash]);
 
   const logoUrl = media.logoPath?.startsWith('http')
     ? media.logoPath
@@ -411,10 +423,19 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                   </span>
                 )}
                 {media.isTorrent && (
-                  <span className="bg-red-950/90 text-red-300 border border-red-800/60 text-[11px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
-                    <Radio className="w-3 h-3 text-red-400" />
-                    MAGNET / TORRENT
-                  </span>
+                  <>
+                    <span className="bg-red-950/90 text-red-300 border border-red-800/60 text-[11px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                      <Radio className="w-3 h-3 text-red-400" />
+                      MAGNET
+                    </span>
+                    <TorrentHealthBadge
+                      peers={torrentStatus?.peers}
+                      downloadSpeed={torrentStatus?.downloadSpeed}
+                      state={torrentStatus?.state}
+                      health={torrentStatus?.health}
+                      compact
+                    />
+                  </>
                 )}
                 {media.kind === 'series' ? (
                   <>

@@ -57,6 +57,7 @@ import { getOrCreateHlsSession, findActiveSession } from './hls';
 import {
   getOrCreateTorrentEngine,
   getTorrentStatus,
+  calculateTorrentHealth,
   getTorrentFile,
   selectTorrentFile,
   stopTorrent,
@@ -2075,9 +2076,19 @@ apiRouter.get('/torrent/history', (_req: Request, res: Response) => {
       (m) => (m.infoHash && m.infoHash.toLowerCase() === cleanHash) || m.id === `torrent_${cleanHash}`
     );
     const inferredKind = media?.kind || (/[Ss]\d{1,2}|Season\s*\d+|Temporada\s*\d+/i.test(item.name) ? 'series' : 'movie');
+    const liveStatus = getTorrentStatus(cleanHash);
+    const peers = liveStatus.peers || 0;
+    const downloadSpeed = liveStatus.downloadSpeed || 0;
+    const state = liveStatus.state;
+    const health = calculateTorrentHealth(peers, downloadSpeed, state);
+
     return {
       ...item,
       kind: inferredKind,
+      peers,
+      downloadSpeed,
+      state,
+      health,
     };
   });
   res.json(enriched);
