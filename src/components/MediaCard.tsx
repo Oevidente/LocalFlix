@@ -23,7 +23,10 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const hoverCloseTimeout = useRef<number | null>(null);
+  const hoverUnmountTimeout = useRef<number | null>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const [isPreviewMounted, setIsPreviewMounted] = useState(false);
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [hoverPosition, setHoverPosition] = useState<{ left: number; top: number; width: number } | null>(null);
 
   useEffect(() => {
@@ -49,15 +52,33 @@ export const MediaCard: React.FC<MediaCardProps> = ({
     };
   }, [isHovered]);
 
+  useEffect(() => () => {
+    if (hoverCloseTimeout.current !== null) window.clearTimeout(hoverCloseTimeout.current);
+    if (hoverUnmountTimeout.current !== null) window.clearTimeout(hoverUnmountTimeout.current);
+  }, []);
+
   const openHoverCard = () => {
     if (hoverCloseTimeout.current !== null) {
       window.clearTimeout(hoverCloseTimeout.current);
     }
+    if (hoverUnmountTimeout.current !== null) {
+      window.clearTimeout(hoverUnmountTimeout.current);
+    }
     setIsHovered(true);
+    setIsPreviewMounted(true);
+    setIsPreviewVisible(true);
   };
 
   const scheduleHoverCardClose = () => {
-    hoverCloseTimeout.current = window.setTimeout(() => setIsHovered(false), 120);
+    hoverCloseTimeout.current = window.setTimeout(() => {
+      setIsHovered(false);
+      setIsPreviewVisible(false);
+      hoverUnmountTimeout.current = window.setTimeout(() => {
+        setIsPreviewMounted(false);
+        hoverUnmountTimeout.current = null;
+      }, 180);
+      hoverCloseTimeout.current = null;
+    }, 120);
   };
 
   const [logoFailed, setLogoFailed] = useState(false);
@@ -213,9 +234,9 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         </div>
       )}
 
-      {!gallery && isHovered && hoverPosition && createPortal(
+      {!gallery && isPreviewMounted && hoverPosition && createPortal(
         <div
-          className="fixed z-[45] overflow-hidden rounded-md border border-white/10 bg-[#181818] shadow-2xl shadow-black/80"
+          className={`media-hover-preview fixed z-[45] overflow-hidden rounded-md border border-white/10 bg-[#181818] shadow-2xl shadow-black/80${isPreviewVisible ? '' : ' is-closing'}`}
           style={{ left: hoverPosition.left, top: hoverPosition.top, width: hoverPosition.width }}
           onMouseEnter={openHoverCard}
           onMouseLeave={scheduleHoverCardClose}
